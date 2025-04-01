@@ -40,7 +40,7 @@ interface AutoResponderProps {
 }
 
 const defaultSettings: AutoResponderSettings = {
-  model: "gpt-3.5-turbo",
+  model: "auto",
   maxReviewsPerRequest: 10,
   language: "russian",
   tone: "friendly",
@@ -221,17 +221,21 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
               <Label htmlFor="model">Модель</Label>
               <Select
                 value={settings.model}
-                onValueChange={(value: "gpt-3.5-turbo" | "gpt-4" | "gpt-4o") => handleSettingsChange('model', value)}
+                onValueChange={(value: "gpt-3.5-turbo" | "gpt-4" | "gpt-4o" | "auto") => handleSettingsChange('model', value)}
               >
                 <SelectTrigger id="model">
                   <SelectValue placeholder="Выберите модель" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="auto">Автовыбор (рекомендуется)</SelectItem>
                   <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo (быстрее и дешевле)</SelectItem>
                   <SelectItem value="gpt-4">GPT-4 (качественнее, но дороже)</SelectItem>
                   <SelectItem value="gpt-4o">GPT-4o (новейшая модель)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Автовыбор: до 10 отзывов — GPT-3.5, более 10 — GPT-4o
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -345,15 +349,13 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
             <div className="space-y-2">
               <p className="font-medium">Промт для ChatGPT:</p>
               <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs">
-                <p>Ты — специалист клиентского сервиса в интернет-магазине, продающем товары через Wildberries.</p>
-                <p>Отвечай кратко (3–5 предложений), используя выбранный тон и язык.</p>
-                <p>Правила:</p>
+                <p>Ты — специалист клиентского сервиса магазина на Wildberries. На основе отзыва составь человечный, корректный и живой ответ (3-5 предложений).</p>
+                <p>Особые ситуации:</p>
                 <ul className="list-disc list-inside">
-                  <li>Балансируй плюсы и минусы</li>
-                  <li>Если хотят вернуть открытый парфюм — вежливо откажи</li>
-                  <li>Если получили не тот товар — извинись и попроси вернуть неиспользованным</li>
-                  <li>Если жалоба на подделку — легко пошути, что подделок не продаём</li>
-                  <li>Если повреждение при доставке — направь в поддержку Wildberries</li>
+                  <li>Использованный парфюм: «Возврат духов после вскрытия невозможен»</li>
+                  <li>Получен не тот товар (но не вскрыт): «Извинись, попроси вернуть»</li>
+                  <li>Жалоба на подделку: «Легко пошути, что подделок не продаём»</li>
+                  <li>Повреждение при доставке: «Направь в поддержку Wildberries»</li>
                 </ul>
               </div>
             </div>

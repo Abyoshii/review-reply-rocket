@@ -47,7 +47,7 @@ export interface GenerateAnswerResponse {
 }
 
 export interface AutoResponderSettings {
-  model: "gpt-3.5-turbo" | "gpt-4" | "gpt-4o";
+  model: "gpt-3.5-turbo" | "gpt-4" | "gpt-4o" | "auto";
   maxReviewsPerRequest: 5 | 10 | 20;
   language: "russian" | "english" | "kazakh";
   tone: "professional" | "friendly" | "formal";
@@ -64,4 +64,3 @@ export interface GenerateAutoAnswersRequest {
     cons?: string;
   }[];
 }
-
