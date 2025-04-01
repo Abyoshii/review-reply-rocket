@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import FilterForm from "@/components/FilterForm";
@@ -94,12 +95,6 @@ const Index = () => {
   useEffect(() => {
     fetchAnsweredReviews();
   }, [answeredFilters]);
-
-  useEffect(() => {
-    if (activeReviewsTab === "archive") {
-      fetchArchiveReviews();
-    }
-  }, [archiveFilters, activeReviewsTab]);
 
   useEffect(() => {
     if (activeTab === "questions") {
@@ -284,44 +279,6 @@ const Index = () => {
     }
   };
 
-  const fetchArchiveReviews = async () => {
-    setLoadingArchive(true);
-    try {
-      console.log("Загружаем архивные отзывы с параметрами:", archiveFilters);
-      const response = await WbAPI.getArchiveReviews(archiveFilters);
-      
-      if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
-        let filteredReviews = response.data.feedbacks;
-        
-        if (archiveFilters.ratingFilter) {
-          filteredReviews = applyRatingFilter(filteredReviews, archiveFilters.ratingFilter);
-        }
-        
-        setArchiveReviews(filteredReviews);
-      } else {
-        console.error("Некорректная структура ответа API для архивных отзывов:", response);
-        toast({
-          title: "Ошибка загрузки",
-          description: "Получены некорректные данные от API",
-          variant: "destructive",
-          important: true
-        });
-        setArchiveReviews([]);
-      }
-    } catch (error) {
-      console.error("Ошибка при загрузке архивных отзывов:", error);
-      toast({
-        title: "Ошибка загрузки",
-        description: "Не удалось загрузить архивные отзывы. Пожалуйста, попробуйте позже.",
-        variant: "destructive",
-        important: true
-      });
-      setArchiveReviews([]);
-    } finally {
-      setLoadingArchive(false);
-    }
-  };
-
   const applyRatingFilter = (reviews: WbReview[], ratingFilter: string): WbReview[] => {
     if (ratingFilter === 'all') return reviews;
     
@@ -433,8 +390,6 @@ const Index = () => {
         fetchUnansweredReviews();
       } else if (activeReviewsTab === "answered") {
         fetchAnsweredReviews();
-      } else if (activeReviewsTab === "archive") {
-        fetchArchiveReviews();
       } else if (activeReviewsTab === "processing") {
         // Processing tab doesn't need to refresh from API
         // as it's managed in local state
@@ -462,10 +417,6 @@ const Index = () => {
     setAnsweredFilters({ ...newFilters, isAnswered: true });
   };
 
-  const handleArchiveFilterChange = (newFilters: ReviewListParams) => {
-    setArchiveFilters(newFilters);
-  };
-
   const handleUnansweredQuestionsFilterChange = (newFilters: QuestionListParams) => {
     setUnansweredQuestionsFilters({...newFilters, isAnswered: false});
   };
@@ -490,8 +441,6 @@ const Index = () => {
       fetchUnansweredReviews();
     } else if (tab === "answered" && answeredReviews.length === 0) {
       fetchAnsweredReviews();
-    } else if (tab === "archive" && archiveReviews.length === 0) {
-      fetchArchiveReviews();
     }
     // No data loading for processing tab as it's managed locally
   };
@@ -506,8 +455,6 @@ const Index = () => {
       return unansweredReviews;
     } else if (activeReviewsTab === "answered") {
       return answeredReviews;
-    } else if (activeReviewsTab === "archive") {
-      return archiveReviews;
     } else if (activeReviewsTab === "processing") {
       return processingReviews;
     }
