@@ -74,14 +74,28 @@ export const WbAPI = {
   // Получение количества неотвеченных отзывов
   getUnansweredCount: async (): Promise<number> => {
     try {
-      const response = await axios.get(`${WB_API_BASE_URL}/count-unanswered`, {
+      console.log("Fetching unanswered count...");
+      const response = await axios.get(WB_API_BASE_URL, {
         headers: {
           Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
+        params: {
+          isAnswered: false,
+          take: 1,  // Запрашиваем только один отзыв, нам нужен только count
+          skip: 0,
+        },
       });
       
-      return response.data.data.count || 0;
+      console.log("Unanswered count response:", response.data);
+      
+      // Проверяем структуру ответа
+      if (response.data && response.data.data && typeof response.data.data.countUnanswered === 'number') {
+        return response.data.data.countUnanswered;
+      } else {
+        console.error("Некорректная структура ответа API при получении количества неотвеченных отзывов:", response.data);
+        return 0;
+      }
     } catch (error) {
       console.error("Error fetching unanswered count:", error);
       return 0;

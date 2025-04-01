@@ -10,13 +10,16 @@ export interface WbReview {
   brandName: string;
   productsArticle: string;
   text?: string | null; // Текст отзыва может быть null или undefined
+  pros?: string;
+  cons?: string;
   createdDate: string;
   lastModifiedDate: string;
-  photoLinks: string[] | null;
+  photoLinks: PhotoLink[] | null;
   size: string;
   rating: number;
+  productValuation?: number;
   color: string;
-  wbUserDetails: {
+  wbUserDetails?: {
     name: string;
     height: number;
     weight: number;
@@ -30,8 +33,11 @@ export interface WbReview {
     declinedModerationComment: string;
   } | null;
   video: {
-    uri: string;
-    thumbnail: string;
+    previewImage?: string;
+    link?: string;
+    uri?: string;
+    thumbnail?: string;
+    durationSec?: number;
   } | null;
   productDetails?: {
     imtId: number;
@@ -42,12 +48,15 @@ export interface WbReview {
     brandName: string;
     size: string;
   };
-  pros?: string;
-  cons?: string;
-  productValuation?: number;
   wasViewed?: boolean;
   userName?: string;
   matchingSize?: string;
+  lastOrderCreatedAt?: string;
+}
+
+export interface PhotoLink {
+  fullSize: string;
+  miniSize: string;
 }
 
 export interface WbReviewsResponse {
@@ -81,4 +90,5 @@ export interface ReviewListParams {
   nmId?: number;
   dateFrom?: string;
   dateTo?: string;
+  hasText?: boolean; // Добавлен параметр для фильтрации отзывов по наличию текста
 }

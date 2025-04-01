@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, RefreshCw } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
+import { toast } from "sonner";
 
 interface HeaderProps {
   unansweredCount: number;
@@ -21,12 +22,24 @@ const Header = ({
   const [isWbTokenDialogOpen, setIsWbTokenDialogOpen] = useState<boolean>(false);
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(false);
 
-  // Инициализация темы при загрузке компонента
+  // Инициализация темы и токенов при загрузке компонента
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "dark") {
       setIsDarkTheme(true);
       document.documentElement.classList.add("dark");
+    }
+    
+    // Загрузка сохраненного токена WB
+    const savedWbToken = localStorage.getItem("wb_token");
+    if (savedWbToken) {
+      setWbToken(savedWbToken);
+    }
+    
+    // Загрузка сохраненного API ключа OpenAI
+    const savedOpenAiKey = localStorage.getItem("openai_api_key");
+    if (savedOpenAiKey) {
+      setOpenApiKey(savedOpenAiKey);
     }
   }, []);
 
@@ -53,11 +66,14 @@ const Header = ({
   const handleApiKeySave = () => {
     localStorage.setItem("openai_api_key", openApiKey);
     setIsApiKeyDialogOpen(false);
+    toast.success("API ключ OpenAI сохранен");
   };
 
   const handleWbTokenSave = () => {
     localStorage.setItem("wb_token", wbToken);
     setIsWbTokenDialogOpen(false);
+    toast.success("Токен Wildberries сохранен, данные будут обновлены");
+    onRefresh(); // Обновляем данные сразу после изменения токена
   };
 
   return <header className="bg-wb-primary dark:bg-gray-900 text-white p-4 rounded-lg shadow-md mb-6 transition-colors duration-300">
@@ -70,7 +86,7 @@ const Header = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="bg-white/10 dark:bg-black/20 py-2 px-4 rounded-full transition-colors duration-300">
               <span className="font-medium">Необработанных отзывов: </span>
               <span className="text-wb-secondary font-bold">{unansweredCount}</span>
@@ -89,7 +105,7 @@ const Header = ({
               onClick={onRefresh} 
               className="border-white/20 dark:border-gray-700 hover:bg-white/10 hover:text-white transition-colors duration-300"
             >
-              Обновить
+              <RefreshCw size={16} className="mr-1" /> Обновить
             </Button>
 
             <Dialog open={isApiKeyDialogOpen} onOpenChange={setIsApiKeyDialogOpen}>
@@ -140,7 +156,7 @@ const Header = ({
                     className="col-span-3 dark:bg-gray-700 dark:text-white dark:border-gray-600 transition-colors duration-300" 
                   />
                   <Button onClick={handleWbTokenSave} className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300">
-                    Сохранить
+                    Сохранить и обновить данные
                   </Button>
                 </div>
               </DialogContent>

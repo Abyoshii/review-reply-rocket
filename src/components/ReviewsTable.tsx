@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { WbReview } from "@/types/wb";
+import { WbReview, PhotoLink } from "@/types/wb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,15 +8,17 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { OpenAIAPI, WbAPI } from "@/lib/api";
-import { GenerateAnswerRequest, GenerateAnswerResponse } from "@/types/openai";
+import { GenerateAnswerRequest } from "@/types/openai";
+import { Star, Calendar, User, ArrowUpRight, MessageSquare, CheckCircle } from "lucide-react";
 
 interface ReviewsTableProps {
   reviews: WbReview[];
   loading: boolean;
   onRefresh: () => void;
+  isAnswered: boolean;
 }
 
-const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
+const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableProps) => {
   const [selectedReviews, setSelectedReviews] = useState<Set<string>>(new Set());
   const [generatingAnswers, setGeneratingAnswers] = useState<Set<string>>(new Set());
   const [sendingAnswers, setSendingAnswers] = useState<Set<string>>(new Set());
@@ -52,12 +54,21 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
     setGeneratingAnswers(newGeneratingAnswers);
 
     try {
+      const reviewText = review.text || "Покупатель не оставил текстовый отзыв, только рейтинг";
+      
+      // Добавляем плюсы и минусы к тексту отзыва, если они есть
+      const fullReviewText = [
+        reviewText,
+        review.pros ? `Плюсы: ${review.pros}` : '',
+        review.cons ? `Минусы: ${review.cons}` : ''
+      ].filter(Boolean).join('\n');
+      
       const request: GenerateAnswerRequest = {
-        reviewText: review.text || "Покупатель не оставил текстовый отзыв, только рейтинг",
+        reviewText: fullReviewText,
         reviewId: review.id
       };
 
-      const response: GenerateAnswerResponse = await OpenAIAPI.generateAnswer(request);
+      const response = await OpenAIAPI.generateAnswer(request);
       
       // Обновляем состояние с ответами
       setAnswers(prev => ({
@@ -163,6 +174,42 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
     toast.success(`Отправлены ответы на ${reviewsWithAnswers.length} отзывов`);
   };
 
+  // Функция для форматирования даты
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('ru-RU', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error("Ошибка форматирования даты:", error);
+      return dateString;
+    }
+  };
+
+  // Функция для отображения рейтинга в виде звезд
+  const renderRating = (rating: number) => {
+    const stars = [];
+    for (let i = 0; i < 5; i++) {
+      stars.push(
+        <Star 
+          key={i} 
+          size={16} 
+          className={`${i < rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`}
+        />
+      );
+    }
+    return (
+      <div className="flex items-center">
+        {stars}
+        <span className="ml-1 text-sm font-medium">{rating}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Панель выбора действий */}
@@ -174,22 +221,28 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
         >
           {selectedReviews.size === (reviews?.length || 0) ? "Снять выбор" : "Выбрать все"}
         </Button>
-        <Button 
-          variant="outline" 
-          onClick={generateSelectedAnswers}
-          disabled={selectedReviews.size === 0}
-          className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
-        >
-          Сгенерировать ответы ({selectedReviews.size})
-        </Button>
-        <Button 
-          variant="default" 
-          onClick={sendSelectedAnswers}
-          disabled={selectedReviews.size === 0}
-          className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
-        >
-          Отправить ответы ({selectedReviews.size})
-        </Button>
+        
+        {!isAnswered && (
+          <>
+            <Button 
+              variant="outline" 
+              onClick={generateSelectedAnswers}
+              disabled={selectedReviews.size === 0}
+              className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
+            >
+              Сгенерировать ответы ({selectedReviews.size})
+            </Button>
+            
+            <Button 
+              variant="default" 
+              onClick={sendSelectedAnswers}
+              disabled={selectedReviews.size === 0}
+              className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
+            >
+              Отправить ответы ({selectedReviews.size})
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Список отзывов */}
@@ -200,7 +253,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
       ) : (
         <div className="space-y-4">
           {Array.isArray(reviews) && reviews.map((review) => (
-            <Card key={review.id} className="p-4 shadow-sm dark:bg-gray-700 dark:text-white transition-colors duration-300">
+            <Card key={review.id} className={`p-4 shadow-sm dark:bg-gray-700 dark:text-white transition-colors duration-300 ${review.answer ? 'border-l-4 border-green-500' : ''}`}>
               <div className="flex items-start space-x-4">
                 <div>
                   <Checkbox 
@@ -210,67 +263,171 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
                   />
                 </div>
                 <div className="flex-1 space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold dark:text-gray-200 transition-colors duration-300">Артикул: {review.nmId}</span>
-                    <Badge variant="outline" className="dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">{review.brandName}</Badge>
-                    <Badge variant="outline" className="dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">{review.supplierArticle}</Badge>
-                    <Badge className="bg-amber-500 dark:bg-amber-600 transition-colors duration-300">Рейтинг: {review.rating}</Badge>
-                    <Badge variant="outline" className="dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">{new Date(review.createdDate).toLocaleDateString()}</Badge>
+                  {/* Шапка отзыва с основной информацией */}
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <Badge variant="outline" className="flex items-center gap-1 dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">
+                      <Calendar size={14} /> {formatDate(review.createdDate)}
+                    </Badge>
+                    
+                    {review.userName && (
+                      <Badge variant="outline" className="flex items-center gap-1 dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">
+                        <User size={14} /> {review.userName}
+                      </Badge>
+                    )}
+                    
+                    <Badge className="bg-amber-500 dark:bg-amber-600 transition-colors duration-300">
+                      {renderRating(review.rating || review.productValuation || 0)}
+                    </Badge>
+                    
+                    {review.answer && (
+                      <Badge className="bg-green-500 dark:bg-green-600 transition-colors duration-300 flex items-center gap-1">
+                        <CheckCircle size={14} /> ОТВЕЧЕННЫЙ ОТЗЫВ
+                      </Badge>
+                    )}
                   </div>
                   
-                  <h3 className="font-semibold text-lg dark:text-white transition-colors duration-300">{review.productName}</h3>
-                  
-                  <div className="border-l-4 border-wb-light dark:border-purple-500 pl-3 py-1 bg-gray-50 dark:bg-gray-800 rounded transition-colors duration-300">
-                    <p className="text-gray-700 dark:text-gray-300 transition-colors duration-300">
-                      {review.text || "Покупатель не оставил текстовый отзыв, только рейтинг"}
-                    </p>
-                  </div>
-                  
-                  {/* Фото отзыва */}
-                  {review.photoLinks && review.photoLinks.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {review.photoLinks.map((photo, index) => (
-                        <a 
-                          key={index} 
-                          href={photo} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="block w-16 h-16 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300"
-                        >
-                          <img src={photo} alt="Фото к отзыву" className="w-full h-full object-cover" />
+                  {/* Информация о товаре */}
+                  <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                    {/* Артикул и информация о товаре */}
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="font-semibold text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded dark:text-gray-200 transition-colors duration-300">
+                          Артикул: {review.supplierArticle || (review.productDetails?.supplierArticle || 'Н/Д')}
+                        </span>
+                        {review.brandName && (
+                          <Badge variant="outline" className="dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">
+                            {review.brandName}
+                          </Badge>
+                        )}
+                        {review.nmId && (
+                          <Badge variant="outline" className="dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">
+                            NM: {review.nmId}
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <h3 className="font-semibold text-lg dark:text-white transition-colors duration-300">
+                        {review.productName || (review.productDetails?.productName || 'Название товара отсутствует')}
+                      </h3>
+                    </div>
+                    
+                    {/* Фото товара если есть */}
+                    {Array.isArray(review.photoLinks) && review.photoLinks.length > 0 && review.photoLinks[0].miniSize && (
+                      <div className="w-20 h-20 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300 flex-shrink-0">
+                        <a href={review.photoLinks[0].fullSize} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                          <img src={review.photoLinks[0].miniSize} alt="Фото товара" className="w-full h-full object-cover" />
                         </a>
-                      ))}
+                      </div>
+                    )}
+                    
+                    {/* Фото в старом формате */}
+                    {review.photoLinks && !Array.isArray(review.photoLinks) && typeof review.photoLinks === 'object' && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {review.photoLinks.map((photo: string, index: number) => (
+                          <a 
+                            key={index} 
+                            href={photo} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block w-16 h-16 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300"
+                          >
+                            <img src={photo} alt="Фото к отзыву" className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Видео отзыва если есть */}
+                    {review.video && (review.video.previewImage || review.video.thumbnail) && (
+                      <div className="w-20 h-20 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300 flex-shrink-0 relative">
+                        <a 
+                          href={review.video.link || review.video.uri || '#'} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="block w-full h-full"
+                        >
+                          <img 
+                            src={review.video.previewImage || review.video.thumbnail || ''} 
+                            alt="Превью видео" 
+                            className="w-full h-full object-cover" 
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                              <ArrowUpRight size={16} className="text-black" />
+                            </div>
+                          </div>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Текст отзыва */}
+                  <div className="border-l-4 border-wb-light dark:border-purple-500 pl-3 py-1 bg-gray-50 dark:bg-gray-800 rounded transition-colors duration-300">
+                    <div className="text-gray-700 dark:text-gray-300 transition-colors duration-300 mb-2">
+                      <p className="font-medium flex items-center gap-1 mb-1">
+                        <MessageSquare size={14} /> Отзыв клиента:
+                      </p>
+                      <p className="whitespace-pre-line">
+                        {review.text || "Покупатель не оставил текстовый отзыв, только рейтинг"}
+                      </p>
+                    </div>
+                    
+                    {/* Плюсы и минусы */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                      {review.pros && (
+                        <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                          <p className="text-sm font-medium text-green-700 dark:text-green-400">Плюсы:</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{review.pros}</p>
+                        </div>
+                      )}
+                      
+                      {review.cons && (
+                        <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                          <p className="text-sm font-medium text-red-700 dark:text-red-400">Минусы:</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{review.cons}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Если есть ответ на отзыв, показываем его */}
+                  {review.answer && review.answer.text && (
+                    <div className="border-l-4 border-green-500 pl-3 py-2 bg-green-50 dark:bg-green-900/20 rounded">
+                      <p className="font-medium text-green-700 dark:text-green-400 mb-1">Ответ:</p>
+                      <p className="text-gray-700 dark:text-gray-300">{review.answer.text}</p>
                     </div>
                   )}
                   
-                  {/* Текстовое поле для ответа */}
-                  <div className="mt-3 space-y-2">
-                    <Textarea 
-                      placeholder="Ответ на отзыв будет сгенерирован здесь..."
-                      value={answers[review.id] || ""}
-                      onChange={(e) => updateAnswer(review.id, e.target.value)}
-                      className="min-h-24 dark:bg-gray-800 dark:text-white dark:border-gray-600 transition-colors duration-300"
-                    />
-                    
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => generateAnswer(review)}
-                        disabled={generatingAnswers.has(review.id)}
-                        className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
-                      >
-                        {generatingAnswers.has(review.id) ? "Генерация..." : "Сгенерировать ответ"}
-                      </Button>
+                  {/* Блок с ответом, если отзыв не отвечен */}
+                  {!review.answer && (
+                    <div className="mt-3 space-y-2">
+                      <Textarea 
+                        placeholder="Ответ на отзыв будет сгенерирован здесь..."
+                        value={answers[review.id] || ""}
+                        onChange={(e) => updateAnswer(review.id, e.target.value)}
+                        className="min-h-24 dark:bg-gray-800 dark:text-white dark:border-gray-600 transition-colors duration-300"
+                      />
                       
-                      <Button
-                        className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
-                        onClick={() => sendAnswer(review)}
-                        disabled={!answers[review.id] || sendingAnswers.has(review.id)}
-                      >
-                        {sendingAnswers.has(review.id) ? "Отправка..." : "Отправить ответ"}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => generateAnswer(review)}
+                          disabled={generatingAnswers.has(review.id)}
+                          className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
+                        >
+                          {generatingAnswers.has(review.id) ? "Генерация..." : "Сгенерировать ответ"}
+                        </Button>
+                        
+                        <Button
+                          className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
+                          onClick={() => sendAnswer(review)}
+                          disabled={!answers[review.id] || sendingAnswers.has(review.id)}
+                        >
+                          {sendingAnswers.has(review.id) ? "Отправка..." : "Отправить ответ"}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </Card>
