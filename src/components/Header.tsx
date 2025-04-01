@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   Key,
+  Bot,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -33,6 +34,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -70,6 +72,8 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
   const [wbToken, setWbToken] = useState(() => {
     return localStorage.getItem("wb_token") || "";
   });
+  // Add the missing state for autoResponder dialog
+  const [autoResponderOpen, setAutoResponderOpen] = useState(false);
 
   const handleNotificationSettingsChange = (key: string, value: any) => {
     const updatedSettings = {

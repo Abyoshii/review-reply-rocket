@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import FilterForm from "@/components/FilterForm";
@@ -534,24 +533,6 @@ const Index = () => {
               unansweredQuestionsCount={unansweredQuestionsCount}
               onRefresh={handleRefresh} 
             />
-            
-            <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors duration-300"
-                >
-                  <Bot size={16} />
-                  Автоответчик
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <AutoResponder 
-                  selectedReviews={getSelectedReviews()} 
-                  onSuccess={handleAutoResponderSuccess}
-                  onMoveToProcessing={handleBulkReviewsToProcessing}
-                />
-              </DialogContent>
-            </Dialog>
           </div>
           
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
@@ -723,6 +704,16 @@ const Index = () => {
           </div>
         </div>
       </div>
+      
+      <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <AutoResponder 
+            selectedReviews={getSelectedReviews()} 
+            onSuccess={handleAutoResponderSuccess}
+            onMoveToProcessing={handleBulkReviewsToProcessing}
+          />
+        </DialogContent>
+      </Dialog>
     </ThemeProvider>
   );
 };
