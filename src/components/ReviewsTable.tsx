@@ -96,13 +96,11 @@ const ReviewsTable = ({
         [review.id]: response.answer
       }));
 
-      // Save the model used for this review
       setModelUsed(prev => ({
         ...prev,
         [review.id]: response.modelUsed
       }));
 
-      // Update generation progress
       setGenerationProgress(prev => ({
         ...prev,
         completed: prev.completed + 1
@@ -133,7 +131,6 @@ const ReviewsTable = ({
       return;
     }
 
-    // Immediately move review to "processing" state
     if (onReviewStateChange) {
       onReviewStateChange(review.id, "sending");
     }
@@ -168,7 +165,6 @@ const ReviewsTable = ({
         }, 500);
       }
       
-      // Update review state to "answered"
       if (onReviewStateChange) {
         onReviewStateChange(review.id, "answered");
       }
@@ -182,7 +178,6 @@ const ReviewsTable = ({
       });
       setSendProgress(prev => ({ ...prev, failed: prev.failed + 1 }));
       
-      // Return the review to "unanswered" state
       if (onReviewStateChange) {
         onReviewStateChange(review.id, "error");
         setTimeout(() => {
@@ -226,7 +221,6 @@ const ReviewsTable = ({
       return;
     }
 
-    // Mark as sending
     if (onReviewStateChange) {
       onReviewStateChange(review.id, "sending");
     }
@@ -251,7 +245,6 @@ const ReviewsTable = ({
       newEditingAnswers.delete(review.id);
       setEditingAnswers(newEditingAnswers);
       
-      // Update review state to "answered"
       if (onReviewStateChange) {
         onReviewStateChange(review.id, "answered");
       }
@@ -266,7 +259,6 @@ const ReviewsTable = ({
         important: true
       });
       
-      // Return to normal state
       if (onReviewStateChange) {
         onReviewStateChange(review.id, "error");
         setTimeout(() => {
@@ -305,10 +297,8 @@ const ReviewsTable = ({
       return;
     }
 
-    // Reset and set up progress tracking
     setGenerationProgress({ completed: 0, total: selectedReviews.size });
 
-    // Only show a single notification for batch operations
     toast({
       title: "Начата генерация",
       description: `Генерация ответов для ${selectedReviews.size} отзывов...`,
@@ -329,7 +319,6 @@ const ReviewsTable = ({
       important: true
     });
     
-    // Reset progress after completion
     setTimeout(() => {
       setGenerationProgress({ completed: 0, total: 0 });
     }, 2000);
@@ -370,14 +359,12 @@ const ReviewsTable = ({
       important: true
     });
 
-    // Move all selected reviews to processing immediately
     if (onReviewStateChange) {
       for (const reviewId of reviewsWithAnswers) {
         onReviewStateChange(reviewId, "sending");
       }
     }
 
-    // Then process them one by one
     for (const reviewId of reviewsWithAnswers) {
       const review = reviews?.find(r => r.id === reviewId);
       if (review) {
@@ -385,6 +372,10 @@ const ReviewsTable = ({
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
+  };
+
+  const clearSelection = () => {
+    setSelectedReviews(new Set());
   };
 
   const formatDate = (dateString: string) => {
@@ -440,7 +431,6 @@ const ReviewsTable = ({
     return Array.isArray(photoLinks) && photoLinks.length > 0 && photoLinks[0]?.miniSize;
   };
 
-  // Filter out reviews that are being processed if needed
   const filteredReviews = reviews.filter(review => 
     !processingReviewIds || !processingReviewIds.has(review.id)
   );
@@ -506,6 +496,7 @@ const ReviewsTable = ({
         onGenerateAnswers={generateSelectedAnswers}
         onSendAnswers={sendSelectedAnswers}
         onRefresh={onRefresh}
+        onClearSelection={clearSelection}
         hasAnswers={Object.keys(answers).length > 0}
         generationProgress={generationProgress.total > 0 ? generationProgress : undefined}
         sendingProgress={sendProgress.total > 0 ? sendProgress : undefined}

@@ -49,7 +49,7 @@ export function Toaster() {
 
   return (
     <ToastProvider duration={toastDuration}>
-      <div className="toast-container" style={{ opacity: settings.opacity, pointerEvents: "none" }}>
+      <div className="toast-container" style={{ opacity: settings.opacity }}>
         {toasts.map(function ({ id, title, description, action, important, ...props }) {
           // Skip toast if notifications are disabled or if this is not important and only important should be shown
           if (window.toastSettings?.disabled || 
