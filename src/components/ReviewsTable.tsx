@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { OpenAIAPI, WbAPI } from "@/lib/api";
 import { GenerateAnswerRequest } from "@/types/openai";
-import { Star, Calendar, User, ArrowUpRight, MessageSquare, CheckCircle, Edit, Save } from "lucide-react";
+import { Star, Calendar, User, ArrowUpRight, MessageSquare, CheckCircle, Edit, Save, Send } from "lucide-react";
 import FloatingActionButtons from "./FloatingActionButtons";
 
 interface ReviewsTableProps {
