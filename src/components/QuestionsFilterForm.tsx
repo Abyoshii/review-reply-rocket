@@ -1,5 +1,4 @@
 
-import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ReviewListParams } from "@/types/wb";
+import { QuestionListParams } from "@/types/wb";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const filterSchema = z.object({
@@ -24,12 +23,12 @@ const filterSchema = z.object({
   dateTo: z.string().optional(),
 });
 
-interface FilterFormProps {
-  onFilterChange: (filters: ReviewListParams) => void;
+interface QuestionsFilterFormProps {
+  onFilterChange: (filters: QuestionListParams) => void;
   loading: boolean;
 }
 
-const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
+const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormProps) => {
   // Создаем форму с начальными значениями
   const form = useForm<z.infer<typeof filterSchema>>({
     resolver: zodResolver(filterSchema),
@@ -46,7 +45,7 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
 
   // Обработчик отправки формы
   const onSubmit = (values: z.infer<typeof filterSchema>) => {
-    onFilterChange(values as ReviewListParams);
+    onFilterChange(values as QuestionListParams);
   };
 
   // Handle take value change
@@ -57,7 +56,7 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
   return (
     <Card className="shadow-sm">
       <CardHeader>
-        <CardTitle>Фильтр отзывов</CardTitle>
+        <CardTitle>Фильтр вопросов</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -125,13 +124,13 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
                 )}
               />
 
-              {/* Количество отзывов как переключатели */}
+              {/* Количество вопросов как переключатели */}
               <FormField
                 control={form.control}
                 name="take"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Количество отзывов</FormLabel>
+                    <FormLabel>Количество вопросов</FormLabel>
                     <FormControl>
                       <ToggleGroup 
                         type="single" 
@@ -204,4 +203,4 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
   );
 };
 
-export default FilterForm;
+export default QuestionsFilterForm;

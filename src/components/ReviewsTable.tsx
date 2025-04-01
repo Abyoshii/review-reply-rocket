@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { WbReview, PhotoLink } from "@/types/wb";
 import { Badge } from "@/components/ui/badge";
@@ -177,6 +178,22 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     }
   };
 
+  // Updated date formatter for more compact display
+  const formatDateCompact = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('ru-RU', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).replace(/(\d{2})\.(\d{2})\.(\d{2}), (\d{2}):(\d{2})/, '$1.$2.$3, $4:$5');
+    } catch (error) {
+      console.error("Ошибка форматирования даты:", error);
+      return dateString;
+    }
+  };
+
   const renderRating = (rating: number) => {
     const stars = [];
     for (let i = 0; i < 5; i++) {
@@ -249,7 +266,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                 <div className="flex-1 space-y-3">
                   <div className="flex flex-wrap gap-2 items-center">
                     <Badge variant="outline" className="flex items-center gap-1 dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">
-                      <Calendar size={14} /> {formatDate(review.createdDate)}
+                      <Calendar size={14} /> {formatDateCompact(review.createdDate)}
                     </Badge>
                     
                     {review.userName && (
@@ -302,19 +319,18 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                     
                     {review.photoLinks && !Array.isArray(review.photoLinks) && typeof review.photoLinks === 'object' && (
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {Object.prototype.toString.call(review.photoLinks) === '[object Array]' ? 
-                          (review.photoLinks as unknown as string[]).map((photo: string, index: number) => (
+                        {Object.prototype.toString.call(review.photoLinks) === '[object Array]' && 
+                          Array.isArray(review.photoLinks) && review.photoLinks.map((photo: PhotoLink, index: number) => (
                             <a 
                               key={index} 
-                              href={photo} 
+                              href={photo.fullSize} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="block w-16 h-16 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300"
                             >
-                              <img src={photo} alt="Фото к отзыву" className="w-full h-full object-cover" />
+                              <img src={photo.miniSize} alt="Фото к отзыву" className="w-full h-full object-cover" />
                             </a>
                           ))
-                          : null
                         }
                       </div>
                     )}
@@ -348,12 +364,13 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                         <MessageSquare size={14} /> Отзыв клиента:
                       </p>
                       <p className="whitespace-pre-line">
-                        {review.text || "Покупатель не оставил текстовый отзыв, только рейтинг"}
+                        {/* Fix: Show pros field as text if no review text but pros exists */}
+                        {review.text ? review.text : (review.pros ? review.pros : "Покупатель не оставил текстовый отзыв, только рейтинг")}
                       </p>
                     </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                      {review.pros && (
+                      {review.pros && review.text !== review.pros && (
                         <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
                           <p className="text-sm font-medium text-green-700 dark:text-green-400">Плюсы:</p>
                           <p className="text-sm text-gray-700 dark:text-gray-300">{review.pros}</p>

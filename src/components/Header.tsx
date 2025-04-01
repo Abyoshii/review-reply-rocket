@@ -3,17 +3,19 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Moon, Sun, RefreshCw } from "lucide-react";
+import { Moon, Sun, RefreshCw, MessageCircle } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { toast } from "sonner";
 
 interface HeaderProps {
   unansweredCount: number;
+  unansweredQuestionsCount?: number;
   onRefresh: () => void;
 }
 
 const Header = ({
   unansweredCount,
+  unansweredQuestionsCount = 0,
   onRefresh
 }: HeaderProps) => {
   const [openApiKey, setOpenApiKey] = useState<string>("");
@@ -91,6 +93,14 @@ const Header = ({
               <span className="font-medium">Необработанных отзывов: </span>
               <span className="text-wb-secondary font-bold">{unansweredCount}</span>
             </div>
+
+            {unansweredQuestionsCount > 0 && (
+              <div className="bg-white/10 dark:bg-black/20 py-2 px-4 rounded-full transition-colors duration-300 flex items-center">
+                <MessageCircle size={16} className="mr-2" />
+                <span className="font-medium">Неотвеченные вопросы: </span>
+                <span className="text-wb-secondary font-bold">{unansweredQuestionsCount}</span>
+              </div>
+            )}
             
             <Toggle 
               pressed={isDarkTheme} 

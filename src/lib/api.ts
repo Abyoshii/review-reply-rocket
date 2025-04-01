@@ -1,11 +1,23 @@
 
 import axios from "axios";
-import { ReviewListParams, WbReviewsResponse, WbAnswerRequest, WbAnswerResponse } from "@/types/wb";
+import { 
+  ReviewListParams, 
+  WbReviewsResponse, 
+  WbAnswerRequest, 
+  WbAnswerResponse,
+  QuestionListParams,
+  WbQuestionsResponse,
+  WbQuestionAnswerRequest,
+  WbQuestionAnswerResponse
+} from "@/types/wb";
 import { GenerateAnswerRequest, GenerateAnswerResponse } from "@/types/openai";
 import { toast } from "sonner";
 
 // WB API
-const WB_API_BASE_URL = "https://feedbacks-api.wildberries.ru/api/v1/feedbacks";
+const WB_API_BASE_URL = "https://feedbacks-api.wildberries.ru/api/v1";
+const FEEDBACKS_URL = `${WB_API_BASE_URL}/feedbacks`;
+const QUESTIONS_URL = `${WB_API_BASE_URL}/questions`;
+
 // Дефолтный токен, будет использоваться если пользователь не указал свой
 const DEFAULT_WB_TOKEN = "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
 
@@ -28,7 +40,7 @@ export const WbAPI = {
       console.log("Fetching reviews with params:", params);
       console.log("Using WB token:", getWbToken());
       
-      const response = await axios.get(WB_API_BASE_URL, {
+      const response = await axios.get(FEEDBACKS_URL, {
         headers: {
           Authorization: getWbToken(),
           "Content-Type": "application/json",
@@ -52,7 +64,7 @@ export const WbAPI = {
   // Отправка ответа на отзыв
   sendAnswer: async (data: WbAnswerRequest): Promise<WbAnswerResponse> => {
     try {
-      const response = await axios.post(`${WB_API_BASE_URL}/answer`, data, {
+      const response = await axios.post(`${FEEDBACKS_URL}/answer`, data, {
         headers: {
           Authorization: getWbToken(),
           "Content-Type": "application/json",
@@ -75,7 +87,7 @@ export const WbAPI = {
   getUnansweredCount: async (): Promise<number> => {
     try {
       console.log("Fetching unanswered count...");
-      const response = await axios.get(WB_API_BASE_URL, {
+      const response = await axios.get(FEEDBACKS_URL, {
         headers: {
           Authorization: getWbToken(),
           "Content-Type": "application/json",
@@ -101,6 +113,80 @@ export const WbAPI = {
       return 0;
     }
   },
+
+  // Получение списка вопросов
+  getQuestions: async (params: QuestionListParams): Promise<WbQuestionsResponse> => {
+    try {
+      console.log("Fetching questions with params:", params);
+      
+      const response = await axios.get(QUESTIONS_URL, {
+        headers: {
+          Authorization: getWbToken(),
+          "Content-Type": "application/json",
+        },
+        params: params,
+      });
+      
+      console.log("WB API Questions Response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        toast.error(`Ошибка получения вопросов: ${error.response.status} ${error.response.statusText}`);
+      } else {
+        toast.error("Ошибка получения вопросов. Проверьте консоль для деталей.");
+      }
+      throw error;
+    }
+  },
+
+  // Получение количества неотвеченных вопросов
+  getUnansweredQuestionsCount: async (): Promise<number> => {
+    try {
+      console.log("Fetching unanswered questions count...");
+      const response = await axios.get(`${QUESTIONS_URL}/count-unanswered`, {
+        headers: {
+          Authorization: getWbToken(),
+          "Content-Type": "application/json",
+        },
+      });
+      
+      console.log("Unanswered questions count response:", response.data);
+      
+      // Проверяем структуру ответа
+      if (response.data && response.data.data && typeof response.data.data.count === 'number') {
+        return response.data.data.count;
+      } else {
+        console.error("Некорректная структура ответа API при получении количества неотвеченных вопросов:", response.data);
+        return 0;
+      }
+    } catch (error) {
+      console.error("Error fetching unanswered questions count:", error);
+      return 0;
+    }
+  },
+
+  // Работа с вопросом (ответ, редактирование, отклонение, отметка просмотренным)
+  handleQuestion: async (data: WbQuestionAnswerRequest): Promise<WbQuestionAnswerResponse> => {
+    try {
+      const response = await axios.patch(QUESTIONS_URL, data, {
+        headers: {
+          Authorization: getWbToken(),
+          "Content-Type": "application/json",
+        },
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error("Error handling question:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        toast.error(`Ошибка при работе с вопросом: ${error.response.status} ${error.response.statusText}`);
+      } else {
+        toast.error("Ошибка при работе с вопросом. Проверьте консоль для деталей.");
+      }
+      throw error;
+    }
+  }
 };
 
 // OpenAI API

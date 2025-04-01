@@ -92,3 +92,64 @@ export interface ReviewListParams {
   dateTo?: string;
   hasText?: boolean; // Добавлен параметр для фильтрации отзывов по наличию текста
 }
+
+// Типы для работы с вопросами клиентов
+export interface WbQuestion {
+  id: string;
+  text: string;
+  createdDate: string;
+  state: string;
+  answer: {
+    text: string;
+    state: string;
+    editable: boolean;
+    createDate: string;
+  } | null;
+  productDetails: {
+    imtId: number;
+    nmId: number;
+    productName: string;
+    supplierArticle: string;
+    supplierName: string;
+    brandName: string;
+  };
+  wasViewed: boolean;
+  isWarned: boolean;
+  userName?: string;
+  photoLinks?: PhotoLink[];
+}
+
+export interface WbQuestionsResponse {
+  data: {
+    countUnanswered: number;
+    countArchive: number;
+    questions: WbQuestion[];
+  };
+  error: boolean;
+  errorText: string;
+  additionalErrors: any;
+}
+
+export interface QuestionListParams {
+  isAnswered?: boolean;
+  take: number;
+  skip: number;
+  order?: "dateAsc" | "dateDesc";
+  nmId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface WbQuestionAnswerRequest {
+  id: string;
+  type: "answer" | "edit" | "decline" | "markViewed";
+  text?: string;
+}
+
+export interface WbQuestionAnswerResponse {
+  error: boolean;
+  errorText: string;
+  data: {
+    questionId: string;
+  };
+}
