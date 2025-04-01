@@ -49,7 +49,7 @@ export function Toaster() {
 
   return (
     <ToastProvider duration={toastDuration}>
-      <div className="toast-container" style={{ opacity: settings.opacity }}>
+      <div className="toast-container" style={{ opacity: settings.opacity, pointerEvents: "none" }}>
         {toasts.map(function ({ id, title, description, action, important, ...props }) {
           // Skip toast if notifications are disabled or if this is not important and only important should be shown
           if (window.toastSettings?.disabled || 
@@ -60,7 +60,7 @@ export function Toaster() {
           }
           
           return (
-            <Toast key={id} {...props} className="opacity-90 rounded-lg">
+            <Toast key={id} {...props} className="opacity-90 rounded-lg pointer-events-auto">
               <div className="grid gap-1">
                 {title && <ToastTitle>{title}</ToastTitle>}
                 {description && (

@@ -135,6 +135,9 @@ const Index = () => {
         });
         // Remove from unanswered list (visual effect only)
         setUnansweredReviews(prev => prev.filter(r => r.id !== reviewId));
+        
+        // Automatically switch to the processing tab
+        setActiveReviewsTab("processing");
       }
     } 
     else if (newState === "answered") {
@@ -169,6 +172,30 @@ const Index = () => {
           setUnansweredReviews(prev => [reviewToReturn, ...prev]);
         }
       }
+    }
+  };
+
+  // Handle bulk reviews move to processing
+  const handleBulkReviewsToProcessing = (reviewIds: string[]) => {
+    // Find all reviews in the current selection
+    const reviewsToMove = unansweredReviews.filter(r => reviewIds.includes(r.id));
+    
+    if (reviewsToMove.length > 0) {
+      // Add to processing list
+      setProcessingReviews(prev => [...prev, ...reviewsToMove]);
+      
+      // Add to processing IDs set
+      setProcessingReviewIds(prev => {
+        const newSet = new Set(prev);
+        reviewIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+      
+      // Remove from unanswered list
+      setUnansweredReviews(prev => prev.filter(r => !reviewIds.includes(r.id)));
+      
+      // Automatically switch to the processing tab
+      setActiveReviewsTab("processing");
     }
   };
 
@@ -520,7 +547,8 @@ const Index = () => {
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <AutoResponder 
                   selectedReviews={getSelectedReviews()} 
-                  onSuccess={handleAutoResponderSuccess} 
+                  onSuccess={handleAutoResponderSuccess}
+                  onMoveToProcessing={handleBulkReviewsToProcessing}
                 />
               </DialogContent>
             </Dialog>

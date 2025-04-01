@@ -11,6 +11,7 @@ import {
   Clock,
   Eye,
   EyeOff,
+  Key,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,9 +26,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -54,6 +64,11 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
       displayTime: 5000,
       notificationType: 'important'
     };
+  });
+  
+  const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+  const [wbToken, setWbToken] = useState(() => {
+    return localStorage.getItem("wb_token") || "";
   });
 
   const handleNotificationSettingsChange = (key: string, value: any) => {
@@ -91,6 +106,16 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
       }, 1000);
     }, 100);
   };
+  
+  const saveWbToken = () => {
+    localStorage.setItem("wb_token", wbToken);
+    setTokenDialogOpen(false);
+    toast({
+      title: "Токен сохранен",
+      description: "Токен Wildberries успешно сохранен",
+      important: true
+    });
+  };
 
   return (
     <div className="flex items-center justify-between">
@@ -100,7 +125,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
             Asterion
           </span>
         </h1>
-        <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
+        <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">
           Система управления отзывами
         </span>
         
@@ -215,6 +240,14 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           </PopoverContent>
         </Popover>
         
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => setTokenDialogOpen(true)}
+        >
+          <Key size={18} />
+        </Button>
+        
         <Button variant="outline" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </Button>
@@ -224,6 +257,41 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           Обновить
         </Button>
       </div>
+      
+      <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Токен Wildberries</DialogTitle>
+            <DialogDescription>
+              Введите ваш токен доступа к API Wildberries
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <Label htmlFor="wb-token" className="sr-only">
+              Токен
+            </Label>
+            <Input
+              id="wb-token"
+              value={wbToken}
+              onChange={(e) => setWbToken(e.target.value)}
+              placeholder="Введите токен Wildberries"
+              className="w-full"
+            />
+          </div>
+          <DialogFooter className="sm:justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setTokenDialogOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button type="button" onClick={saveWbToken}>
+              Сохранить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

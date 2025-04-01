@@ -19,7 +19,6 @@ import {
   Bot,
   AlertCircle,
   Check,
-  Settings,
   Send,
   RefreshCw,
   Loader2,
@@ -51,6 +50,7 @@ import { Progress } from "@/components/ui/progress";
 interface AutoResponderProps {
   selectedReviews: WbReview[];
   onSuccess: () => void;
+  onMoveToProcessing?: (reviewIds: string[]) => void;
 }
 
 const defaultSettings: AutoResponderSettings = {
@@ -64,7 +64,7 @@ const defaultSettings: AutoResponderSettings = {
   customPrompt: ""
 };
 
-const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
+const AutoResponder = ({ selectedReviews, onSuccess, onMoveToProcessing }: AutoResponderProps) => {
   const [settings, setSettings] = useState<AutoResponderSettings>(() => {
     const savedSettings = localStorage.getItem('autoResponderSettings');
     return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
@@ -175,7 +175,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       
       toast({
         title: "Ответы успешно сгенерированы!",
-        description: `Создано ${Object.keys(result).length} ответов. Использовалась модель: ${effectiveModel}`,
+        description: `Создано ${Object.keys(result).length} ответов.`,
         variant: "default",
         important: true,
       });
@@ -207,6 +207,11 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         important: true,
       });
       return;
+    }
+
+    // Immediately move reviews to processing
+    if (onMoveToProcessing) {
+      onMoveToProcessing(reviewIds);
     }
 
     setIsSending(true);
@@ -319,7 +324,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         setPendingReviews(new Set());
       }, 500);
     }
-  }, 500), [answersMap, onSuccess]);
+  }, 500), [answersMap, onSuccess, onMoveToProcessing]);
 
   const updateAnswerText = (reviewId: string, text: string) => {
     setAnswersMap(prev => ({
@@ -352,7 +357,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 space-y-3">
           <h3 className="text-lg font-medium flex items-center gap-2">
-            <Settings size={16} /> Настройки автоответчика
+            <Sliders size={16} /> Настройки автоответчика
           </h3>
 
           <div className="space-y-4">
@@ -745,6 +750,12 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 const isSent = sentReviews.has(review.id);
                 const isFailed = failedReviews.has(review.id);
                 
+                // Add model info badge
+                const modelUsed = settings.model === "auto" ? 
+                  (selectedReviews.length >= 10 ? "GPT-4o" : "GPT-3.5") : 
+                  (settings.model === "gpt-4o" ? "GPT-4o" : 
+                   (settings.model === "gpt-4" ? "GPT-4" : "GPT-3.5"));
+                
                 return (
                   <div 
                     key={review.id} 
@@ -758,12 +769,18 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                     <div className={`border-l-4 pl-2 ${
                       isFailed ? 'border-red-500' : (isSent ? 'border-green-500' : (isPending ? 'border-amber-500' : 'border-blue-500'))
                     }`}>
-                      {isPending && !isSent && !isFailed && (
-                        <div className="flex items-center text-amber-600 mb-2">
-                          <Loader2 size={14} className="animate-spin mr-2" />
-                          <span className="text-xs">Отправка ответа...</span>
+                      <div className="flex justify-between items-center mb-2">
+                        {isPending && !isSent && !isFailed && (
+                          <div className="flex items-center text-amber-600">
+                            <Loader2 size={14} className="animate-spin mr-2" />
+                            <span className="text-xs">Отправка ответа...</span>
+                          </div>
+                        )}
+                        
+                        <div className="text-xs text-gray-500 ml-auto">
+                          ⚙️ Сгенерировано: {modelUsed}
                         </div>
-                      )}
+                      </div>
                       
                       {isFailed && (
                         <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs p-2 mb-2 rounded">
