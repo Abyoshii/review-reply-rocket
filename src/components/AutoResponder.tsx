@@ -21,6 +21,10 @@ import {
   Send,
   RefreshCw,
   Loader2,
+  Code,
+  Sparkles,
+  Sliders,
+  Thermometer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { WbReview } from "@/types/wb";
@@ -32,7 +36,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { debounce } from "@/lib/utils";
+import { 
+  Collapsible, 
+  CollapsibleContent, 
+  CollapsibleTrigger 
+} from "@/components/ui/collapsible";
+import { debounce, generateSystemPrompt, sleep } from "@/lib/utils";
 
 interface AutoResponderProps {
   selectedReviews: WbReview[];
@@ -45,7 +54,9 @@ const defaultSettings: AutoResponderSettings = {
   language: "russian",
   tone: "friendly",
   useEmoji: true,
-  signature: ""
+  signature: "",
+  temperature: 0.7,
+  customPrompt: ""
 };
 
 const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
@@ -59,6 +70,14 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   const [isSending, setIsSending] = useState(false);
   const [selectedReviewsForGeneration, setSelectedReviewsForGeneration] = useState<WbReview[]>([]);
   const [processingReviews, setProcessingReviews] = useState<Set<string>>(new Set());
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [promptPreview, setPromptPreview] = useState("");
+
+  // Обновляем превью промта при изменении настроек
+  useEffect(() => {
+    const preview = generateSystemPrompt(settings);
+    setPromptPreview(preview);
+  }, [settings]);
 
   // Сохраняем настройки в localStorage при их изменении
   useEffect(() => {
@@ -103,8 +122,20 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       
       console.log(`Отправляем в обработку ${reviewsForApi.length} отзывов`);
       
+      // Определяем модель на основе настроек и количества отзывов
+      let effectiveModel = settings.model;
+      if (settings.model === "auto") {
+        effectiveModel = reviewsForApi.length >= 10 ? "gpt-4o" : "gpt-3.5-turbo";
+        console.log(`Автоматически выбрана модель: ${effectiveModel} (на основе количества отзывов: ${reviewsForApi.length})`);
+      }
+      
+      const effectiveSettings = {
+        ...settings,
+        model: effectiveModel as "gpt-3.5-turbo" | "gpt-4" | "gpt-4o" | "auto"
+      };
+      
       const result = await OpenAIAPI.generateAutoAnswers({
-        settings,
+        settings: effectiveSettings,
         reviews: reviewsForApi
       });
 
@@ -144,6 +175,9 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           if (sentAnswers.has(reviewId)) return;
           
           try {
+            // Добавляем задержку между запросами
+            await sleep(Math.random() * 200 + 500);
+            
             await WbAPI.sendAnswer({
               id: reviewId,
               text: answersMap[reviewId]
@@ -197,6 +231,12 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       ...prev,
       [reviewId]: text
     }));
+  };
+
+  // Сброс настроек к значениям по умолчанию
+  const resetSettings = () => {
+    setSettings(defaultSettings);
+    toast.info("Настройки сброшены к значениям по умолчанию");
   };
 
   return (
@@ -310,6 +350,82 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 onChange={(e) => handleSettingsChange('signature', e.target.value)}
               />
             </div>
+
+            <Collapsible 
+              open={showAdvancedSettings} 
+              onOpenChange={setShowAdvancedSettings}
+              className="border rounded-md p-3 bg-gray-50 dark:bg-gray-700"
+            >
+              <CollapsibleTrigger asChild>
+                <div className="flex justify-between items-center cursor-pointer">
+                  <span className="font-medium flex items-center gap-1">
+                    <Sliders size={14} /> Расширенные настройки
+                  </span>
+                  <Button variant="ghost" size="sm">
+                    {showAdvancedSettings ? "Скрыть" : "Показать"}
+                  </Button>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="temperature" className="flex items-center gap-1">
+                      <Thermometer size={14} /> Температура ({settings.temperature})
+                    </Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSettingsChange('temperature', 0.7)}
+                    >
+                      Сбросить
+                    </Button>
+                  </div>
+                  <input
+                    id="temperature"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={settings.temperature}
+                    onChange={(e) => handleSettingsChange('temperature', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Точные ответы</span>
+                    <span>Креативные</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="customPrompt" className="flex items-center gap-1">
+                      <Code size={14} /> Собственный промт
+                    </Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleSettingsChange('customPrompt', '')}
+                    >
+                      Сбросить
+                    </Button>
+                  </div>
+                  <Textarea
+                    id="customPrompt"
+                    placeholder="Настройте собственную инструкцию для ChatGPT..."
+                    value={settings.customPrompt || ""}
+                    onChange={(e) => handleSettingsChange('customPrompt', e.target.value)}
+                    className="min-h-24"
+                  />
+                  <p className="text-xs text-gray-500">
+                    При заполнении собственного промта, все остальные настройки (язык, тон, эмодзи) игнорируются
+                  </p>
+                </div>
+                
+                <Button onClick={resetSettings} variant="outline" size="sm" className="w-full">
+                  Сбросить все настройки
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </div>
 
@@ -347,16 +463,27 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
             <Separator />
             
             <div className="space-y-2">
-              <p className="font-medium">Промт для ChatGPT:</p>
-              <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs">
-                <p>Ты — специалист клиентского сервиса магазина на Wildberries. На основе отзыва составь человечный, корректный и живой ответ (3-5 предложений).</p>
-                <p>Особые ситуации:</p>
-                <ul className="list-disc list-inside">
-                  <li>Использованный парфюм: «Возврат духов после вскрытия невозможен»</li>
-                  <li>Получен не тот товар (но не вскрыт): «Извинись, попроси вернуть»</li>
-                  <li>Жалоба на подделку: «Легко пошути, что подделок не продаём»</li>
-                  <li>Повреждение при доставке: «Направь в поддержку Wildberries»</li>
-                </ul>
+              <div className="flex items-center justify-between">
+                <p className="font-medium flex items-center gap-1">
+                  <Sparkles size={14} /> Промт для ChatGPT:
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    try {
+                      navigator.clipboard.writeText(promptPreview);
+                      toast.success("Промт скопирован в буфер обмена");
+                    } catch (e) {
+                      toast.error("Не удалось скопировать промт");
+                    }
+                  }}
+                >
+                  Копировать
+                </Button>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded text-xs max-h-32 overflow-y-auto whitespace-pre-line border">
+                {promptPreview}
               </div>
             </div>
             

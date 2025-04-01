@@ -53,6 +53,8 @@ export interface AutoResponderSettings {
   tone: "professional" | "friendly" | "formal";
   useEmoji: boolean;
   signature?: string;
+  temperature?: number;
+  customPrompt?: string;
 }
 
 export interface GenerateAutoAnswersRequest {
