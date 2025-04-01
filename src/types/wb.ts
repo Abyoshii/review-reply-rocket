@@ -69,6 +69,15 @@ export interface WbReviewsResponse {
   errorText?: string;
 }
 
+export interface WbArchiveReviewsResponse {
+  data: {
+    count: number;
+    feedbacks: WbReview[];
+  };
+  error?: boolean;
+  errorText?: string;
+}
+
 export interface WbAnswerRequest {
   id: string;
   text: string;
@@ -82,15 +91,28 @@ export interface WbAnswerResponse {
   };
 }
 
+export interface WbEditAnswerRequest {
+  id: string;
+  text: string;
+}
+
+export interface WbEditAnswerResponse {
+  error: boolean;
+  errorText: string;
+  data: {
+    feedbackId: string;
+  };
+}
+
 export interface ReviewListParams {
-  isAnswered: boolean;
+  isAnswered?: boolean;
   take: number;
   skip: number;
-  order?: "dateAsc" | "dateDesc";
+  order?: "dateAsc" | "dateDesc" | "ratingAsc" | "ratingDesc";
   nmId?: number;
   dateFrom?: string;
   dateTo?: string;
-  hasText?: boolean; // Добавлен параметр для фильтрации отзывов по наличию текста
+  hasText?: boolean;
 }
 
 // Типы для работы с вопросами клиентов

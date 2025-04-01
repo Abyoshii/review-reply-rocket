@@ -1,28 +1,16 @@
 
 import { useState } from "react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ReviewListParams } from "@/types/wb";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-
-const filterSchema = z.object({
-  isAnswered: z.boolean().default(false),
-  take: z.number().int().min(1).max(5000).default(100),
-  skip: z.number().int().min(0).max(199990).default(0),
-  order: z.enum(["dateAsc", "dateDesc"]).optional(),
-  nmId: z.union([z.number().int().positive(), z.string().length(0)]).transform(val => 
-    typeof val === "string" && val === "" ? undefined : (typeof val === "string" ? parseInt(val) : val)
-  ).optional(),
-  dateFrom: z.string().optional(),
-  dateTo: z.string().optional(),
-});
+import { Calendar, Filter } from "lucide-react";
 
 interface FilterFormProps {
   onFilterChange: (filters: ReviewListParams) => void;
@@ -30,177 +18,192 @@ interface FilterFormProps {
 }
 
 const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
-  // Создаем форму с начальными значениями
-  const form = useForm<z.infer<typeof filterSchema>>({
-    resolver: zodResolver(filterSchema),
-    defaultValues: {
-      isAnswered: false,
-      take: 100,
-      skip: 0,
-      order: "dateDesc",
-      nmId: undefined,
-      dateFrom: undefined,
-      dateTo: undefined,
-    },
-  });
+  const [nmId, setNmId] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  const [order, setOrder] = useState<string>("dateDesc");
+  const [reviewCount, setReviewCount] = useState<number>(100);
 
-  // Обработчик отправки формы
-  const onSubmit = (values: z.infer<typeof filterSchema>) => {
-    onFilterChange(values as ReviewListParams);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const filters: ReviewListParams = {
+      take: reviewCount,
+      skip: 0,
+      order: order as "dateAsc" | "dateDesc" | "ratingAsc" | "ratingDesc"
+    };
+
+    if (nmId) {
+      filters.nmId = parseInt(nmId);
+    }
+
+    if (dateFrom) {
+      filters.dateFrom = dateFrom;
+    }
+
+    if (dateTo) {
+      filters.dateTo = dateTo;
+    }
+
+    onFilterChange(filters);
   };
 
-  // Handle take value change
-  const handleTakeChange = (value: string) => {
-    form.setValue("take", parseInt(value));
+  const handleCountChange = (count: number) => {
+    setReviewCount(count);
+    
+    // Автоматически применяем фильтр при изменении количества отзывов
+    const filters: ReviewListParams = {
+      take: count,
+      skip: 0,
+      order: order as "dateAsc" | "dateDesc" | "ratingAsc" | "ratingDesc"
+    };
+
+    if (nmId) {
+      filters.nmId = parseInt(nmId);
+    }
+
+    if (dateFrom) {
+      filters.dateFrom = dateFrom;
+    }
+
+    if (dateTo) {
+      filters.dateTo = dateTo;
+    }
+
+    onFilterChange(filters);
   };
 
   return (
-    <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle>Фильтр отзывов</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {/* Фильтр по ответу */}
-              <FormField
-                control={form.control}
-                name="isAnswered"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between space-x-3 space-y-0">
-                    <FormLabel>Имеют ответ</FormLabel>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+    <form onSubmit={handleSubmit} className="space-y-4 mb-4">
+      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div>
+          <label
+            htmlFor="nmId"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Артикул
+          </label>
+          <Input
+            id="nmId"
+            type="text"
+            value={nmId}
+            onChange={(e) => setNmId(e.target.value)}
+            placeholder="Введите артикул товара"
+            className="dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+          />
+        </div>
 
-              {/* Сортировка */}
-              <FormField
-                control={form.control}
-                name="order"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Сортировка</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выбрать сортировку" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="dateDesc">Сначала новые</SelectItem>
-                        <SelectItem value="dateAsc">Сначала старые</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <div>
+          <label
+            htmlFor="dateFrom"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Дата от
+          </label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <Input
+              id="dateFrom"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="pl-10 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            />
+          </div>
+        </div>
 
-              {/* Артикул */}
-              <FormField
-                control={form.control}
-                name="nmId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Артикул</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Введите артикул"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value === "" ? "" : parseInt(e.target.value) || "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <div>
+          <label
+            htmlFor="dateTo"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Дата до
+          </label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <Input
+              id="dateTo"
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="pl-10 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            />
+          </div>
+        </div>
 
-              {/* Количество отзывов как переключатели */}
-              <FormField
-                control={form.control}
-                name="take"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Количество отзывов</FormLabel>
-                    <FormControl>
-                      <ToggleGroup 
-                        type="single" 
-                        value={field.value.toString()} 
-                        onValueChange={handleTakeChange}
-                        className="justify-start"
-                      >
-                        <ToggleGroupItem value="30">30</ToggleGroupItem>
-                        <ToggleGroupItem value="50">50</ToggleGroupItem>
-                        <ToggleGroupItem value="100">100</ToggleGroupItem>
-                      </ToggleGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <div>
+          <label
+            htmlFor="order"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Сортировка
+          </label>
+          <Select
+            value={order}
+            onValueChange={setOrder}
+          >
+            <SelectTrigger
+              id="order"
+              className="dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            >
+              <SelectValue placeholder="Выберите сортировку" />
+            </SelectTrigger>
+            <SelectContent className="dark:bg-gray-800">
+              <SelectItem value="dateDesc">Сначала новые</SelectItem>
+              <SelectItem value="dateAsc">Сначала старые</SelectItem>
+              <SelectItem value="ratingDesc">По убыванию рейтинга</SelectItem>
+              <SelectItem value="ratingAsc">По возрастанию рейтинга</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-              {/* Дата от */}
-              <FormField
-                control={form.control}
-                name="dateFrom"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Дата от</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        placeholder="Дата от"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Количество отзывов:
+          </label>
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              variant={reviewCount === 30 ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleCountChange(30)}
+              className={reviewCount === 30 ? "bg-wb-secondary hover:bg-wb-accent" : ""}
+            >
+              30
+            </Button>
+            <Button
+              type="button"
+              variant={reviewCount === 50 ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleCountChange(50)}
+              className={reviewCount === 50 ? "bg-wb-secondary hover:bg-wb-accent" : ""}
+            >
+              50
+            </Button>
+            <Button
+              type="button"
+              variant={reviewCount === 100 ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleCountChange(100)}
+              className={reviewCount === 100 ? "bg-wb-secondary hover:bg-wb-accent" : ""}
+            >
+              100
+            </Button>
+          </div>
+        </div>
 
-              {/* Дата до */}
-              <FormField
-                control={form.control}
-                name="dateTo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Дата до</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        placeholder="Дата до"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="flex justify-end">
-              <Button 
-                type="submit" 
-                disabled={loading}
-                className="bg-wb-primary hover:bg-wb-primary/90"
-              >
-                {loading ? "Загрузка..." : "Применить фильтры"}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+        <Button
+          type="submit"
+          disabled={loading}
+          className="bg-wb-accent hover:bg-wb-accent/80 dark:bg-purple-700 dark:hover:bg-purple-800"
+        >
+          <Filter className="mr-2 h-4 w-4" />
+          {loading ? "Применение..." : "Применить фильтры"}
+        </Button>
+      </div>
+    </form>
   );
 };
 

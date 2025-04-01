@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { WbReview, PhotoLink } from "@/types/wb";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { OpenAIAPI, WbAPI } from "@/lib/api";
 import { GenerateAnswerRequest } from "@/types/openai";
-import { Star, Calendar, User, ArrowUpRight, MessageSquare, CheckCircle } from "lucide-react";
+import { Star, Calendar, User, ArrowUpRight, MessageSquare, CheckCircle, Edit, Save } from "lucide-react";
+import FloatingActionButtons from "./FloatingActionButtons";
 
 interface ReviewsTableProps {
   reviews: WbReview[];
@@ -22,6 +24,8 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
   const [generatingAnswers, setGeneratingAnswers] = useState<Set<string>>(new Set());
   const [sendingAnswers, setSendingAnswers] = useState<Set<string>>(new Set());
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [editingAnswers, setEditingAnswers] = useState<Set<string>>(new Set());
+  const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
 
   const toggleReviewSelection = (reviewId: string) => {
     const newSelectedReviews = new Set(selectedReviews);
@@ -107,8 +111,68 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     }
   };
 
+  const startEditingAnswer = (review: WbReview) => {
+    if (!review.answer) return;
+    
+    const newEditingAnswers = new Set(editingAnswers);
+    newEditingAnswers.add(review.id);
+    setEditingAnswers(newEditingAnswers);
+    
+    setEditedAnswers(prev => ({
+      ...prev,
+      [review.id]: review.answer?.text || ""
+    }));
+  };
+
+  const cancelEditingAnswer = (reviewId: string) => {
+    const newEditingAnswers = new Set(editingAnswers);
+    newEditingAnswers.delete(reviewId);
+    setEditingAnswers(newEditingAnswers);
+  };
+
+  const saveEditedAnswer = async (review: WbReview) => {
+    if (!editedAnswers[review.id]) {
+      toast.error("Нельзя сохранить пустой ответ.");
+      return;
+    }
+
+    const newSendingAnswers = new Set(sendingAnswers);
+    newSendingAnswers.add(review.id);
+    setSendingAnswers(newSendingAnswers);
+
+    try {
+      await WbAPI.editAnswer({
+        id: review.id,
+        text: editedAnswers[review.id]
+      });
+
+      toast.success("Ответ успешно отредактирован!");
+      
+      // Убираем из режима редактирования
+      const newEditingAnswers = new Set(editingAnswers);
+      newEditingAnswers.delete(review.id);
+      setEditingAnswers(newEditingAnswers);
+      
+      onRefresh();
+    } catch (error) {
+      console.error("Ошибка при редактировании ответа:", error);
+      toast.error("Не удалось отредактировать ответ. Пожалуйста, попробуйте позже.");
+    } finally {
+      const updatedSendingAnswers = new Set(sendingAnswers);
+      updatedSendingAnswers.delete(review.id);
+      setSendingAnswers(updatedSendingAnswers);
+    }
+  };
+
   const updateAnswer = (reviewId: string, text: string) => {
     setAnswers(prev => ({
+      ...prev,
+      [reviewId]: text
+    }));
+  };
+
+  const updateEditedAnswer = (reviewId: string, text: string) => {
+    setEditedAnswers(prev => ({
       ...prev,
       [reviewId]: text
     }));
@@ -234,6 +298,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
               disabled={selectedReviews.size === 0}
               className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
             >
+              <MessageSquare size={16} className="mr-2" />
               Сгенерировать ответы ({selectedReviews.size})
             </Button>
             
@@ -243,11 +308,22 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
               disabled={selectedReviews.size === 0}
               className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
             >
+              <Send size={16} className="mr-2" />
               Отправить ответы ({selectedReviews.size})
             </Button>
           </>
         )}
       </div>
+
+      {/* Плавающие кнопки действий */}
+      <FloatingActionButtons 
+        selectedReviews={selectedReviews}
+        reviews={reviews || []}
+        onGenerateAnswers={generateSelectedAnswers}
+        onSendAnswers={sendSelectedAnswers}
+        onRefresh={onRefresh}
+        hasAnswers={Object.keys(answers).length > 0}
+      />
 
       {loading ? (
         <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">Загрузка отзывов...</div>
@@ -385,10 +461,55 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                     </div>
                   </div>
                   
-                  {review.answer && review.answer.text && (
+                  {review.answer && review.answer.text && !editingAnswers.has(review.id) && (
                     <div className="border-l-4 border-green-500 pl-3 py-2 bg-green-50 dark:bg-green-900/20 rounded">
-                      <p className="font-medium text-green-700 dark:text-green-400 mb-1">Ответ:</p>
+                      <div className="flex justify-between items-start">
+                        <p className="font-medium text-green-700 dark:text-green-400 mb-1">Ответ:</p>
+                        {review.answer.editable && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => startEditingAnswer(review)}
+                            className="h-8 px-2 text-green-600"
+                          >
+                            <Edit size={14} className="mr-1" />
+                            Редактировать
+                          </Button>
+                        )}
+                      </div>
                       <p className="text-gray-700 dark:text-gray-300">{review.answer.text}</p>
+                    </div>
+                  )}
+                  
+                  {review.answer && editingAnswers.has(review.id) && (
+                    <div className="border-l-4 border-amber-500 pl-3 py-2 bg-amber-50 dark:bg-amber-900/20 rounded">
+                      <p className="font-medium text-amber-700 dark:text-amber-400 mb-1 flex items-center">
+                        <Edit size={14} className="mr-1" /> Редактирование ответа:
+                      </p>
+                      <Textarea 
+                        value={editedAnswers[review.id] || ""}
+                        onChange={(e) => updateEditedAnswer(review.id, e.target.value)}
+                        className="min-h-20 dark:bg-gray-800 dark:text-white dark:border-gray-600 mb-2 transition-colors duration-300"
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => cancelEditingAnswer(review.id)}
+                        >
+                          Отмена
+                        </Button>
+                        <Button 
+                          variant="default"
+                          size="sm"
+                          onClick={() => saveEditedAnswer(review)}
+                          disabled={sendingAnswers.has(review.id)}
+                          className="bg-amber-500 hover:bg-amber-600"
+                        >
+                          <Save size={14} className="mr-1" />
+                          {sendingAnswers.has(review.id) ? "Сохранение..." : "Сохранить"}
+                        </Button>
+                      </div>
                     </div>
                   )}
                   

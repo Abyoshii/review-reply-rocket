@@ -46,3 +46,21 @@ export interface GenerateAnswerResponse {
   modelUsed: string;
 }
 
+export interface AutoResponderSettings {
+  model: "gpt-3.5-turbo" | "gpt-4" | "gpt-4o";
+  maxReviewsPerRequest: 5 | 10 | 20;
+  language: "russian" | "english" | "kazakh";
+  tone: "professional" | "friendly" | "formal";
+  useEmoji: boolean;
+  signature?: string;
+}
+
+export interface GenerateAutoAnswersRequest {
+  settings: AutoResponderSettings;
+  reviews: {
+    id: string;
+    text?: string;
+    pros?: string;
+    cons?: string;
+  }[];
+}
