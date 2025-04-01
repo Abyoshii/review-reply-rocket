@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ReviewListParams } from "@/types/wb";
-import { Calendar, Filter } from "lucide-react";
+import { Calendar, Filter, Star } from "lucide-react";
 
 interface FilterFormProps {
   onFilterChange: (filters: ReviewListParams) => void;
@@ -23,6 +23,7 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
   const [dateTo, setDateTo] = useState<string>("");
   const [order, setOrder] = useState<string>("dateDesc");
   const [reviewCount, setReviewCount] = useState<number>(100);
+  const [ratingFilter, setRatingFilter] = useState<string>("all");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +44,10 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
 
     if (dateTo) {
       filters.dateTo = dateTo;
+    }
+
+    if (ratingFilter !== "all") {
+      filters.ratingFilter = ratingFilter;
     }
 
     onFilterChange(filters);
@@ -70,12 +75,16 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
       filters.dateTo = dateTo;
     }
 
+    if (ratingFilter !== "all") {
+      filters.ratingFilter = ratingFilter;
+    }
+
     onFilterChange(filters);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 mb-4">
-      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div>
           <label
             htmlFor="nmId"
@@ -153,6 +162,46 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
               <SelectItem value="dateAsc">Сначала старые</SelectItem>
               <SelectItem value="ratingDesc">По убыванию рейтинга</SelectItem>
               <SelectItem value="ratingAsc">По возрастанию рейтинга</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="ratingFilter"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Рейтинг
+          </label>
+          <Select
+            value={ratingFilter}
+            onValueChange={setRatingFilter}
+          >
+            <SelectTrigger
+              id="ratingFilter"
+              className="dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            >
+              <SelectValue placeholder="Фильтр по рейтингу" />
+            </SelectTrigger>
+            <SelectContent className="dark:bg-gray-800">
+              <SelectItem value="all">Все рейтинги</SelectItem>
+              <SelectItem value="5" className="flex items-center">
+                Только 5 <Star className="ml-1 h-3 w-3 fill-amber-400 text-amber-400" />
+              </SelectItem>
+              <SelectItem value="4" className="flex items-center">
+                Только 4 <Star className="ml-1 h-3 w-3 fill-amber-400 text-amber-400" />
+              </SelectItem>
+              <SelectItem value="3" className="flex items-center">
+                Только 3 <Star className="ml-1 h-3 w-3 fill-amber-400 text-amber-400" />
+              </SelectItem>
+              <SelectItem value="2" className="flex items-center">
+                Только 2 <Star className="ml-1 h-3 w-3 fill-amber-400 text-amber-400" />
+              </SelectItem>
+              <SelectItem value="1" className="flex items-center">
+                Только 1 <Star className="ml-1 h-3 w-3 fill-amber-400 text-amber-400" />
+              </SelectItem>
+              <SelectItem value="positive">Положительные (4–5 ⭐)</SelectItem>
+              <SelectItem value="negative">Отрицательные (1–2 ⭐)</SelectItem>
             </SelectContent>
           </Select>
         </div>

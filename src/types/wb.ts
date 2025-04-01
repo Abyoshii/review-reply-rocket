@@ -1,4 +1,3 @@
-
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -113,6 +112,7 @@ export interface ReviewListParams {
   dateFrom?: string;
   dateTo?: string;
   hasText?: boolean;
+  ratingFilter?: string; // Добавлено поле для фильтрации по рейтингу
 }
 
 // Типы для работы с вопросами клиентов

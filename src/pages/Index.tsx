@@ -44,7 +44,6 @@ const Index = () => {
     order: "dateDesc"
   });
   
-  // Состояния для вопросов клиентов
   const [unansweredQuestions, setUnansweredQuestions] = useState<WbQuestion[]>([]);
   const [answeredQuestions, setAnsweredQuestions] = useState<WbQuestion[]>([]);
   const [unansweredQuestionsCount, setUnansweredQuestionsCount] = useState<number>(0);
@@ -63,14 +62,10 @@ const Index = () => {
     order: "dateDesc"
   });
   
-  // Выбранная вкладка
   const [activeTab, setActiveTab] = useState<string>("reviews");
-  // Выбранная подвкладка отзывов
   const [activeReviewsTab, setActiveReviewsTab] = useState<string>("unanswered");
-  // Состояние для диалога автоответчика
   const [autoResponderOpen, setAutoResponderOpen] = useState(false);
 
-  // Загрузка отзывов при изменении фильтров
   useEffect(() => {
     fetchUnansweredReviews();
   }, [unansweredFilters]);
@@ -85,7 +80,6 @@ const Index = () => {
     }
   }, [archiveFilters, activeReviewsTab]);
 
-  // Загрузка вопросов при изменении фильтров
   useEffect(() => {
     if (activeTab === "questions") {
       fetchUnansweredQuestions();
@@ -98,13 +92,11 @@ const Index = () => {
     }
   }, [answeredQuestionsFilters, activeTab]);
 
-  // Получение количества неотвеченных отзывов и вопросов
   useEffect(() => {
     fetchUnansweredCount();
     fetchUnansweredQuestionsCount();
   }, []);
 
-  // Функция загрузки неотвеченных отзывов
   const fetchUnansweredReviews = async () => {
     setLoadingUnanswered(true);
     try {
@@ -116,7 +108,13 @@ const Index = () => {
       console.log("Ответ API для неотвеченных отзывов:", response);
       
       if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
-        setUnansweredReviews(response.data.feedbacks);
+        let filteredReviews = response.data.feedbacks;
+        
+        if (filters.ratingFilter) {
+          filteredReviews = applyRatingFilter(filteredReviews, filters.ratingFilter);
+        }
+        
+        setUnansweredReviews(filteredReviews);
       } else {
         console.error("Некорректная структура ответа API для неотвеченных отзывов:", response);
         toast.error("Получены некорректные данные от API");
@@ -131,7 +129,6 @@ const Index = () => {
     }
   };
 
-  // Функция загрузки отвеченных отзывов
   const fetchAnsweredReviews = async () => {
     setLoadingAnswered(true);
     try {
@@ -143,7 +140,15 @@ const Index = () => {
       console.log("Ответ API для отвеченных отзывов:", response);
       
       if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
-        setAnsweredReviews(response.data.feedbacks);
+        let filteredReviews = response.data.feedbacks.filter(review => 
+          review.answer && review.answer.text && review.answer.text.trim().length > 0
+        );
+        
+        if (filters.ratingFilter) {
+          filteredReviews = applyRatingFilter(filteredReviews, filters.ratingFilter);
+        }
+        
+        setAnsweredReviews(filteredReviews);
       } else {
         console.error("Некорректная структура ответа API для отвеченных отзывов:", response);
         toast.error("Получены некорректные данные от API");
@@ -158,7 +163,6 @@ const Index = () => {
     }
   };
 
-  // Функция загрузки архивных отзывов
   const fetchArchiveReviews = async () => {
     setLoadingArchive(true);
     try {
@@ -168,9 +172,15 @@ const Index = () => {
       console.log("Ответ API для архивных отзывов:", response);
       
       if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
-        setArchiveReviews(response.data.feedbacks);
+        let filteredReviews = response.data.feedbacks;
+        
+        if (archiveFilters.ratingFilter) {
+          filteredReviews = applyRatingFilter(filteredReviews, archiveFilters.ratingFilter);
+        }
+        
+        setArchiveReviews(filteredReviews);
       } else {
-        console.error("Некорректная структура ответа API дл�� архивных отзывов:", response);
+        console.error("Некорректная структура ответа API для архивных отзывов:", response);
         toast.error("Получены некорректные данные от API");
         setArchiveReviews([]);
       }
@@ -183,7 +193,18 @@ const Index = () => {
     }
   };
 
-  // Функция получения количества неотвеченных отзывов
+  const applyRatingFilter = (reviews: WbReview[], ratingFilter: string): WbReview[] => {
+    if (ratingFilter === 'all') return reviews;
+    
+    return reviews.filter(review => {
+      const rating = review.productValuation || review.rating || 0;
+      
+      if (ratingFilter === 'positive') return rating >= 4;
+      if (ratingFilter === 'negative') return rating <= 2;
+      return rating === parseInt(ratingFilter);
+    });
+  };
+
   const fetchUnansweredCount = async () => {
     try {
       const count = await WbAPI.getUnansweredCount();
@@ -193,7 +214,6 @@ const Index = () => {
     }
   };
 
-  // Функция загрузки неотвеченных вопросов
   const fetchUnansweredQuestions = async () => {
     setLoadingUnansweredQuestions(true);
     try {
@@ -218,7 +238,6 @@ const Index = () => {
     }
   };
 
-  // Функция загрузки отвеченных вопросов
   const fetchAnsweredQuestions = async () => {
     setLoadingAnsweredQuestions(true);
     try {
@@ -243,7 +262,6 @@ const Index = () => {
     }
   };
 
-  // Функция получения количества неотвеченных вопросов
   const fetchUnansweredQuestionsCount = async () => {
     try {
       const count = await WbAPI.getUnansweredQuestionsCount();
@@ -253,7 +271,6 @@ const Index = () => {
     }
   };
 
-  // Функция обновления данных
   const handleRefresh = () => {
     if (activeTab === "reviews") {
       if (activeReviewsTab === "unanswered") {
@@ -272,49 +289,38 @@ const Index = () => {
     toast.success("Данные обновлены");
   };
 
-  // Функция обработки изменения фильтров для неотвеченных отзывов
   const handleUnansweredFilterChange = (newFilters: ReviewListParams) => {
-    // Всегда устанавливаем isAnswered=false для неотвеченных отзывов
     setUnansweredFilters({ ...newFilters, isAnswered: false });
   };
 
-  // Функция обработки изменения фильтров для отвеченных отзывов
   const handleAnsweredFilterChange = (newFilters: ReviewListParams) => {
-    // Всегда устанавливаем isAnswered=true для отвеченных отзывов
     setAnsweredFilters({ ...newFilters, isAnswered: true });
   };
 
-  // Функция обработки изменения фильтров для архивных отзывов
   const handleArchiveFilterChange = (newFilters: ReviewListParams) => {
     setArchiveFilters(newFilters);
   };
 
-  // Функция обработки изменения фильтров для неотвеченных вопросов
   const handleUnansweredQuestionsFilterChange = (newFilters: QuestionListParams) => {
     setUnansweredQuestionsFilters({...newFilters, isAnswered: false});
   };
 
-  // Функция обработки изменения фильтров для отвеченных вопросов
   const handleAnsweredQuestionsFilterChange = (newFilters: QuestionListParams) => {
     setAnsweredQuestionsFilters({...newFilters, isAnswered: true});
   };
 
-  // Обработчик смены вкладки
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     
-    // Загружаем данные для выбранной вкладки, если они еще не загружены
     if (tab === "questions" && unansweredQuestions.length === 0) {
       fetchUnansweredQuestions();
       fetchAnsweredQuestions();
     }
   };
 
-  // Обработчик смены подвкладки отзывов
   const handleReviewsTabChange = (tab: string) => {
     setActiveReviewsTab(tab);
     
-    // Загружаем соответствующие данные при смене вкладки
     if (tab === "unanswered" && unansweredReviews.length === 0) {
       fetchUnansweredReviews();
     } else if (tab === "answered" && answeredReviews.length === 0) {
@@ -324,13 +330,11 @@ const Index = () => {
     }
   };
 
-  // Функция для обработки успешной операции в AutoResponder
   const handleAutoResponderSuccess = () => {
     handleRefresh();
     setAutoResponderOpen(false);
   };
 
-  // Получаем выбранный список отзывов в зависимости от активной вкладки
   const getSelectedReviews = () => {
     if (activeReviewsTab === "unanswered") {
       return unansweredReviews;
@@ -352,7 +356,6 @@ const Index = () => {
             onRefresh={handleRefresh} 
           />
           
-          {/* Кнопка автоответчика, всегда видимая */}
           <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
             <DialogTrigger asChild>
               <Button 
@@ -456,7 +459,6 @@ const Index = () => {
           
           <TabsContent value="questions" className="space-y-6">
             <div className="space-y-8">
-              {/* Секция неотвеченных вопросов */}
               <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
                 <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
                   <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm mr-3">ЖДУТ ОТВЕТА</span>
@@ -475,7 +477,6 @@ const Index = () => {
                 />
               </section>
               
-              {/* Секция отвеченных вопросов */}
               <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
                 <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
                   <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm mr-3">ОТВЕЧЕННЫЕ</span>
@@ -497,7 +498,6 @@ const Index = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Водяной знак */}
         <div className="text-center py-4 mt-8 text-sm text-gray-500 dark:text-gray-400 opacity-70 transition-colors duration-300">
           @Таабалдыев Нургазы
         </div>
