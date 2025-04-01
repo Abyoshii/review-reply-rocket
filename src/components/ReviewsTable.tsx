@@ -35,12 +35,12 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
 
   // Функция выбора/отмены выбора всех отзывов
   const toggleSelectAll = () => {
-    if (selectedReviews.size === reviews.length) {
+    if (selectedReviews.size === (reviews?.length || 0)) {
       // Если все выбраны - снимаем выбор
       setSelectedReviews(new Set());
     } else {
       // Иначе выбираем все
-      const newSelectedReviews = new Set(reviews.map(review => review.id));
+      const newSelectedReviews = new Set((reviews || []).map(review => review.id));
       setSelectedReviews(newSelectedReviews);
     }
   };
@@ -124,7 +124,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
 
     const selectedReviewsArray = Array.from(selectedReviews);
     for (const reviewId of selectedReviewsArray) {
-      const review = reviews.find(r => r.id === reviewId);
+      const review = reviews?.find(r => r.id === reviewId);
       if (review) {
         await generateAnswer(review);
       }
@@ -154,7 +154,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
     toast.info(`Начата отправка ответов на ${reviewsWithAnswers.length} отзывов. Это может занять некоторое время.`);
 
     for (const reviewId of reviewsWithAnswers) {
-      const review = reviews.find(r => r.id === reviewId);
+      const review = reviews?.find(r => r.id === reviewId);
       if (review) {
         await sendAnswer(review);
       }
@@ -171,7 +171,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
           variant="outline" 
           onClick={toggleSelectAll}
         >
-          {selectedReviews.size === reviews.length ? "Снять выбор" : "Выбрать все"}
+          {selectedReviews.size === (reviews?.length || 0) ? "Снять выбор" : "Выбрать все"}
         </Button>
         <Button 
           variant="outline" 
@@ -193,11 +193,11 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
       {/* Список отзывов */}
       {loading ? (
         <div className="text-center py-8">Загрузка отзывов...</div>
-      ) : reviews.length === 0 ? (
+      ) : !reviews || reviews.length === 0 ? (
         <div className="text-center py-8">Нет отзывов для отображения</div>
       ) : (
         <div className="space-y-4">
-          {reviews.map((review) => (
+          {Array.isArray(reviews) && reviews.map((review) => (
             <Card key={review.id} className="p-4 shadow-sm">
               <div className="flex items-start space-x-4">
                 <div>

@@ -12,7 +12,7 @@ export interface WbReview {
   text: string;
   createdDate: string;
   lastModifiedDate: string;
-  photoLinks: string[];
+  photoLinks: string[] | null;
   size: string;
   rating: number;
   color: string;
@@ -28,17 +28,36 @@ export interface WbReview {
     editable: boolean;
     createDate: string;
     declinedModerationComment: string;
-  };
+  } | null;
   video: {
     uri: string;
     thumbnail: string;
+  } | null;
+  productDetails?: {
+    imtId: number;
+    nmId: number;
+    productName: string;
+    supplierArticle: string;
+    supplierName: string;
+    brandName: string;
+    size: string;
   };
+  pros?: string;
+  cons?: string;
+  productValuation?: number;
+  wasViewed?: boolean;
+  userName?: string;
+  matchingSize?: string;
 }
 
 export interface WbReviewsResponse {
-  data: WbReview[];
-  countUnanswered: number;
-  countArchive: number;
+  data: {
+    countUnanswered: number;
+    countArchive: number;
+    feedbacks: WbReview[];
+  };
+  error?: boolean;
+  errorText?: string;
 }
 
 export interface WbAnswerRequest {

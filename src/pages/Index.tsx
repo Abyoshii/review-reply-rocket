@@ -33,10 +33,20 @@ const Index = () => {
     setLoading(true);
     try {
       const response = await WbAPI.getReviews(filters);
-      setReviews(response.data);
+      
+      // Проверяем, что response.data.feedbacks существует и является массивом
+      if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
+        setReviews(response.data.feedbacks);
+      } else {
+        // Если структура ответа не соответствует ожидаемой, выводим сообщение и устанавливаем пустой массив
+        console.error("Некорректная структура ответа API:", response);
+        toast.error("Получены некорректные данные от API");
+        setReviews([]);
+      }
     } catch (error) {
       console.error("Ошибка при загрузке отзывов:", error);
       toast.error("Не удалось загрузить отзывы. Пожалуйста, попробуйте позже.");
+      setReviews([]);
     } finally {
       setLoading(false);
     }
