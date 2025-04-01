@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { WbReview, PhotoLink } from "@/types/wb";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +23,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
   const [sendingAnswers, setSendingAnswers] = useState<Set<string>>(new Set());
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  // Функция выбора/отмены выбора отзыва
   const toggleReviewSelection = (reviewId: string) => {
     const newSelectedReviews = new Set(selectedReviews);
     if (newSelectedReviews.has(reviewId)) {
@@ -35,19 +33,15 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     setSelectedReviews(newSelectedReviews);
   };
 
-  // Функция выбора/отмены выбора всех отзывов
   const toggleSelectAll = () => {
     if (selectedReviews.size === (reviews?.length || 0)) {
-      // Если все выбраны - снимаем выбор
       setSelectedReviews(new Set());
     } else {
-      // Иначе выбираем все
       const newSelectedReviews = new Set((reviews || []).map(review => review.id));
       setSelectedReviews(newSelectedReviews);
     }
   };
 
-  // Функция генерации ответа для отзыва
   const generateAnswer = async (review: WbReview) => {
     const newGeneratingAnswers = new Set(generatingAnswers);
     newGeneratingAnswers.add(review.id);
@@ -56,7 +50,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     try {
       const reviewText = review.text || "Покупатель не оставил текстовый отзыв, только рейтинг";
       
-      // Добавляем плюсы и минусы к тексту отзыва, если они есть
       const fullReviewText = [
         reviewText,
         review.pros ? `Плюсы: ${review.pros}` : '',
@@ -70,7 +63,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
       const response = await OpenAIAPI.generateAnswer(request);
       
-      // Обновляем состояние с ответами
       setAnswers(prev => ({
         ...prev,
         [review.id]: response.answer
@@ -87,7 +79,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     }
   };
 
-  // Функция отправки ответа на отзыв
   const sendAnswer = async (review: WbReview) => {
     if (!answers[review.id]) {
       toast.error("Нельзя отправить пустой ответ. Пожалуйста, сначала сгенерируйте ответ.");
@@ -105,7 +96,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       });
 
       toast.success("Ответ успешно отправлен!");
-      onRefresh(); // Обновляем список отзывов после отправки ответа
+      onRefresh();
     } catch (error) {
       console.error("Ошибка при отправке ответа:", error);
       toast.error("Не удалось отправить ответ. Пожалуйста, попробуйте позже.");
@@ -116,7 +107,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     }
   };
 
-  // Функция обновления текста ответа
   const updateAnswer = (reviewId: string, text: string) => {
     setAnswers(prev => ({
       ...prev,
@@ -124,7 +114,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     }));
   };
 
-  // Функция генерации ответов для всех выбранных отзывов
   const generateSelectedAnswers = async () => {
     if (selectedReviews.size === 0) {
       toast.warning("Не выбрано ни одного отзыва для генерации ответов");
@@ -144,7 +133,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     toast.success(`Сгенерированы ответы для ${selectedReviews.size} отзывов`);
   };
 
-  // Функция отправки ответов для всех выбранных отзывов
   const sendSelectedAnswers = async () => {
     if (selectedReviews.size === 0) {
       toast.warning("Не выбрано ни одного отзыва для отправки ответов");
@@ -174,7 +162,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     toast.success(`Отправлены ответы на ${reviewsWithAnswers.length} отзывов`);
   };
 
-  // Функция для форматирования даты
   const formatDate = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleDateString('ru-RU', { 
@@ -190,7 +177,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     }
   };
 
-  // Функция для отображения рейтинга в виде звезд
   const renderRating = (rating: number) => {
     const stars = [];
     for (let i = 0; i < 5; i++) {
@@ -212,7 +198,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
   return (
     <div className="space-y-4">
-      {/* Панель выбора действий */}
       <div className="flex flex-wrap gap-2 mb-4">
         <Button 
           variant="outline" 
@@ -245,7 +230,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         )}
       </div>
 
-      {/* Список отзывов */}
       {loading ? (
         <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">Загрузка отзывов...</div>
       ) : !Array.isArray(reviews) || reviews.length === 0 ? (
@@ -263,7 +247,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                   />
                 </div>
                 <div className="flex-1 space-y-3">
-                  {/* Шапка отзыва с основной информацией */}
                   <div className="flex flex-wrap gap-2 items-center">
                     <Badge variant="outline" className="flex items-center gap-1 dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">
                       <Calendar size={14} /> {formatDate(review.createdDate)}
@@ -286,9 +269,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                     )}
                   </div>
                   
-                  {/* Информация о товаре */}
                   <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                    {/* Артикул и информация о товаре */}
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="font-semibold text-sm bg-gray-100 dark:bg-gray-600 px-2 py-1 rounded dark:text-gray-200 transition-colors duration-300">
@@ -311,7 +292,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                       </h3>
                     </div>
                     
-                    {/* Фото товара если есть */}
                     {Array.isArray(review.photoLinks) && review.photoLinks.length > 0 && review.photoLinks[0].miniSize && (
                       <div className="w-20 h-20 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300 flex-shrink-0">
                         <a href={review.photoLinks[0].fullSize} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
@@ -320,24 +300,25 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                       </div>
                     )}
                     
-                    {/* Фото в старом формате */}
                     {review.photoLinks && !Array.isArray(review.photoLinks) && typeof review.photoLinks === 'object' && (
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {review.photoLinks.map((photo: string, index: number) => (
-                          <a 
-                            key={index} 
-                            href={photo} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="block w-16 h-16 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300"
-                          >
-                            <img src={photo} alt="Фото к отзыву" className="w-full h-full object-cover" />
-                          </a>
-                        ))}
+                        {Object.prototype.toString.call(review.photoLinks) === '[object Array]' ? 
+                          (review.photoLinks as unknown as string[]).map((photo: string, index: number) => (
+                            <a 
+                              key={index} 
+                              href={photo} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="block w-16 h-16 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300"
+                            >
+                              <img src={photo} alt="Фото к отзыву" className="w-full h-full object-cover" />
+                            </a>
+                          ))
+                          : null
+                        }
                       </div>
                     )}
                     
-                    {/* Видео отзыва если есть */}
                     {review.video && (review.video.previewImage || review.video.thumbnail) && (
                       <div className="w-20 h-20 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300 flex-shrink-0 relative">
                         <a 
@@ -361,7 +342,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                     )}
                   </div>
                   
-                  {/* Текст отзыва */}
                   <div className="border-l-4 border-wb-light dark:border-purple-500 pl-3 py-1 bg-gray-50 dark:bg-gray-800 rounded transition-colors duration-300">
                     <div className="text-gray-700 dark:text-gray-300 transition-colors duration-300 mb-2">
                       <p className="font-medium flex items-center gap-1 mb-1">
@@ -372,7 +352,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                       </p>
                     </div>
                     
-                    {/* Плюсы и минусы */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                       {review.pros && (
                         <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
@@ -390,7 +369,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                     </div>
                   </div>
                   
-                  {/* Если есть ответ на отзыв, показываем его */}
                   {review.answer && review.answer.text && (
                     <div className="border-l-4 border-green-500 pl-3 py-2 bg-green-50 dark:bg-green-900/20 rounded">
                       <p className="font-medium text-green-700 dark:text-green-400 mb-1">Ответ:</p>
@@ -398,7 +376,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                     </div>
                   )}
                   
-                  {/* Блок с ответом, если отзыв не отвечен */}
                   {!review.answer && (
                     <div className="mt-3 space-y-2">
                       <Textarea 
