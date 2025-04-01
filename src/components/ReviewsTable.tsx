@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { WbReview, PhotoLink } from "@/types/wb";
 import { Badge } from "@/components/ui/badge";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { OpenAIAPI, WbAPI } from "@/lib/api";
 import { GenerateAnswerRequest } from "@/types/openai";
 import { 
@@ -85,12 +86,17 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         [review.id]: response.answer
       }));
 
-      toast.success(`Ответ сгенерирован! Использована модель: ${response.modelUsed}`, {
+      toast({
+        title: "Ответ сгенерирован",
+        description: `Использована модель: ${response.modelUsed}`,
         important: true
       });
     } catch (error) {
       console.error("Ошибка при генерации ответа:", error);
-      toast.error("Не удалось сгенерировать ответ. Пожалуйста, попробуйте позже.", {
+      toast({
+        title: "Ошибка генерации",
+        description: "Не удалось сгенерировать ответ. Попробуйте позже.",
+        variant: "destructive",
         important: true
       });
     } finally {
@@ -102,7 +108,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
   const sendAnswer = async (review: WbReview) => {
     if (!answers[review.id]) {
-      toast.error("Нельзя отправить пустой ответ. Пожалуйста, сначала сгенерируйте ответ.", {
+      toast({
+        title: "Ошибка отправки",
+        description: "Нельзя отправить пустой ответ. Сначала сгенерируйте ответ.",
+        variant: "destructive",
         important: true
       });
       return;
@@ -125,7 +134,9 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         text: answers[review.id]
       });
 
-      toast.success("Ответ успешно отправлен!", {
+      toast({
+        title: "Успешно отправлено",
+        description: "Ответ отправлен покупателю",
         important: true
       });
       setSendProgress(prev => ({ ...prev, sent: prev.sent + 1 }));
@@ -133,7 +144,9 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       if (sendProgress.total === sendProgress.sent + 1) {
         setTimeout(() => {
           onRefresh();
-          toast.success(`Все ответы успешно отправлены: ${sendProgress.sent + 1} из ${sendProgress.total}`, {
+          toast({
+            title: "Все ответы отправлены",
+            description: `Успешно: ${sendProgress.sent + 1} из ${sendProgress.total}`,
             important: true
           });
           setSendProgress({ sent: 0, total: 0, failed: 0 });
@@ -141,7 +154,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       }
     } catch (error) {
       console.error("Ошибка при отправке ответа:", error);
-      toast.error("Не удалось отправить ответ. Пожалуйста, попробуйте позже.", {
+      toast({
+        title: "Ошибка отправки",
+        description: "Не удалось отправить ответ. Попробуйте позже.",
+        variant: "destructive",
         important: true
       });
       setSendProgress(prev => ({ ...prev, failed: prev.failed + 1 }));
@@ -177,7 +193,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
   const saveEditedAnswer = async (review: WbReview) => {
     if (!editedAnswers[review.id]) {
-      toast.error("Нельзя сохранить пустой ответ.", {
+      toast({
+        title: "Ошибка сохранения",
+        description: "Нельзя сохранить пустой ответ.",
+        variant: "destructive",
         important: true
       });
       return;
@@ -200,7 +219,9 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         text: editedAnswers[review.id]
       });
 
-      toast.success("Ответ успешно отредактирован!", {
+      toast({
+        title: "Успешно отредактировано",
+        description: "Ответ успешно изменен и сохранен",
         important: true
       });
       
@@ -211,7 +232,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       onRefresh();
     } catch (error) {
       console.error("Ошибка при редактировании ответа:", error);
-      toast.error("Не удалось отредактировать ответ. Пожалуйста, попробуйте позже.", {
+      toast({
+        title: "Ошибка редактирования",
+        description: "Не удалось отредактировать ответ. Попробуйте позже.",
+        variant: "destructive",
         important: true
       });
     } finally {
@@ -241,13 +265,18 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
   const generateSelectedAnswers = async () => {
     if (selectedReviews.size === 0) {
-      toast.warning("Не выбрано ни одного отзыва для генерации ответов", {
+      toast({
+        title: "Внимание",
+        description: "Не выбрано ни одного отзыва для генерации",
+        variant: "destructive",
         important: true
       });
       return;
     }
 
-    toast.info(`Начата генерация ответов для ${selectedReviews.size} отзывов. Это может занять некоторое время.`, {
+    toast({
+      title: "Начата генерация",
+      description: `Генерация ответов для ${selectedReviews.size} отзывов...`,
       important: true
     });
 
@@ -259,14 +288,19 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       }
     }
 
-    toast.success(`Сгенерированы ответы для ${selectedReviews.size} отзывов`, {
+    toast({
+      title: "Генерация завершена",
+      description: `Сгенерированы ответы для ${selectedReviews.size} отзывов`,
       important: true
     });
   };
 
   const sendSelectedAnswers = async () => {
     if (selectedReviews.size === 0) {
-      toast.warning("Не выбрано ни одного отзыва для отправки ответов", {
+      toast({
+        title: "Внимание",
+        description: "Не выбрано ни одного отзыва для отправки",
+        variant: "destructive",
         important: true
       });
       return;
@@ -276,7 +310,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     const reviewsWithoutAnswers = Array.from(selectedReviews).filter(id => !answers[id]);
 
     if (reviewsWithoutAnswers.length > 0) {
-      toast.warning(`У ${reviewsWithoutAnswers.length} выбранных отзывов нет сгенерированных ответов`, {
+      toast({
+        title: "Внимание",
+        description: `У ${reviewsWithoutAnswers.length} выбранных отзывов нет ответов`,
+        variant: "destructive",
         important: true
       });
     }
@@ -291,7 +328,9 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     reviewsWithAnswers.forEach(id => newPhantomSending.add(id));
     setPhantomSending(newPhantomSending);
 
-    toast.info(`Начата отправка ответов на ${reviewsWithAnswers.length} отзывов. Это может занять некоторое время.`, {
+    toast({
+      title: "Начата отправка",
+      description: `Отправка ${reviewsWithAnswers.length} ответов...`,
       important: true
     });
 
@@ -413,9 +452,15 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       />
 
       {loading ? (
-        <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">Загрузка отзывов...</div>
+        <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">
+          <Loader2 size={24} className="animate-spin mx-auto mb-2" />
+          Загрузка отзывов...
+        </div>
       ) : !Array.isArray(reviews) || reviews.length === 0 ? (
-        <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">Нет отзывов для отображения</div>
+        <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">
+          <MessageSquare size={24} className="mx-auto mb-2 opacity-50" />
+          Нет отзывов для отображения
+        </div>
       ) : (
         <div className="space-y-4">
           {Array.isArray(reviews) && reviews.map((review) => (

@@ -28,7 +28,8 @@ import {
   Sliders,
   Thermometer,
   Clock,
-  FileDigit
+  FileDigit,
+  Bell
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { WbReview } from "@/types/wb";
@@ -92,6 +93,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   const [isSending, setIsSending] = useState(false);
   const [processingReviews, setProcessingReviews] = useState<Set<string>>(new Set());
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [promptPreview, setPromptPreview] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [sendingProgress, setSendingProgress] = useState(0);
@@ -111,7 +113,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   useEffect(() => {
     localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
     
-    // Применяем настройки к глобальному объекту для тостов
+    // Apply settings to global object for toasts
     window.toastSettings = {
       duration: notificationSettings.displayTime,
       important: notificationSettings.notificationType === 'important',
@@ -209,8 +211,8 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       if (notificationSettings.notificationType !== 'none') {
         const isImportant = notificationSettings.notificationType === 'important';
         toast({
-          title: "Успешно",
-          description: `Сгенерированы автоответы для ${Object.keys(result).length} отзывов. Использовалась модель: ${effectiveModel}`,
+          title: "Ответы сгенерированы",
+          description: `Создано ${Object.keys(result).length} ответов. Использовалась модель: ${effectiveModel}`,
           variant: "default",
           important: isImportant,
         });
@@ -248,7 +250,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     setSendingProgress(0);
     setFailedReviews(new Set());
     
-    // Сначала все отзывы перемещаем в фантомный буфер (fanout buffer)
+    // Initialize fanout buffer
     setSentReviews(new Set());
     setPendingReviews(new Set(reviewIds));
     
@@ -262,8 +264,8 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         setSendingProgress(Math.round((i / reviewIds.length) * 100));
         
         try {
-          // Случайная задержка от 1.5 до 3 секунд, чтобы анимация была заметна
-          const delay = Math.floor(Math.random() * 1500) + 1500; // 1500-3000мс задержка
+          // Random delay between 1.5 and 3 seconds for visible animation
+          const delay = Math.floor(Math.random() * 1500) + 1500; // 1500-3000ms delay
           await sleep(delay);
           
           console.log(`📤 Отправка ответа для отзыва ${reviewId} (${i+1}/${reviewIds.length})`);
@@ -311,15 +313,15 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           const isImportant = notificationSettings.notificationType === 'important';
           if (errorCount > 0) {
             toast({
-              title: "Частичный успех",
+              title: "Частичная отправка",
               description: `Отправлено ${successCount} ответов. Не удалось отправить ${errorCount} ответов.`,
               variant: "default",
               important: isImportant,
             });
           } else {
             toast({
-              title: "Успешно",
-              description: `Отправлено ${successCount} ответов`,
+              title: "Ответы отправлены", 
+              description: `Успешно отправлено ${successCount} ответов покупателям`,
               variant: "default",
               important: isImportant,
             });
@@ -486,6 +488,86 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 onChange={(e) => handleSettingsChange('signature', e.target.value)}
               />
             </div>
+            
+            <Collapsible 
+              open={showNotificationSettings} 
+              onOpenChange={setShowNotificationSettings}
+              className="border rounded-md p-3 bg-gray-50 dark:bg-gray-700"
+            >
+              <CollapsibleTrigger asChild>
+                <div className="flex justify-between items-center cursor-pointer">
+                  <span className="font-medium flex items-center gap-1">
+                    <Bell size={14} /> Настройки уведомлений
+                  </span>
+                  <Button variant="ghost" size="sm">
+                    {showNotificationSettings ? "Скрыть" : "Показать"}
+                  </Button>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="notificationType">Показывать уведомления</Label>
+                  <Select
+                    value={notificationSettings.notificationType}
+                    onValueChange={(value: 'important' | 'all' | 'none') => 
+                      handleNotificationSettingsChange('notificationType', value)
+                    }
+                  >
+                    <SelectTrigger id="notificationType">
+                      <SelectValue placeholder="Тип уведомлений" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Все уведомления</SelectItem>
+                      <SelectItem value="important">Только важные</SelectItem>
+                      <SelectItem value="none">Отключить все</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="transparency">
+                      Прозрачность ({Math.round((1 - notificationSettings.transparency) * 100)}%)
+                    </Label>
+                  </div>
+                  <input
+                    id="transparency"
+                    type="range"
+                    min="0"
+                    max="0.9"
+                    step="0.1"
+                    value={notificationSettings.transparency}
+                    onChange={(e) => handleNotificationSettingsChange('transparency', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="displayTime">
+                    Время отображения ({notificationSettings.displayTime / 1000}с)
+                  </Label>
+                  <input
+                    id="displayTime"
+                    type="range"
+                    min="1000"
+                    max="10000"
+                    step="1000"
+                    value={notificationSettings.displayTime}
+                    onChange={(e) => handleNotificationSettingsChange('displayTime', parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+                
+                <Button 
+                  onClick={() => handleNotificationSettingsChange('notificationType', defaultNotificationSettings.notificationType)} 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                >
+                  Сбросить настройки уведомлений
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
 
             <Collapsible 
               open={showAdvancedSettings} 
