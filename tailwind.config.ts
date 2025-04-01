@@ -60,6 +60,7 @@ export default {
 					accent: '#7E69AB',
 					light: '#E5DEFF',
 					background: '#F6F8FA',
+					header: '#0A0D14',
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',

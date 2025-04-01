@@ -95,6 +95,12 @@
   }
 }
 
+/* Header dark background */
+.asterion-header {
+  background-color: #0A0D14;
+  color: white;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

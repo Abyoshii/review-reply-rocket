@@ -7,9 +7,6 @@ import {
   Bell,
   BellOff,
   Settings,
-  Clock,
-  Eye,
-  EyeOff,
   Key,
 } from "lucide-react";
 import {
@@ -112,14 +109,14 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
   };
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between py-3 px-4 bg-[#0A0D14] text-white">
       <div className="flex flex-col items-start">
         <h1 className="text-2xl font-bold">
-          <span className="mr-2 bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent font-bold">
+          <span className="mr-2 text-purple-400 font-bold">
             Asterion
           </span>
         </h1>
-        <span className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">
+        <span className="text-xs text-gray-400 transition-colors duration-300">
           Система управления отзывами
         </span>
         
@@ -138,25 +135,25 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         </div>
       </div>
       
-      <div className="flex items-center space-x-2 ml-auto">
+      <div className="flex items-center gap-1">
         <Button 
-          variant="outline" 
-          size="icon"
+          variant="nav" 
+          size="navIcon"
           onClick={onRefresh} 
-          className="flex items-center transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
+          className="text-white rounded-md"
           title="Обновить"
         >
-          <RefreshCw className="animate-spin-hover" size={16} />
+          <RefreshCw size={20} />
         </Button>
         
         <Popover>
           <PopoverTrigger asChild>
             <Button 
-              variant="outline" 
-              size="icon"
-              className="relative transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
+              variant="nav" 
+              size="navIcon"
+              className="relative text-white rounded-md"
             >
-              <Bell size={18} className="transition-transform hover:scale-110" />
+              <Bell size={20} />
               {notificationSettings?.notificationType === 'none' && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" />
               )}
@@ -186,7 +183,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                     className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300 hover:scale-105"
                     onClick={() => handleNotificationSettingsChange('notificationType', 'important')}
                   >
-                    <Eye size={14} className="transition-transform duration-300" />
+                    <Bell size={14} className="transition-transform duration-300" />
                     <span>Важные</span>
                   </Button>
                   <Button 
@@ -248,31 +245,31 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         </Popover>
         
         <Button 
-          variant="outline" 
-          size="icon" 
+          variant="nav" 
+          size="navIcon" 
           onClick={() => setTokenDialogOpen(true)}
-          className="transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
+          className="text-white rounded-md"
         >
-          <Key size={18} className="transition-transform hover:scale-110" />
+          <Key size={20} />
         </Button>
         
         <Button 
-          variant="outline" 
-          size="icon" 
+          variant="nav" 
+          size="navIcon" 
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
+          className="text-white rounded-md"
         >
-          {theme === "dark" ? <Sun size={18} className="transition-transform hover:scale-110" /> : <Moon size={18} className="transition-transform hover:scale-110" />}
+          {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
         </Button>
         
         <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
           <DialogTrigger asChild>
             <Button 
-              variant="outline" 
-              size="icon"
-              className="transition-all duration-300 hover:rotate-[30deg] hover:bg-indigo-100 dark:hover:bg-indigo-900"
+              variant="nav" 
+              size="navIcon"
+              className="text-white rounded-md"
             >
-              <Settings size={18} className="animate-spin-slow hover:animate-spin" />
+              <Settings size={20} />
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
