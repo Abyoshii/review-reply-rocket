@@ -9,7 +9,7 @@ export interface WbReview {
   subjectName: string;
   brandName: string;
   productsArticle: string;
-  text: string;
+  text?: string | null; // Текст отзыва может быть null или undefined
   createdDate: string;
   lastModifiedDate: string;
   photoLinks: string[] | null;

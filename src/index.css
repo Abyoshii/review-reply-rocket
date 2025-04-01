@@ -91,6 +91,7 @@
 
   body {
     @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -112,4 +113,43 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #9b87f5;
+}
+
+/* Переливающийся заголовок */
+@keyframes gradient-x {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-x {
+  animation: gradient-x 3s ease infinite;
+}
+
+.bg-size-200 {
+  background-size: 200% 200%;
+}
+
+/* Темная тема для скроллбара */
+.dark ::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #444;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #7E69AB;
+}
+
+/* Анимация перехода для всех элементов */
+.transition-theme {
+  transition: all 0.3s ease;
 }

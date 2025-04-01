@@ -1,243 +1,152 @@
-import { ReviewListParams, WbAnswerRequest, WbReviewsResponse, WbAnswerResponse } from "@/types/wb";
-import { GenerateAnswerRequest, GenerateAnswerResponse, OpenAIRequest, OpenAIResponse } from "@/types/openai";
+
+import axios from "axios";
+import { ReviewListParams, WbReviewsResponse, WbAnswerRequest, WbAnswerResponse } from "@/types/wb";
+import { GenerateAnswerRequest, GenerateAnswerResponse } from "@/types/openai";
 import { toast } from "sonner";
 
-// Константы для API
-const WB_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
-const OPENAI_API_KEY = "sk-YOUR-OPENAI-KEY"; // Здесь нужно заменить на реальный ключ API OpenAI
+// WB API
+const WB_API_BASE_URL = "https://feedbacks-api.wildberries.ru/api/v1/feedbacks";
+// Дефолтный токен, будет использоваться если пользователь не указал свой
+const DEFAULT_WB_TOKEN = "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
 
-// Класс для ограничения частоты запросов (rate limiting)
-class RateLimiter {
-  private lastRequestTime: number = 0;
-  private requestQueue: Array<() => Promise<any>> = [];
-  private processing: boolean = false;
-
-  async enqueue<T>(request: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      this.requestQueue.push(async () => {
-        try {
-          const result = await request();
-          resolve(result);
-        } catch (error) {
-          reject(error);
-        }
-      });
-
-      if (!this.processing) {
-        this.processQueue();
-      }
-    });
-  }
-
-  private async processQueue() {
-    if (this.requestQueue.length === 0) {
-      this.processing = false;
-      return;
-    }
-
-    this.processing = true;
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    const delay = Math.max(0, 1000 - timeSinceLastRequest); // Задержка не менее 1 секунды между запросами
-
-    if (delay > 0) {
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-
-    const request = this.requestQueue.shift();
-    if (request) {
-      this.lastRequestTime = Date.now();
-      try {
-        await request();
-      } catch (error) {
-        console.error("Error processing request:", error);
-      }
-    }
-
-    // Обработка следующего запроса в очереди
-    this.processQueue();
-  }
-}
-
-const wbRateLimiter = new RateLimiter();
-
-// API для работы с WB
-export const WbAPI = {
-  // Получение списка отзывов
-  async getReviews(params: ReviewListParams): Promise<WbReviewsResponse> {
-    const queryParams = new URLSearchParams();
-    
-    queryParams.append("isAnswered", params.isAnswered.toString());
-    queryParams.append("take", params.take.toString());
-    queryParams.append("skip", params.skip.toString());
-    
-    if (params.order) {
-      queryParams.append("order", params.order);
-    }
-    
-    if (params.nmId) {
-      queryParams.append("nmId", params.nmId.toString());
-    }
-    
-    if (params.dateFrom) {
-      queryParams.append("dateFrom", params.dateFrom);
-    }
-    
-    if (params.dateTo) {
-      queryParams.append("dateTo", params.dateTo);
-    }
-
-    return wbRateLimiter.enqueue(async () => {
-      try {
-        console.log(`Отправка запроса: https://feedbacks-api.wildberries.ru/api/v1/feedbacks?${queryParams.toString()}`);
-        
-        const response = await fetch(
-          `https://feedbacks-api.wildberries.ru/api/v1/feedbacks?${queryParams.toString()}`, 
-          {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${WB_TOKEN}`,
-              "Content-Type": "application/json"
-            }
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`Ошибка при получении отзывов: ${errorData.message || response.statusText}`);
-        }
-
-        const responseData = await response.json();
-        console.log("Ответ API:", responseData);
-        
-        return responseData;
-      } catch (error) {
-        console.error("Ошибка при получении отзывов:", error);
-        toast.error("Не удалось получить отзывы. Пожалуйста, попробуйте позже.");
-        throw error;
-      }
-    });
-  },
-
-  // Отправка ответа на отзыв
-  async sendAnswer(request: WbAnswerRequest): Promise<WbAnswerResponse> {
-    return wbRateLimiter.enqueue(async () => {
-      try {
-        const response = await fetch(
-          "https://feedbacks-api.wildberries.ru/api/v1/feedbacks/answer", 
-          {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${WB_TOKEN}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(request)
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`Ошибка при отправке ответа: ${errorData.message || response.statusText}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        console.error("Ошибка при отправке ответа:", error);
-        toast.error("Не удалось отправить ответ. Пожалуйста, попробуйте позже.");
-        throw error;
-      }
-    });
-  },
-
-  // Получение количества необработанных отзывов
-  async getUnansweredCount(): Promise<number> {
-    return wbRateLimiter.enqueue(async () => {
-      try {
-        const response = await fetch(
-          "https://feedbacks-api.wildberries.ru/api/v1/feedbacks/count-unanswered", 
-          {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${WB_TOKEN}`,
-              "Content-Type": "application/json"
-            }
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`Ошибка при получении количества отзывов: ${errorData.message || response.statusText}`);
-        }
-
-        const data = await response.json();
-        return data.data.countUnanswered;
-      } catch (error) {
-        console.error("Ошибка при получении количества отзывов:", error);
-        toast.error("Не удалось получить количество отзывов. Пожалуйста, попробуйте позже.");
-        throw error;
-      }
-    });
-  }
+// Получение токена WB из localStorage или использование дефолтного
+const getWbToken = (): string => {
+  const token = localStorage.getItem("wb_token");
+  return token || DEFAULT_WB_TOKEN;
 };
 
-// API для работы с OpenAI
+// Получение токена OpenAI из localStorage
+const getOpenaiApiKey = (): string | null => {
+  return localStorage.getItem("openai_api_key");
+};
+
+// WB API
+export const WbAPI = {
+  // Получение списка отзывов
+  getReviews: async (params: ReviewListParams): Promise<WbReviewsResponse> => {
+    try {
+      console.log("Fetching reviews with params:", params);
+      console.log("Using WB token:", getWbToken());
+      
+      const response = await axios.get(WB_API_BASE_URL, {
+        headers: {
+          Authorization: getWbToken(),
+          "Content-Type": "application/json",
+        },
+        params: params,
+      });
+      
+      console.log("WB API Response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        toast.error(`Ошибка получения отзывов: ${error.response.status} ${error.response.statusText}`);
+      } else {
+        toast.error("Ошибка получения отзывов. Проверьте консоль для деталей.");
+      }
+      throw error;
+    }
+  },
+  
+  // Отправка ответа на отзыв
+  sendAnswer: async (data: WbAnswerRequest): Promise<WbAnswerResponse> => {
+    try {
+      const response = await axios.post(`${WB_API_BASE_URL}/answer`, data, {
+        headers: {
+          Authorization: getWbToken(),
+          "Content-Type": "application/json",
+        },
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error("Error sending answer:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        toast.error(`Ошибка отправки ответа: ${error.response.status} ${error.response.statusText}`);
+      } else {
+        toast.error("Ошибка отправки ответа. Проверьте консоль для деталей.");
+      }
+      throw error;
+    }
+  },
+  
+  // Получение количества неотвеченных отзывов
+  getUnansweredCount: async (): Promise<number> => {
+    try {
+      const response = await axios.get(`${WB_API_BASE_URL}/count-unanswered`, {
+        headers: {
+          Authorization: getWbToken(),
+          "Content-Type": "application/json",
+        },
+      });
+      
+      return response.data.data.count || 0;
+    } catch (error) {
+      console.error("Error fetching unanswered count:", error);
+      return 0;
+    }
+  },
+};
+
+// OpenAI API
+const OPENAI_API_BASE_URL = "https://api.openai.com/v1/chat/completions";
+
 export const OpenAIAPI = {
   // Генерация ответа на отзыв
-  async generateAnswer(request: GenerateAnswerRequest): Promise<GenerateAnswerResponse> {
+  generateAnswer: async (request: GenerateAnswerRequest): Promise<GenerateAnswerResponse> => {
+    const apiKey = getOpenaiApiKey();
+    if (!apiKey) {
+      toast.error("API ключ OpenAI не найден. Пожалуйста, добавьте его в настройках.");
+      throw new Error("OpenAI API key not found");
+    }
+    
+    // Определение сложности отзыва и выбор модели
+    const isComplexReview = request.reviewText.length > 400 || 
+      /плох|ужас|гнев|разоча|обман|верн|прете|ужас|отврат|жаль|поддел|фейк/i.test(request.reviewText);
+    
+    const model = isComplexReview ? "gpt-4o" : "gpt-3.5-turbo";
+    
     try {
-      // Определение модели в зависимости от длины и содержания отзыва
-      const reviewText = request.reviewText;
-      let model = "gpt-3.5-turbo";
-      
-      // Если отзыв длинный или содержит агрессивный тон, используем более мощную модель
-      if (
-        reviewText.length > 400 || 
-        /негатив|ужас|отврат|плох|некачеств|отстой|верн|неуд|гнев|злость|раздраж|раздраж|подделк|фейк/i.test(reviewText)
-      ) {
-        model = "gpt-4o";
-      }
-
-      const openAIRequest: OpenAIRequest = {
-        model: model,
-        messages: [
-          {
-            role: "system",
-            content: "Ты — специалист клиентского сервиса интернет-магазина. На основе отзыва напиши дружелюбный, живой и полезный ответ из 3–5 предложений. Используй подходящие эмодзи, избегай шаблонных фраз. \n\nЕсли клиент хочет вернуть парфюм, объясни, что откры��ые или использованные духи возврату не подлежат. Если клиент получил не тот товар, извинись и уточни, что товар нужно вернуть, не используя его. Если клиент обвиняет магазин в продаже подделки или проявляет агрессию, используй лёгкую иронию или юмор, сохраняя уважение. Если товар был повреждён при доставке, вежливо объясни, что ответственность за это несёт служба доставки Wildberries, и предложи обратиться туда напрямую."
-          },
-          {
-            role: "user",
-            content: `Отзыв: ${reviewText}`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      };
-
-      const response = await fetch(
-        "https://api.openai.com/v1/chat/completions", 
+      const response = await axios.post(
+        OPENAI_API_BASE_URL,
         {
-          method: "POST",
+          model: model,
+          messages: [
+            {
+              role: "system",
+              content: "Ты — специалист клиентского сервиса интернет-магазина. На основе отзыва напиши дружелюбный, живой и полезный ответ из 3–5 предложений. Используй подходящие эмодзи, избегай шаблонных фраз. Если клиент хочет вернуть парфюм, объясни, что открытые или использованные духи возврату не подлежат. Если клиент получил не тот товар, извинись и уточни, что товар нужно вернуть, не используя его. Если клиент обвиняет магазин в продаже подделки или проявляет агрессию, используй лёгкую иронию или юмор, сохраняя уважение. Если товар был повреждён при доставке, вежливо объясни, что ответственность за это несёт служба доставки Wildberries, и предложи обратиться туда напрямую."
+            },
+            {
+              role: "user",
+              content: `Отзыв: ${request.reviewText}`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        },
+        {
           headers: {
-            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json"
-          },
-          body: JSON.stringify(openAIRequest)
+          }
         }
       );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Ошибка при генерации ответа: ${errorData.error?.message || response.statusText}`);
-      }
-
-      const data: OpenAIResponse = await response.json();
+      
+      const answer = response.data.choices[0].message.content;
       return {
-        answer: data.choices[0].message.content,
+        reviewId: request.reviewId,
+        answer: answer,
         modelUsed: model
       };
     } catch (error) {
-      console.error("Ошибка при генерации ответа:", error);
-      toast.error("Не удалось сгенерировать ответ. Пожалуйста, попробуйте позже.");
+      console.error("Error generating answer with OpenAI:", error);
+      if (axios.isAxiosError(error) && error.response) {
+        toast.error(`Ошибка OpenAI: ${error.response.status} ${error.response.statusText}`);
+        console.error("OpenAI error response:", error.response.data);
+      } else {
+        toast.error("Ошибка при генерации ответа. Проверьте консоль для деталей.");
+      }
       throw error;
     }
   }
