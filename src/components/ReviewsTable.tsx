@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { WbReview, PhotoLink } from "@/types/wb";
 import { Badge } from "@/components/ui/badge";
@@ -178,7 +177,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     }
   };
 
-  // Updated date formatter for more compact display
   const formatDateCompact = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleDateString('ru-RU', { 
@@ -211,6 +209,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         <span className="ml-1 text-sm font-medium">{rating}</span>
       </div>
     );
+  };
+
+  const hasValidPhotoLinks = (photoLinks: any): photoLinks is PhotoLink[] => {
+    return Array.isArray(photoLinks) && photoLinks.length > 0 && photoLinks[0]?.miniSize;
   };
 
   return (
@@ -309,7 +311,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                       </h3>
                     </div>
                     
-                    {Array.isArray(review.photoLinks) && review.photoLinks.length > 0 && review.photoLinks[0].miniSize && (
+                    {hasValidPhotoLinks(review.photoLinks) && (
                       <div className="w-20 h-20 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300 flex-shrink-0">
                         <a href={review.photoLinks[0].fullSize} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                           <img src={review.photoLinks[0].miniSize} alt="Фото товара" className="w-full h-full object-cover" />
@@ -317,23 +319,21 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                       </div>
                     )}
                     
-                    {review.photoLinks && !Array.isArray(review.photoLinks) && typeof review.photoLinks === 'object' && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {Object.prototype.toString.call(review.photoLinks) === '[object Array]' && 
-                          Array.isArray(review.photoLinks) && review.photoLinks.map((photo: PhotoLink, index: number) => (
-                            <a 
-                              key={index} 
-                              href={photo.fullSize} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="block w-16 h-16 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300"
-                            >
-                              <img src={photo.miniSize} alt="Фото к отзыву" className="w-full h-full object-cover" />
-                            </a>
-                          ))
-                        }
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {hasValidPhotoLinks(review.photoLinks) && 
+                        review.photoLinks.map((photo: PhotoLink, index: number) => (
+                          <a 
+                            key={index} 
+                            href={photo.fullSize} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block w-16 h-16 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300"
+                          >
+                            <img src={photo.miniSize} alt="Фото к отзыву" className="w-full h-full object-cover" />
+                          </a>
+                        ))
+                      }
+                    </div>
                     
                     {review.video && (review.video.previewImage || review.video.thumbnail) && (
                       <div className="w-20 h-20 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300 flex-shrink-0 relative">
@@ -364,7 +364,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                         <MessageSquare size={14} /> Отзыв клиента:
                       </p>
                       <p className="whitespace-pre-line">
-                        {/* Fix: Show pros field as text if no review text but pros exists */}
                         {review.text ? review.text : (review.pros ? review.pros : "Покупатель не оставил текстовый отзыв, только рейтинг")}
                       </p>
                     </div>
