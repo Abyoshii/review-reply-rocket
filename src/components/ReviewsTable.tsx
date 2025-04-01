@@ -19,7 +19,8 @@ import {
   Edit, 
   Save, 
   Send,
-  Loader2
+  Loader2,
+  Cpu
 } from "lucide-react";
 import FloatingActionButtons from "./FloatingActionButtons";
 
@@ -28,17 +29,26 @@ interface ReviewsTableProps {
   loading: boolean;
   onRefresh: () => void;
   isAnswered: boolean;
+  onReviewStateChange?: (reviewId: string, newState: "sending" | "error" | "answered" | "unanswered") => void;
+  processingReviewIds?: Set<string>;
 }
 
-const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableProps) => {
+const ReviewsTable = ({ 
+  reviews, 
+  loading, 
+  onRefresh, 
+  isAnswered, 
+  onReviewStateChange,
+  processingReviewIds = new Set()
+}: ReviewsTableProps) => {
   const [selectedReviews, setSelectedReviews] = useState<Set<string>>(new Set());
   const [generatingAnswers, setGeneratingAnswers] = useState<Set<string>>(new Set());
   const [sendingAnswers, setSendingAnswers] = useState<Set<string>>(new Set());
-  const [phantomSending, setPhantomSending] = useState<Set<string>>(new Set());
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [editingAnswers, setEditingAnswers] = useState<Set<string>>(new Set());
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
   const [sendProgress, setSendProgress] = useState({ sent: 0, total: 0, failed: 0 });
+  const [modelUsed, setModelUsed] = useState<Record<string, string>>({});
 
   const toggleReviewSelection = (reviewId: string) => {
     const newSelectedReviews = new Set(selectedReviews);
@@ -86,11 +96,14 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         [review.id]: response.answer
       }));
 
-      toast({
-        title: "Ответ сгенерирован",
-        description: `Использована модель: ${response.modelUsed}`,
-        important: true
-      });
+      // Save the model used for this review
+      setModelUsed(prev => ({
+        ...prev,
+        [review.id]: response.modelUsed
+      }));
+
+      // No longer showing toast notifications for each generation
+      // Instead, we'll show model info near the textarea
     } catch (error) {
       console.error("Ошибка при генерации ответа:", error);
       toast({
@@ -117,12 +130,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       return;
     }
 
-    const newPhantomSending = new Set(phantomSending);
-    newPhantomSending.add(review.id);
-    setPhantomSending(newPhantomSending);
-
-    const randomDelay = 1500 + Math.random() * 1500; // 1.5 to 3 seconds
-    await new Promise(resolve => setTimeout(resolve, randomDelay));
+    // Immediately move review to "processing" state
+    if (onReviewStateChange) {
+      onReviewStateChange(review.id, "sending");
+    }
 
     const newSendingAnswers = new Set(sendingAnswers);
     newSendingAnswers.add(review.id);
@@ -139,6 +150,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         description: "Ответ отправлен покупателю",
         important: true
       });
+      
       setSendProgress(prev => ({ ...prev, sent: prev.sent + 1 }));
       
       if (sendProgress.total === sendProgress.sent + 1) {
@@ -152,6 +164,11 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
           setSendProgress({ sent: 0, total: 0, failed: 0 });
         }, 500);
       }
+      
+      // Update review state to "answered"
+      if (onReviewStateChange) {
+        onReviewStateChange(review.id, "answered");
+      }
     } catch (error) {
       console.error("Ошибка при отправке ответа:", error);
       toast({
@@ -161,11 +178,15 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         important: true
       });
       setSendProgress(prev => ({ ...prev, failed: prev.failed + 1 }));
-    } finally {
-      const updatedPhantomSending = new Set(phantomSending);
-      updatedPhantomSending.delete(review.id);
-      setPhantomSending(updatedPhantomSending);
       
+      // Return the review to "unanswered" state
+      if (onReviewStateChange) {
+        onReviewStateChange(review.id, "error");
+        setTimeout(() => {
+          onReviewStateChange(review.id, "unanswered");
+        }, 2000);
+      }
+    } finally {
       const updatedSendingAnswers = new Set(sendingAnswers);
       updatedSendingAnswers.delete(review.id);
       setSendingAnswers(updatedSendingAnswers);
@@ -202,12 +223,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       return;
     }
 
-    const newPhantomSending = new Set(phantomSending);
-    newPhantomSending.add(review.id);
-    setPhantomSending(newPhantomSending);
-
-    const randomDelay = 1500 + Math.random() * 1500; // 1.5 to 3 seconds
-    await new Promise(resolve => setTimeout(resolve, randomDelay));
+    // Mark as sending
+    if (onReviewStateChange) {
+      onReviewStateChange(review.id, "sending");
+    }
 
     const newSendingAnswers = new Set(sendingAnswers);
     newSendingAnswers.add(review.id);
@@ -229,6 +248,11 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       newEditingAnswers.delete(review.id);
       setEditingAnswers(newEditingAnswers);
       
+      // Update review state to "answered"
+      if (onReviewStateChange) {
+        onReviewStateChange(review.id, "answered");
+      }
+      
       onRefresh();
     } catch (error) {
       console.error("Ошибка при редактировании ответа:", error);
@@ -238,11 +262,15 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         variant: "destructive",
         important: true
       });
-    } finally {
-      const updatedPhantomSending = new Set(phantomSending);
-      updatedPhantomSending.delete(review.id);
-      setPhantomSending(updatedPhantomSending);
       
+      // Return to normal state
+      if (onReviewStateChange) {
+        onReviewStateChange(review.id, "error");
+        setTimeout(() => {
+          onReviewStateChange(review.id, "answered");
+        }, 2000);
+      }
+    } finally {
       const updatedSendingAnswers = new Set(sendingAnswers);
       updatedSendingAnswers.delete(review.id);
       setSendingAnswers(updatedSendingAnswers);
@@ -274,6 +302,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       return;
     }
 
+    // Only show a single notification for batch operations
     toast({
       title: "Начата генерация",
       description: `Генерация ответов для ${selectedReviews.size} отзывов...`,
@@ -323,10 +352,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     }
 
     setSendProgress({ sent: 0, total: reviewsWithAnswers.length, failed: 0 });
-
-    const newPhantomSending = new Set(phantomSending);
-    reviewsWithAnswers.forEach(id => newPhantomSending.add(id));
-    setPhantomSending(newPhantomSending);
 
     toast({
       title: "Начата отправка",
@@ -396,6 +421,11 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     return Array.isArray(photoLinks) && photoLinks.length > 0 && photoLinks[0]?.miniSize;
   };
 
+  // Filter out reviews that are being processed if needed
+  const filteredReviews = reviews.filter(review => 
+    !processingReviewIds || !processingReviewIds.has(review.id)
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 mb-4">
@@ -403,8 +433,9 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
           variant="outline" 
           onClick={toggleSelectAll}
           className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
+          disabled={filteredReviews.length === 0}
         >
-          {selectedReviews.size === (reviews?.length || 0) ? "Снять выбор" : "Выбрать все"}
+          {selectedReviews.size === (filteredReviews?.length || 0) ? "Снять выбор" : "Выбрать все"}
         </Button>
         
         {!isAnswered && (
@@ -444,7 +475,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
       <FloatingActionButtons 
         selectedReviews={selectedReviews}
-        reviews={reviews || []}
+        reviews={filteredReviews || []}
         onGenerateAnswers={generateSelectedAnswers}
         onSendAnswers={sendSelectedAnswers}
         onRefresh={onRefresh}
@@ -456,19 +487,19 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
           <Loader2 size={24} className="animate-spin mx-auto mb-2" />
           Загрузка отзывов...
         </div>
-      ) : !Array.isArray(reviews) || reviews.length === 0 ? (
+      ) : !Array.isArray(filteredReviews) || filteredReviews.length === 0 ? (
         <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">
           <MessageSquare size={24} className="mx-auto mb-2 opacity-50" />
           Нет отзывов для отображения
         </div>
       ) : (
         <div className="space-y-4">
-          {Array.isArray(reviews) && reviews.map((review) => (
+          {Array.isArray(filteredReviews) && filteredReviews.map((review) => (
             <Card 
               key={review.id} 
               className={`p-4 shadow-sm dark:bg-gray-700 dark:text-white transition-colors duration-300 
                 ${review.answer ? 'border-l-4 border-green-500' : ''} 
-                ${phantomSending.has(review.id) ? 'animate-pulse opacity-70' : ''}`}
+                ${sendingAnswers.has(review.id) ? 'animate-pulse opacity-70' : ''}`}
             >
               <div className="flex items-start space-x-4">
                 <div>
@@ -476,14 +507,14 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                     checked={selectedReviews.has(review.id)} 
                     onCheckedChange={() => toggleReviewSelection(review.id)}
                     className="mt-1 dark:border-gray-500 transition-colors duration-300"
-                    disabled={phantomSending.has(review.id) || sendingAnswers.has(review.id)}
+                    disabled={sendingAnswers.has(review.id)}
                   />
                 </div>
                 <div className="flex-1 space-y-3">
-                  {(phantomSending.has(review.id) || sendingAnswers.has(review.id)) && (
+                  {sendingAnswers.has(review.id) && (
                     <div className="absolute right-4 top-4 flex items-center bg-black/70 text-white px-3 py-1 rounded-full text-xs z-10">
                       <Loader2 size={14} className="mr-2 animate-spin" />
-                      {sendingAnswers.has(review.id) ? "Отправка ответа..." : "Обработка..."}
+                      Отправка ответа...
                     </div>
                   )}
                   
@@ -616,6 +647,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                             size="sm" 
                             onClick={() => startEditingAnswer(review)}
                             className="h-8 px-2 text-green-600"
+                            disabled={sendingAnswers.has(review.id)}
                           >
                             <Edit size={14} className="mr-1" />
                             Редактировать
@@ -635,12 +667,14 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                         value={editedAnswers[review.id] || ""}
                         onChange={(e) => updateEditedAnswer(review.id, e.target.value)}
                         className="min-h-20 dark:bg-gray-800 dark:text-white dark:border-gray-600 mb-2 transition-colors duration-300"
+                        disabled={sendingAnswers.has(review.id)}
                       />
                       <div className="flex gap-2 justify-end">
                         <Button 
                           variant="outline" 
                           size="sm"
                           onClick={() => cancelEditingAnswer(review.id)}
+                          disabled={sendingAnswers.has(review.id)}
                         >
                           Отмена
                         </Button>
@@ -660,19 +694,27 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                   
                   {!review.answer && (
                     <div className="mt-3 space-y-2">
-                      <Textarea 
-                        placeholder="Ответ на отзыв будет сгенерирован здесь..."
-                        value={answers[review.id] || ""}
-                        onChange={(e) => updateAnswer(review.id, e.target.value)}
-                        className="min-h-24 dark:bg-gray-800 dark:text-white dark:border-gray-600 transition-colors duration-300"
-                        disabled={phantomSending.has(review.id) || sendingAnswers.has(review.id)}
-                      />
+                      <div className="relative">
+                        <Textarea 
+                          placeholder="Ответ на отзыв будет сгенерирован здесь..."
+                          value={answers[review.id] || ""}
+                          onChange={(e) => updateAnswer(review.id, e.target.value)}
+                          className="min-h-24 dark:bg-gray-800 dark:text-white dark:border-gray-600 transition-colors duration-300"
+                          disabled={sendingAnswers.has(review.id)}
+                        />
+                        {modelUsed[review.id] && (
+                          <div className="text-xs text-gray-500 mt-1 flex items-center">
+                            <Cpu size={12} className="mr-1" /> 
+                            Сгенерировано: {modelUsed[review.id].includes('gpt-4') ? 'GPT-4' : 'GPT-3.5'}
+                          </div>
+                        )}
+                      </div>
                       
                       <div className="flex flex-wrap gap-2">
                         <Button
                           variant="outline"
                           onClick={() => generateAnswer(review)}
-                          disabled={generatingAnswers.has(review.id) || phantomSending.has(review.id) || sendingAnswers.has(review.id)}
+                          disabled={generatingAnswers.has(review.id) || sendingAnswers.has(review.id)}
                           className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
                         >
                           {generatingAnswers.has(review.id) ? (
@@ -686,9 +728,9 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                         <Button
                           className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
                           onClick={() => sendAnswer(review)}
-                          disabled={!answers[review.id] || phantomSending.has(review.id) || sendingAnswers.has(review.id)}
+                          disabled={!answers[review.id] || sendingAnswers.has(review.id)}
                         >
-                          {phantomSending.has(review.id) ? (
+                          {sendingAnswers.has(review.id) ? (
                             <>
                               <Loader2 size={16} className="mr-2 animate-spin" />
                               Отправка...

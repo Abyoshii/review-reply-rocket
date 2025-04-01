@@ -44,8 +44,11 @@ export function Toaster() {
     }
   }, [])
 
+  // Use the settings from localStorage or default
+  const toastDuration = window.toastSettings?.duration || settings.duration
+
   return (
-    <ToastProvider duration={window.toastSettings?.duration || settings.duration}>
+    <ToastProvider duration={toastDuration}>
       <div className="toast-container" style={{ opacity: settings.opacity }}>
         {toasts.map(function ({ id, title, description, action, important, ...props }) {
           // Skip toast if notifications are disabled or if this is not important and only important should be shown

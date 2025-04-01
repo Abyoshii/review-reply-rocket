@@ -74,44 +74,49 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
   };
 
   const handleTestNotification = () => {
-    toast({
-      title: "Тестовое уведомление",
-      description: "Это тестовое уведомление с вашими настройками",
-      important: false
-    });
-    
+    // Adding a small delay to ensure the settings have been applied
     setTimeout(() => {
       toast({
-        title: "Важное уведомление",
-        description: "Это тестовое ВАЖНОЕ уведомление",
-        important: true
+        title: "Тестовое уведомление",
+        description: "Это тестовое уведомление с вашими настройками",
+        important: false
       });
-    }, 1000);
+      
+      setTimeout(() => {
+        toast({
+          title: "Важное уведомление",
+          description: "Это тестовое ВАЖНОЕ уведомление",
+          important: true
+        });
+      }, 1000);
+    }, 100);
   };
 
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-2">
-        <h1 className="text-2xl font-bold flex items-center">
-          <span className="mr-2 bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
+      <div className="flex flex-col items-start">
+        <h1 className="text-2xl font-bold">
+          <span className="mr-2 bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent font-bold">
             Asterion
           </span>
-          <span className="text-gray-800 dark:text-white transition-colors duration-300">
-            Система управления отзывами
-          </span>
         </h1>
+        <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300">
+          Система управления отзывами
+        </span>
         
-        {unansweredCount > 0 && (
-          <Badge variant="destructive" className="ml-2">
-            {unansweredCount} в процессе обработки
-          </Badge>
-        )}
-        
-        {unansweredQuestionsCount > 0 && (
-          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 ml-2">
-            {unansweredQuestionsCount} вопросов
-          </Badge>
-        )}
+        <div className="flex items-center mt-2">
+          {unansweredCount > 0 && (
+            <Badge variant="destructive" className="ml-2">
+              {unansweredCount} в процессе обработки
+            </Badge>
+          )}
+          
+          {unansweredQuestionsCount > 0 && (
+            <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 ml-2">
+              {unansweredQuestionsCount} вопросов
+            </Badge>
+          )}
+        </div>
       </div>
       
       <div className="flex space-x-2">

@@ -21,13 +21,25 @@ import {
 } from "@/components/ui/dialog";
 
 const Index = () => {
+  // Main data states
   const [unansweredReviews, setUnansweredReviews] = useState<WbReview[]>([]);
   const [answeredReviews, setAnsweredReviews] = useState<WbReview[]>([]);
   const [archiveReviews, setArchiveReviews] = useState<WbReview[]>([]);
+  const [processingReviews, setProcessingReviews] = useState<WbReview[]>([]);
+  
+  // Counts
   const [unansweredCount, setUnansweredCount] = useState<number>(0);
+  const [answeredCount, setAnsweredCount] = useState<number>(0);
+  
+  // Track review processing state by ID
+  const [processingReviewIds, setProcessingReviewIds] = useState<Set<string>>(new Set());
+  
+  // Loading states
   const [loadingUnanswered, setLoadingUnanswered] = useState<boolean>(false);
   const [loadingAnswered, setLoadingAnswered] = useState<boolean>(false);
   const [loadingArchive, setLoadingArchive] = useState<boolean>(false);
+  
+  // Filters
   const [unansweredFilters, setUnansweredFilters] = useState<ReviewListParams>({
     isAnswered: false,
     take: 100,
@@ -46,6 +58,7 @@ const Index = () => {
     order: "dateDesc"
   });
   
+  // Questions data
   const [unansweredQuestions, setUnansweredQuestions] = useState<WbQuestion[]>([]);
   const [answeredQuestions, setAnsweredQuestions] = useState<WbQuestion[]>([]);
   const [unansweredQuestionsCount, setUnansweredQuestionsCount] = useState<number>(0);
@@ -64,6 +77,7 @@ const Index = () => {
     order: "dateDesc"
   });
   
+  // UI states
   const [activeTab, setActiveTab] = useState<string>("reviews");
   const [activeReviewsTab, setActiveReviewsTab] = useState<string>("unanswered");
   const [autoResponderOpen, setAutoResponderOpen] = useState(false);
@@ -72,6 +86,7 @@ const Index = () => {
   useEffect(() => {
     fetchUnansweredReviews();
     fetchUnansweredCount();
+    fetchAnsweredCount();
     fetchUnansweredQuestionsCount();
   }, []);
 
@@ -102,6 +117,61 @@ const Index = () => {
     }
   }, [answeredQuestionsFilters, activeTab]);
 
+  // Handle review state changes
+  const handleReviewStateChange = (reviewId: string, newState: "sending" | "error" | "answered" | "unanswered") => {
+    console.log(`Review ${reviewId} changing state to: ${newState}`);
+    
+    if (newState === "sending") {
+      // Find the review in the unanswered list
+      const reviewToMove = unansweredReviews.find(r => r.id === reviewId);
+      if (reviewToMove) {
+        // Add to processing list
+        setProcessingReviews(prev => [...prev, reviewToMove]);
+        // Add to processing IDs set
+        setProcessingReviewIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(reviewId);
+          return newSet;
+        });
+        // Remove from unanswered list (visual effect only)
+        setUnansweredReviews(prev => prev.filter(r => r.id !== reviewId));
+      }
+    } 
+    else if (newState === "answered") {
+      // Remove from processing
+      setProcessingReviews(prev => prev.filter(r => r.id !== reviewId));
+      setProcessingReviewIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reviewId);
+        return newSet;
+      });
+      
+      // Update counts via API instead of manually decrementing
+      fetchUnansweredCount();
+      fetchAnsweredCount();
+    } 
+    else if (newState === "error" || newState === "unanswered") {
+      // For error state, prepare to return to original state
+      // (actual return happens with another state change after a delay)
+      if (newState === "unanswered") {
+        // Find the review in the processing list
+        const reviewToReturn = processingReviews.find(r => r.id === reviewId);
+        if (reviewToReturn) {
+          // Remove from processing
+          setProcessingReviews(prev => prev.filter(r => r.id !== reviewId));
+          setProcessingReviewIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(reviewId);
+            return newSet;
+          });
+          
+          // Add back to unanswered
+          setUnansweredReviews(prev => [reviewToReturn, ...prev]);
+        }
+      }
+    }
+  };
+
   const fetchUnansweredReviews = async () => {
     setLoadingUnanswered(true);
     try {
@@ -117,7 +187,15 @@ const Index = () => {
           filteredReviews = applyRatingFilter(filteredReviews, filters.ratingFilter);
         }
         
+        // Filter out any reviews that are currently being processed
+        filteredReviews = filteredReviews.filter(review => !processingReviewIds.has(review.id));
+        
         setUnansweredReviews(filteredReviews);
+        
+        // Update the count
+        if (response.data.countUnanswered !== undefined) {
+          setUnansweredCount(response.data.countUnanswered);
+        }
       } else {
         console.error("Некорректная структура ответа API для неотвеченных отзывов:", response);
         toast({
@@ -160,6 +238,11 @@ const Index = () => {
         }
         
         setAnsweredReviews(filteredReviews);
+        
+        // Update the count of answered reviews
+        if (response.data.countArchive !== undefined) {
+          setAnsweredCount(response.data.countArchive);
+        }
       } else {
         console.error("Некорректная структура ответа API для отвеченных отзывов:", response);
         toast({
@@ -240,6 +323,17 @@ const Index = () => {
       setUnansweredCount(count);
     } catch (error) {
       console.error("Ошибка при загрузке количества неотвеченных отзывов:", error);
+    }
+  };
+
+  const fetchAnsweredCount = async () => {
+    try {
+      const response = await WbAPI.getReviews({...answeredFilters, take: 1, skip: 0});
+      if (response.data && response.data.countArchive !== undefined) {
+        setAnsweredCount(response.data.countArchive);
+      }
+    } catch (error) {
+      console.error("Ошибка при загрузке количества отвеченных отзывов:", error);
     }
   };
 
@@ -324,8 +418,12 @@ const Index = () => {
         fetchAnsweredReviews();
       } else if (activeReviewsTab === "archive") {
         fetchArchiveReviews();
+      } else if (activeReviewsTab === "processing") {
+        // Processing tab doesn't need to refresh from API
+        // as it's managed in local state
       }
       fetchUnansweredCount();
+      fetchAnsweredCount();
     } else if (activeTab === "questions") {
       fetchUnansweredQuestions();
       fetchAnsweredQuestions();
@@ -378,6 +476,7 @@ const Index = () => {
     } else if (tab === "archive" && archiveReviews.length === 0) {
       fetchArchiveReviews();
     }
+    // No data loading for processing tab as it's managed locally
   };
 
   const handleAutoResponderSuccess = () => {
@@ -392,6 +491,8 @@ const Index = () => {
       return answeredReviews;
     } else if (activeReviewsTab === "archive") {
       return archiveReviews;
+    } else if (activeReviewsTab === "processing") {
+      return processingReviews;
     }
     return [];
   };
@@ -402,7 +503,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex justify-between items-center mb-6">
             <Header 
-              unansweredCount={unansweredCount}
+              unansweredCount={processingReviewIds.size}
               unansweredQuestionsCount={unansweredQuestionsCount}
               onRefresh={handleRefresh} 
             />
@@ -437,9 +538,10 @@ const Index = () => {
             
             <TabsContent value="reviews" className="space-y-6">
               <Tabs value={activeReviewsTab} onValueChange={handleReviewsTabChange} className="space-y-4">
-                <TabsList className="mb-4 grid grid-cols-3 mx-auto max-w-md">
+                <TabsList className="mb-4 grid grid-cols-4 mx-auto max-w-md">
                   <TabsTrigger value="unanswered">Ждут ответа</TabsTrigger>
-                  <TabsTrigger value="answered">Есть ответ</TabsTrigger>
+                  <TabsTrigger value="processing">В обработке {processingReviewIds.size > 0 && `(${processingReviewIds.size})`}</TabsTrigger>
+                  <TabsTrigger value="answered">Есть ответ {answeredCount > 0 && `(${answeredCount})`}</TabsTrigger>
                   <TabsTrigger value="archive" className="flex items-center gap-1">
                     <ArchiveIcon size={14} /> Архив
                   </TabsTrigger>
@@ -449,7 +551,7 @@ const Index = () => {
                   <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
                     <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
                       <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm mr-3">ЖДУТ ОТВЕТА</span>
-                      Неотвеченные отзывы
+                      Неотвеченные отзывы {unansweredCount > 0 && `(${unansweredCount})`}
                     </h2>
                     
                     <FilterForm 
@@ -462,7 +564,34 @@ const Index = () => {
                       loading={loadingUnanswered} 
                       onRefresh={handleRefresh} 
                       isAnswered={false}
+                      onReviewStateChange={handleReviewStateChange}
+                      processingReviewIds={processingReviewIds}
                     />
+                  </section>
+                </TabsContent>
+                
+                <TabsContent value="processing">
+                  <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
+                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
+                      <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm mr-3">В ОБРАБОТКЕ</span>
+                      Отзывы в процессе обработки {processingReviewIds.size > 0 && `(${processingReviewIds.size})`}
+                    </h2>
+                    
+                    {processingReviews.length === 0 ? (
+                      <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">
+                        <MessageCircle size={24} className="mx-auto mb-2 opacity-50" />
+                        Нет отзывов в процессе обработки
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <ReviewsTable 
+                          reviews={processingReviews} 
+                          loading={false} 
+                          onRefresh={handleRefresh} 
+                          isAnswered={false}
+                        />
+                      </div>
+                    )}
                   </section>
                 </TabsContent>
                 
@@ -470,7 +599,7 @@ const Index = () => {
                   <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
                     <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
                       <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm mr-3">ОТВЕЧЕННЫЕ</span>
-                      Отвеченные отзывы
+                      Отвеченные отзывы {answeredCount > 0 && `(${answeredCount})`}
                     </h2>
                     
                     <FilterForm 
