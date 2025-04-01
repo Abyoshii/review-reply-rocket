@@ -283,7 +283,13 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <AutoResponder />
+            <AutoResponder 
+              selectedReviews={[]} 
+              onSuccess={() => {
+                setAutoResponderOpen(false);
+                onRefresh();
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>

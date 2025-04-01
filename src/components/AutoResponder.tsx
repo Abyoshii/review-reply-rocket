@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -48,8 +47,8 @@ import { debounce, generateSystemPrompt, sleep } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 
 interface AutoResponderProps {
-  selectedReviews: WbReview[];
-  onSuccess: () => void;
+  selectedReviews?: WbReview[];
+  onSuccess?: () => void;
   onMoveToProcessing?: (reviewIds: string[]) => void;
 }
 
@@ -64,7 +63,11 @@ const defaultSettings: AutoResponderSettings = {
   customPrompt: ""
 };
 
-const AutoResponder = ({ selectedReviews, onSuccess, onMoveToProcessing }: AutoResponderProps) => {
+const AutoResponder = ({ 
+  selectedReviews = [], 
+  onSuccess = () => {}, 
+  onMoveToProcessing 
+}: AutoResponderProps) => {
   const [settings, setSettings] = useState<AutoResponderSettings>(() => {
     const savedSettings = localStorage.getItem('autoResponderSettings');
     return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
@@ -541,7 +544,7 @@ const AutoResponder = ({ selectedReviews, onSuccess, onMoveToProcessing }: AutoR
                 <Bot size={16} /> Статус автоответчика: 
                 <Badge variant="outline" className="ml-1">
                   {settings.model === "auto" ? 
-                    (selectedReviews.length >= 10 ? "GPT-4o (массовый режим)" : "GPT-3.5 Turbo (поочередный режим)") : 
+                    (selectedReviews.length >= 10 ? "GPT-4o (массовый режим)" : "GPT-3.5 Turbo (поочередный реж��м)") : 
                     (settings.model === "gpt-4o" ? "GPT-4o (массовый режим)" : 
                       (settings.model === "gpt-4" ? "GPT-4 (массовый режим)" : "GPT-3.5 Turbo (поочередный режим)"))}
                 </Badge>
