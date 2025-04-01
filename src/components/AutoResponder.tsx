@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -25,6 +24,8 @@ import {
   Sparkles,
   Sliders,
   Thermometer,
+  Clock,
+  FileDigit
 } from "lucide-react";
 import { toast } from "sonner";
 import { WbReview } from "@/types/wb";
@@ -42,6 +43,7 @@ import {
   CollapsibleTrigger 
 } from "@/components/ui/collapsible";
 import { debounce, generateSystemPrompt, sleep } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 interface AutoResponderProps {
   selectedReviews: WbReview[];
@@ -50,7 +52,7 @@ interface AutoResponderProps {
 
 const defaultSettings: AutoResponderSettings = {
   model: "auto",
-  maxReviewsPerRequest: 10,
+  maxReviewsPerRequest: 20,
   language: "russian",
   tone: "friendly",
   useEmoji: true,
@@ -61,7 +63,6 @@ const defaultSettings: AutoResponderSettings = {
 
 const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   const [settings, setSettings] = useState<AutoResponderSettings>(() => {
-    // Пытаемся загрузить настройки из localStorage
     const savedSettings = localStorage.getItem('autoResponderSettings');
     return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
   });
@@ -72,14 +73,16 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   const [processingReviews, setProcessingReviews] = useState<Set<string>>(new Set());
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [promptPreview, setPromptPreview] = useState("");
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [sendingProgress, setSendingProgress] = useState(0);
+  const [sentReviews, setSentReviews] = useState<Set<string>>(new Set());
+  const [pendingReviews, setPendingReviews] = useState<Set<string>>(new Set());
 
-  // Обновляем превью промта при изменении настроек
   useEffect(() => {
     const preview = generateSystemPrompt(settings);
     setPromptPreview(preview);
   }, [settings]);
 
-  // Сохраняем настройки в localStorage при их изменении
   useEffect(() => {
     localStorage.setItem('autoResponderSettings', JSON.stringify(settings));
   }, [settings]);
@@ -88,7 +91,6 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  // Используем выбранные отзывы из текущей вкладки
   const useSelectedReviews = () => {
     setSelectedReviewsForGeneration(selectedReviews);
     toast.info(`Выбрано ${selectedReviews.length} отзывов для генерации`);
@@ -106,13 +108,12 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     }
 
     setIsGenerating(true);
+    setGenerationProgress(0);
     
-    // Отмечаем все отзывы как обрабатываемые
     const reviewIds = selectedReviewsForGeneration.map(r => r.id);
     setProcessingReviews(new Set(reviewIds));
     
     try {
-      // Подготавливаем информацию о отзывах для отправки в API
       const reviewsForApi = selectedReviewsForGeneration.map(review => ({
         id: review.id,
         text: review.text || undefined,
@@ -120,9 +121,18 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         cons: review.cons
       }));
       
-      console.log(`Отправляем в обработку ${reviewsForApi.length} отзывов`);
+      console.log(`🚀 Отправляем в массовую обработку ${reviewsForApi.length} отзывов одним запросом`);
       
-      // Определяем модель на основе настроек и количества отзывов
+      const progressInterval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.random() * 5;
+        });
+      }, 300);
+      
       let effectiveModel = settings.model;
       if (settings.model === "auto") {
         effectiveModel = reviewsForApi.length >= 10 ? "gpt-4o" : "gpt-3.5-turbo";
@@ -139,14 +149,20 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         reviews: reviewsForApi
       });
 
+      clearInterval(progressInterval);
+      setGenerationProgress(100);
+      
       setAnswersMap(result);
       toast.success(`Сгенерированы автоответы для ${Object.keys(result).length} отзывов`);
     } catch (error) {
       console.error("Error generating auto answers:", error);
       toast.error("Ошибка при генерации автоответов");
     } finally {
-      setIsGenerating(false);
-      setProcessingReviews(new Set());
+      setTimeout(() => {
+        setIsGenerating(false);
+        setProcessingReviews(new Set());
+        setGenerationProgress(0);
+      }, 500);
     }
   }, 500), [selectedReviewsForGeneration, settings]);
 
@@ -158,42 +174,58 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     }
 
     setIsSending(true);
+    setSendingProgress(0);
     
-    // Создаем копию мапы ответов для отслеживания уже отправленных
-    const sentAnswers = new Set<string>();
+    setSentReviews(new Set());
+    
+    setPendingReviews(new Set(reviewIds));
     
     try {
       let successCount = 0;
       let errorCount = 0;
-
-      // Отправляем ответы по 5 штук параллельно для ускорения
-      const batchSize = 5;
-      for (let i = 0; i < reviewIds.length; i += batchSize) {
-        const batch = reviewIds.slice(i, i + batchSize);
-        const promises = batch.map(async (reviewId) => {
-          // Пропускаем уже отправленные
-          if (sentAnswers.has(reviewId)) return;
+      
+      for (let i = 0; i < reviewIds.length; i++) {
+        const reviewId = reviewIds[i];
+        
+        setSendingProgress(Math.round((i / reviewIds.length) * 100));
+        
+        try {
+          const delay = Math.floor(Math.random() * 1000) + 500;
+          await sleep(delay);
           
-          try {
-            // Добавляем задержку между запросами
-            await sleep(Math.random() * 200 + 500);
-            
-            await WbAPI.sendAnswer({
-              id: reviewId,
-              text: answersMap[reviewId]
-            });
-            sentAnswers.add(reviewId);
-            successCount++;
-            return { success: true, reviewId };
-          } catch (error) {
-            console.error(`Error sending answer for review ${reviewId}:`, error);
-            errorCount++;
-            return { success: false, reviewId, error };
-          }
-        });
-
-        await Promise.all(promises);
+          console.log(`📤 Отправка ответа для отзыва ${reviewId} (${i+1}/${reviewIds.length})`);
+          
+          await WbAPI.sendAnswer({
+            id: reviewId,
+            text: answersMap[reviewId]
+          });
+          
+          setSentReviews(prev => {
+            const updated = new Set(prev);
+            updated.add(reviewId);
+            return updated;
+          });
+          
+          setPendingReviews(prev => {
+            const updated = new Set(prev);
+            updated.delete(reviewId);
+            return updated;
+          });
+          
+          successCount++;
+        } catch (error) {
+          console.error(`Error sending answer for review ${reviewId}:`, error);
+          errorCount++;
+          
+          setPendingReviews(prev => {
+            const updated = new Set(prev);
+            updated.delete(reviewId);
+            return updated;
+          });
+        }
       }
+
+      setSendingProgress(100);
 
       if (successCount > 0) {
         toast.success(`Успешно отправлено ${successCount} ответов`);
@@ -202,9 +234,9 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         }
         onSuccess();
         
-        // Удаляем из мапы только отправленные ответы
+        const sentIds = Array.from(sentReviews);
         const newAnswersMap = { ...answersMap };
-        sentAnswers.forEach(id => {
+        sentIds.forEach(id => {
           delete newAnswersMap[id];
         });
         setAnswersMap(newAnswersMap);
@@ -215,17 +247,19 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       console.error("Error sending auto answers:", error);
       toast.error("Ошибка при отправке автоответов");
     } finally {
-      setIsSending(false);
+      setTimeout(() => {
+        setIsSending(false);
+        setSendingProgress(0);
+        setPendingReviews(new Set());
+      }, 500);
     }
   }, 500), [answersMap, onSuccess]);
 
-  // Очистка выбранных отзывов
   const clearSelection = () => {
     setSelectedReviewsForGeneration([]);
     toast.info("Выбор отзывов очищен");
   };
 
-  // Обновление текста ответа
   const updateAnswerText = (reviewId: string, text: string) => {
     setAnswersMap(prev => ({
       ...prev,
@@ -233,7 +267,6 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     }));
   };
 
-  // Сброс настроек к значениям по умолчанию
   const resetSettings = () => {
     setSettings(defaultSettings);
     toast.info("Настройки сброшены к значениям по умолчанию");
@@ -274,7 +307,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Автовыбор: до 10 отзывов — GPT-3.5, более 10 — GPT-4o
+                Автовыбор: до 10 отзывов — GPT-3.5, от 10 и более — GPT-4o
               </p>
             </div>
 
@@ -294,7 +327,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Рекомендуется не более 10 отзывов за раз для качественной генерации
+                Рекомендуется не более 20 отзывов за раз для качественной генерации
               </p>
             </div>
 
@@ -500,17 +533,49 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
               )}
             </div>
             
+            {isGenerating && (
+              <div className="space-y-2 bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                    <Loader2 size={14} className="animate-spin" /> Генерация ответов
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">
+                    {Math.round(generationProgress)}%
+                  </p>
+                </div>
+                <Progress value={generationProgress} className="h-1.5" />
+              </div>
+            )}
+            
+            {isSending && (
+              <div className="space-y-2 bg-amber-50 dark:bg-amber-900/20 p-3 rounded">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                    <Send size={14} /> Отправка ответов
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {Math.round(sendingProgress)}%
+                  </p>
+                </div>
+                <Progress value={sendingProgress} className="h-1.5" />
+                <div className="flex justify-between text-xs">
+                  <p>Отправлено: {sentReviews.size}</p>
+                  <p>Ожидает: {pendingReviews.size}</p>
+                </div>
+              </div>
+            )}
+            
             <div className="pt-2 space-y-2">
               <Button 
                 onClick={generateAutoAnswers} 
-                disabled={isGenerating || selectedReviewsForGeneration.length === 0}
+                disabled={isGenerating || isSending || selectedReviewsForGeneration.length === 0}
                 variant="outline" 
                 className="w-full flex items-center gap-2"
               >
                 {isGenerating ? (
                   <>
                     <Loader2 size={16} className="animate-spin" /> 
-                    Генерация... ({Object.keys(answersMap).length}/{selectedReviewsForGeneration.length})
+                    Генерация... ({Math.round(generationProgress)}%)
                   </>
                 ) : (
                   <>
@@ -522,14 +587,14 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
               
               <Button 
                 onClick={sendAutoAnswers}
-                disabled={isSending || Object.keys(answersMap).length === 0}
+                disabled={isSending || isGenerating || Object.keys(answersMap).length === 0}
                 variant="default"
                 className="w-full bg-wb-secondary hover:bg-wb-accent"
               >
                 {isSending ? (
                   <>
-                    <Loader2 size={16} className="animate-spin mr-2" /> 
-                    Отправка...
+                    <Clock size={16} className="mr-2" /> 
+                    Отправка... ({sentReviews.size}/{sentReviews.size + pendingReviews.size})
                   </>
                 ) : (
                   <>
@@ -539,6 +604,33 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 )}
               </Button>
             </div>
+            
+            {Object.keys(answersMap).length > 0 && (
+              <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <FileDigit size={16} className="text-green-600 dark:text-green-400" />
+                  <span className="text-green-700 dark:text-green-400 font-medium">
+                    Сгенерировано {Object.keys(answersMap).length} ответов
+                  </span>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="text-green-700 hover:text-green-800 hover:bg-green-100"
+                  onClick={() => {
+                    const allAnswers = Object.values(answersMap).join('\n\n');
+                    try {
+                      navigator.clipboard.writeText(allAnswers);
+                      toast.success("Все ответы скопированы в буфер обмена");
+                    } catch (e) {
+                      toast.error("Не удалось скопировать ответы");
+                    }
+                  }}
+                >
+                  Скопировать все
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -547,23 +639,50 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         <div className="mt-4 space-y-3">
           <h3 className="text-lg font-medium">Сгенерированные ответы</h3>
           <div className="max-h-64 overflow-y-auto space-y-3 bg-gray-50 dark:bg-gray-800 p-3 rounded">
-            {selectedReviewsForGeneration.map((review) => (
-              answersMap[review.id] && (
-                <div key={review.id} className="bg-white dark:bg-gray-700 p-3 rounded shadow-sm">
-                  <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    <span className="font-semibold">Отзыв:</span> {review.text || review.pros || "Нет текста, только рейтинг"}
+            {selectedReviewsForGeneration
+              .filter(review => answersMap[review.id])
+              .map((review) => {
+                const isPending = pendingReviews.has(review.id);
+                const isSent = sentReviews.has(review.id);
+                
+                return (
+                  <div 
+                    key={review.id} 
+                    className={`bg-white dark:bg-gray-700 p-3 rounded shadow-sm transition-opacity duration-300 ${
+                      isSent ? 'opacity-60' : (isPending ? 'opacity-80' : 'opacity-100')
+                    }`}
+                  >
+                    <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                      <span className="font-semibold">Отзыв:</span> {review.text || review.pros || "Нет текста, только рейтинг"}
+                    </div>
+                    <div className={`border-l-4 pl-2 ${
+                      isSent ? 'border-green-500' : (isPending ? 'border-amber-500' : 'border-blue-500')
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm">Ответ:</span>
+                        {isSent && (
+                          <Badge variant="outline" className="text-green-600 border-green-600">
+                            <Check size={12} className="mr-1" /> Отправлен
+                          </Badge>
+                        )}
+                        {isPending && (
+                          <Badge variant="outline" className="text-amber-600 border-amber-600">
+                            <Clock size={12} className="mr-1" /> Отправляется...
+                          </Badge>
+                        )}
+                      </div>
+                      <Textarea 
+                        value={answersMap[review.id] || ""}
+                        onChange={(e) => updateAnswerText(review.id, e.target.value)}
+                        className={`mt-1 text-sm ${
+                          isSent || isPending ? 'bg-gray-50 dark:bg-gray-800' : ''
+                        }`}
+                        disabled={isSent || isPending}
+                      />
+                    </div>
                   </div>
-                  <div className="border-l-4 border-green-500 pl-2">
-                    <span className="font-semibold text-sm">Ответ:</span>
-                    <Textarea
-                      value={answersMap[review.id] || ""}
-                      onChange={(e) => updateAnswerText(review.id, e.target.value)}
-                      className="mt-1 text-sm"
-                    />
-                  </div>
-                </div>
-              )
-            ))}
+                );
+              })}
           </div>
         </div>
       )}
@@ -571,13 +690,13 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       <DialogFooter className="gap-2 mt-4">
         <Button 
           onClick={sendAutoAnswers}
-          disabled={isSending || Object.keys(answersMap).length === 0}
+          disabled={isSending || isGenerating || Object.keys(answersMap).length === 0}
           className="bg-wb-secondary hover:bg-wb-accent"
         >
           {isSending ? (
             <>
               <Loader2 size={16} className="animate-spin mr-2" /> 
-              Отправка...
+              Отправка... ({sentReviews.size}/{sentReviews.size + pendingReviews.size})
             </>
           ) : (
             <>
