@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import FilterForm from "@/components/FilterForm";
@@ -18,6 +19,12 @@ import {
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Index = () => {
   // Main data states
@@ -562,7 +569,19 @@ const Index = () => {
                 <TabsList className="mb-4 grid grid-cols-4 mx-auto max-w-md">
                   <TabsTrigger value="unanswered">Ждут ответа</TabsTrigger>
                   <TabsTrigger value="processing">В обработке {processingReviewIds.size > 0 && `(${processingReviewIds.size})`}</TabsTrigger>
-                  <TabsTrigger value="answered">Есть ответ {answeredCount > 0 && `(${answeredCount})`}</TabsTrigger>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <TabsTrigger value="answered">Отвеченные</TabsTrigger>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => handleReviewsTabChange("answered")}>
+                        Отвеченные отзывы
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleReviewsTabChange("archive")}>
+                        <ArchiveIcon size={14} className="mr-2" /> Архивные
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <TabsTrigger value="archive" className="flex items-center gap-1">
                     <ArchiveIcon size={14} /> Архив
                   </TabsTrigger>

@@ -144,7 +144,18 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         </div>
       </div>
       
-      <div className="flex space-x-2 ml-auto">
+      <div className="flex items-center space-x-2 ml-auto">
+        <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors duration-300"
+            >
+              <Bot size={16} />
+              Автоответчик
+            </Button>
+          </DialogTrigger>
+        </Dialog>
+        
         <Popover>
           <PopoverTrigger asChild>
             <Button 
