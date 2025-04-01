@@ -1,7 +1,6 @@
-
 import { ReviewListParams, WbAnswerRequest, WbReviewsResponse, WbAnswerResponse } from "@/types/wb";
 import { GenerateAnswerRequest, GenerateAnswerResponse, OpenAIRequest, OpenAIResponse } from "@/types/openai";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 // Константы для API
 const WB_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
