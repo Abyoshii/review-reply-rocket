@@ -8,11 +8,19 @@ import { WbReview, ReviewListParams } from "@/types/wb";
 import { toast } from "sonner";
 
 const Index = () => {
-  const [reviews, setReviews] = useState<WbReview[]>([]);
+  const [unansweredReviews, setUnansweredReviews] = useState<WbReview[]>([]);
+  const [answeredReviews, setAnsweredReviews] = useState<WbReview[]>([]);
   const [unansweredCount, setUnansweredCount] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [filters, setFilters] = useState<ReviewListParams>({
+  const [loadingUnanswered, setLoadingUnanswered] = useState<boolean>(false);
+  const [loadingAnswered, setLoadingAnswered] = useState<boolean>(false);
+  const [unansweredFilters, setUnansweredFilters] = useState<ReviewListParams>({
     isAnswered: false,
+    take: 100,
+    skip: 0,
+    order: "dateDesc"
+  });
+  const [answeredFilters, setAnsweredFilters] = useState<ReviewListParams>({
+    isAnswered: true,
     take: 100,
     skip: 0,
     order: "dateDesc"
@@ -20,35 +28,69 @@ const Index = () => {
 
   // Загрузка отзывов при изменении фильтров
   useEffect(() => {
-    fetchReviews();
-  }, [filters]);
+    fetchUnansweredReviews();
+  }, [unansweredFilters]);
+
+  useEffect(() => {
+    fetchAnsweredReviews();
+  }, [answeredFilters]);
 
   // Получение количества неотвеченных отзывов
   useEffect(() => {
     fetchUnansweredCount();
   }, []);
 
-  // Функция загрузки отзывов
-  const fetchReviews = async () => {
-    setLoading(true);
+  // Функция загрузки неотвеченных отзывов
+  const fetchUnansweredReviews = async () => {
+    setLoadingUnanswered(true);
     try {
-      const response = await WbAPI.getReviews(filters);
+      console.log("Загружаем неотвеченные отзывы с параметрами:", unansweredFilters);
+      const response = await WbAPI.getReviews(unansweredFilters);
+      
+      console.log("Ответ API для неотвеченных отзывов:", response);
       
       // Проверяем, что response.data.feedbacks существует и является массивом
       if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
-        setReviews(response.data.feedbacks);
+        setUnansweredReviews(response.data.feedbacks);
       } else {
         // Если структура ответа не соответствует ожидаемой, выводим сообщение и устанавливаем пустой массив
-        console.error("Некорректная структура ответа API:", response);
+        console.error("Некорректная структура ответа API для неотвеченных отзывов:", response);
         toast.error("Получены некорректные данные от API");
-        setReviews([]);
+        setUnansweredReviews([]);
       }
     } catch (error) {
-      console.error("Ошибка при загрузке отзывов:", error);
-      toast.error("Не удалось загрузить отзывы. Пожалуйста, попробуйте позже.");
-      setReviews([]);
+      console.error("Ошибка при загрузке неотвеченных отзывов:", error);
+      toast.error("Не удалось загрузить неотвеченные отзывы. Пожалуйста, попробуйте позже.");
+      setUnansweredReviews([]);
     } finally {
-      setLoading(false);
+      setLoadingUnanswered(false);
+    }
+  };
+
+  // Функция загрузки отвеченных отзывов
+  const fetchAnsweredReviews = async () => {
+    setLoadingAnswered(true);
+    try {
+      console.log("Загружаем отвеченные отзывы с параметрами:", answeredFilters);
+      const response = await WbAPI.getReviews(answeredFilters);
+      
+      console.log("Ответ API для отвеченных отзывов:", response);
+      
+      // Проверяем, что response.data.feedbacks существует и является массивом
+      if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
+        setAnsweredReviews(response.data.feedbacks);
+      } else {
+        // Если структура ответа не соответствует ожидаемой, выводим сообщение и устанавливаем пустой массив
+        console.error("Некорректная структура ответа API для отвеченных отзывов:", response);
+        toast.error("Получены некорректные данные от API");
+        setAnsweredReviews([]);
+      }
+    } catch (error) {
+      console.error("Ошибка при загрузке отвеченных отзывов:", error);
+      toast.error("Не удалось загрузить отвеченные отзывы. Пожалуйста, попробуйте позже.");
+      setAnsweredReviews([]);
+    } finally {
+      setLoadingAnswered(false);
     }
   };
 
@@ -64,35 +106,69 @@ const Index = () => {
 
   // Функция обновления данных
   const handleRefresh = () => {
-    fetchReviews();
+    fetchUnansweredReviews();
+    fetchAnsweredReviews();
     fetchUnansweredCount();
     toast.success("Данные обновлены");
   };
 
-  // Функция обработки изменения фильтров
-  const handleFilterChange = (newFilters: ReviewListParams) => {
-    setFilters(newFilters);
+  // Функция обработки изменения фильтров для неотвеченных отзывов
+  const handleUnansweredFilterChange = (newFilters: ReviewListParams) => {
+    // Сохраняем параметр isAnswered = false
+    setUnansweredFilters({...newFilters, isAnswered: false});
+  };
+
+  // Функция обработки изменения фильтров для отвеченных отзывов
+  const handleAnsweredFilterChange = (newFilters: ReviewListParams) => {
+    // Сохраняем параметр isAnswered = true
+    setAnsweredFilters({...newFilters, isAnswered: true});
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       <div className="container mx-auto px-4 py-6">
         <Header 
           unansweredCount={unansweredCount} 
           onRefresh={handleRefresh} 
         />
         
-        <div className="space-y-6">
-          <FilterForm 
-            onFilterChange={handleFilterChange} 
-            loading={loading} 
-          />
+        <div className="space-y-8">
+          {/* Секция неотвеченных отзывов */}
+          <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300">Ждут ответа</h2>
+            
+            <FilterForm 
+              onFilterChange={handleUnansweredFilterChange} 
+              loading={loadingUnanswered} 
+            />
+            
+            <ReviewsTable 
+              reviews={unansweredReviews} 
+              loading={loadingUnanswered} 
+              onRefresh={handleRefresh} 
+            />
+          </section>
           
-          <ReviewsTable 
-            reviews={reviews} 
-            loading={loading} 
-            onRefresh={handleRefresh} 
-          />
+          {/* Секция отвеченных отзывов */}
+          <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300">Отвеченные отзывы</h2>
+            
+            <FilterForm 
+              onFilterChange={handleAnsweredFilterChange} 
+              loading={loadingAnswered} 
+            />
+            
+            <ReviewsTable 
+              reviews={answeredReviews} 
+              loading={loadingAnswered} 
+              onRefresh={handleRefresh} 
+            />
+          </section>
+        </div>
+
+        {/* Водяной знак */}
+        <div className="text-center py-4 mt-8 text-sm text-gray-500 dark:text-gray-400 opacity-70 transition-colors duration-300">
+          @Таабалдыев Нургазы
         </div>
       </div>
     </div>
