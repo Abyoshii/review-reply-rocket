@@ -441,7 +441,7 @@ const ReviewsTable = ({
         <Button 
           variant="outline" 
           onClick={toggleSelectAll}
-          className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
+          className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-105 active:scale-95"
           disabled={filteredReviews.length === 0}
         >
           {selectedReviews.size === (filteredReviews?.length || 0) ? "Снять выбор" : "Выбрать все"}
@@ -453,7 +453,7 @@ const ReviewsTable = ({
               variant="outline" 
               onClick={generateSelectedAnswers}
               disabled={selectedReviews.size === 0 || generationProgress.total > 0}
-              className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
+              className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-105 active:scale-95"
             >
               {generationProgress.total > 0 ? (
                 <>
@@ -472,7 +472,7 @@ const ReviewsTable = ({
               variant="default" 
               onClick={sendSelectedAnswers}
               disabled={selectedReviews.size === 0 || sendProgress.total > 0}
-              className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
+              className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-all duration-300 hover:scale-105 active:scale-95"
             >
               {sendProgress.total > 0 ? (
                 <>
@@ -526,7 +526,7 @@ const ReviewsTable = ({
                   <Checkbox 
                     checked={selectedReviews.has(review.id)} 
                     onCheckedChange={() => toggleReviewSelection(review.id)}
-                    className="mt-1 dark:border-gray-500 transition-colors duration-300"
+                    className="mt-1 dark:border-gray-500 transition-all duration-300 data-[state=checked]:animate-pulse"
                     disabled={sendingAnswers.has(review.id)}
                   />
                 </div>
@@ -735,7 +735,7 @@ const ReviewsTable = ({
                           variant="outline"
                           onClick={() => generateAnswer(review)}
                           disabled={generatingAnswers.has(review.id) || sendingAnswers.has(review.id)}
-                          className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
+                          className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-all duration-300 hover:scale-105 active:scale-95"
                         >
                           {generatingAnswers.has(review.id) ? (
                             <>
@@ -746,7 +746,7 @@ const ReviewsTable = ({
                         </Button>
                         
                         <Button
-                          className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
+                          className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-all duration-300 hover:scale-105 active:scale-95"
                           onClick={() => sendAnswer(review)}
                           disabled={!answers[review.id] || sendingAnswers.has(review.id)}
                         >

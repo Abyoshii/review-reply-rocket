@@ -4,19 +4,17 @@ import FilterForm from "@/components/FilterForm";
 import ReviewsTable from "@/components/ReviewsTable";
 import QuestionsTable from "@/components/QuestionsTable";
 import QuestionsFilterForm from "@/components/QuestionsFilterForm";
-import ArchiveReviewsTable from "@/components/ArchiveReviewsTable";
 import AutoResponder from "@/components/AutoResponder";
 import { WbAPI } from "@/lib/api";
 import { WbReview, ReviewListParams, QuestionListParams, WbQuestion } from "@/types/wb";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Text, MessageCircle, ArchiveIcon, Bot } from "lucide-react";
+import { Text, MessageCircle, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import {
   Dialog,
   DialogContent,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -29,7 +27,6 @@ const Index = () => {
   // Main data states
   const [unansweredReviews, setUnansweredReviews] = useState<WbReview[]>([]);
   const [answeredReviews, setAnsweredReviews] = useState<WbReview[]>([]);
-  const [archiveReviews, setArchiveReviews] = useState<WbReview[]>([]);
   const [processingReviews, setProcessingReviews] = useState<WbReview[]>([]);
   
   // Counts
@@ -42,7 +39,6 @@ const Index = () => {
   // Loading states
   const [loadingUnanswered, setLoadingUnanswered] = useState<boolean>(false);
   const [loadingAnswered, setLoadingAnswered] = useState<boolean>(false);
-  const [loadingArchive, setLoadingArchive] = useState<boolean>(false);
   
   // Filters
   const [unansweredFilters, setUnansweredFilters] = useState<ReviewListParams>({
@@ -53,11 +49,6 @@ const Index = () => {
   });
   const [answeredFilters, setAnsweredFilters] = useState<ReviewListParams>({
     isAnswered: true,
-    take: 100,
-    skip: 0,
-    order: "dateDesc"
-  });
-  const [archiveFilters, setArchiveFilters] = useState<ReviewListParams>({
     take: 100,
     skip: 0,
     order: "dateDesc"
@@ -398,7 +389,7 @@ const Index = () => {
   const fetchAnsweredQuestions = async () => {
     setLoadingAnsweredQuestions(true);
     try {
-      console.log("За��ружаем отвеченные вопросы с параметрами:", answeredQuestionsFilters);
+      console.log("Загружаем отвеченные вопросы с параметрами:", answeredQuestionsFilters);
       const response = await WbAPI.getQuestions(answeredQuestionsFilters);
       
       if (response.data && response.data.questions && Array.isArray(response.data.questions)) {
@@ -537,35 +528,50 @@ const Index = () => {
           
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
             <TabsList className="mb-4 grid grid-cols-2 mx-auto max-w-md">
-              <TabsTrigger value="reviews" className="flex items-center gap-1">
+              <TabsTrigger 
+                value="reviews" 
+                className="flex items-center gap-1 transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
+              >
                 <Text size={16} /> Отзывы
               </TabsTrigger>
-              <TabsTrigger value="questions" className="flex items-center gap-1">
+              <TabsTrigger 
+                value="questions" 
+                className="flex items-center gap-1 transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
+              >
                 <MessageCircle size={16} /> Вопросы клиентов
               </TabsTrigger>
             </TabsList>
             
             <TabsContent value="reviews" className="space-y-6">
               <Tabs value={activeReviewsTab} onValueChange={handleReviewsTabChange} className="space-y-4">
-                <TabsList className="mb-4 grid grid-cols-4 mx-auto max-w-md">
-                  <TabsTrigger value="unanswered">Ждут ответа</TabsTrigger>
-                  <TabsTrigger value="processing">В обработке {processingReviewIds.size > 0 && `(${processingReviewIds.size})`}</TabsTrigger>
+                <TabsList className="mb-4 grid grid-cols-3 mx-auto max-w-md">
+                  <TabsTrigger 
+                    value="unanswered"
+                    className="transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
+                  >
+                    Ждут ответа
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="processing"
+                    className="transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
+                  >
+                    В обработке {processingReviewIds.size > 0 && `(${processingReviewIds.size})`}
+                  </TabsTrigger>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <TabsTrigger value="answered">Отвеченные</TabsTrigger>
+                      <TabsTrigger 
+                        value="answered"
+                        className="transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
+                      >
+                        Отвеченные
+                      </TabsTrigger>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem onClick={() => handleReviewsTabChange("answered")}>
                         Отвеченные отзывы
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleReviewsTabChange("archive")}>
-                        <ArchiveIcon size={14} className="mr-2" /> Архивные
-                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <TabsTrigger value="archive" className="flex items-center gap-1">
-                    <ArchiveIcon size={14} /> Архив
-                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="unanswered">
@@ -636,25 +642,6 @@ const Index = () => {
                     />
                   </section>
                 </TabsContent>
-                
-                <TabsContent value="archive">
-                  <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
-                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                      <span className="bg-gray-500 text-white px-3 py-1 rounded-full text-sm mr-3">АРХИВ</span>
-                      Архивные отзывы
-                    </h2>
-                    
-                    <FilterForm 
-                      onFilterChange={handleArchiveFilterChange} 
-                      loading={loadingArchive} 
-                    />
-                    
-                    <ArchiveReviewsTable 
-                      reviews={archiveReviews} 
-                      loading={loadingArchive} 
-                    />
-                  </section>
-                </TabsContent>
               </Tabs>
             </TabsContent>
             
@@ -706,7 +693,7 @@ const Index = () => {
       </div>
       
       <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <AutoResponder 
             selectedReviews={getSelectedReviews()} 
             onSuccess={handleAutoResponderSuccess}

@@ -3,22 +3,21 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QuestionListParams } from "@/types/wb";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { DateRange } from "react-day-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { useState } from "react";
 
 const filterSchema = z.object({
   isAnswered: z.boolean().default(false),
   take: z.number().int().min(1).max(5000).default(100),
   skip: z.number().int().min(0).max(199990).default(0),
   order: z.enum(["dateAsc", "dateDesc"]).optional(),
-  nmId: z.union([z.number().int().positive(), z.string().length(0)]).transform(val => 
-    typeof val === "string" && val === "" ? undefined : (typeof val === "string" ? parseInt(val) : val)
-  ).optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
 });
@@ -29,6 +28,8 @@ interface QuestionsFilterFormProps {
 }
 
 const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormProps) => {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  
   // Создаем форму с начальными значениями
   const form = useForm<z.infer<typeof filterSchema>>({
     resolver: zodResolver(filterSchema),
@@ -37,7 +38,6 @@ const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormPro
       take: 100,
       skip: 0,
       order: "dateDesc",
-      nmId: undefined,
       dateFrom: undefined,
       dateTo: undefined,
     },
@@ -51,6 +51,26 @@ const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormPro
   // Handle take value change
   const handleTakeChange = (value: string) => {
     form.setValue("take", parseInt(value));
+  };
+  
+  // Handle date range change
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    
+    // Update form values
+    if (range?.from) {
+      const fromDate = range.from.toISOString().split('T')[0];
+      form.setValue("dateFrom", fromDate);
+    } else {
+      form.setValue("dateFrom", undefined);
+    }
+    
+    if (range?.to) {
+      const toDate = range.to.toISOString().split('T')[0];
+      form.setValue("dateTo", toDate);
+    } else {
+      form.setValue("dateTo", undefined);
+    }
   };
 
   return (
@@ -73,6 +93,7 @@ const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormPro
                       <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        className="data-[state=checked]:animate-pulse"
                       />
                     </FormControl>
                   </FormItem>
@@ -105,25 +126,6 @@ const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormPro
                 )}
               />
 
-              {/* Артикул */}
-              <FormField
-                control={form.control}
-                name="nmId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Артикул</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Введите артикул"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value === "" ? "" : parseInt(e.target.value) || "")}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               {/* Количество вопросов как переключатели */}
               <FormField
                 control={form.control}
@@ -138,9 +140,9 @@ const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormPro
                         onValueChange={handleTakeChange}
                         className="justify-start"
                       >
-                        <ToggleGroupItem value="30">30</ToggleGroupItem>
-                        <ToggleGroupItem value="50">50</ToggleGroupItem>
-                        <ToggleGroupItem value="100">100</ToggleGroupItem>
+                        <ToggleGroupItem value="30" className="transition-all duration-300 data-[state=on]:animate-pulse">30</ToggleGroupItem>
+                        <ToggleGroupItem value="50" className="transition-all duration-300 data-[state=on]:animate-pulse">50</ToggleGroupItem>
+                        <ToggleGroupItem value="100" className="transition-all duration-300 data-[state=on]:animate-pulse">100</ToggleGroupItem>
                       </ToggleGroup>
                     </FormControl>
                     <FormMessage />
@@ -148,50 +150,21 @@ const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormPro
                 )}
               />
 
-              {/* Дата от */}
-              <FormField
-                control={form.control}
-                name="dateFrom"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Дата от</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        placeholder="Дата от"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Дата до */}
-              <FormField
-                control={form.control}
-                name="dateTo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Дата до</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        placeholder="Дата до"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Диапазон дат */}
+              <FormItem className="col-span-full sm:col-span-2">
+                <FormLabel>Период</FormLabel>
+                <DateRangePicker 
+                  dateRange={dateRange}
+                  onDateRangeChange={handleDateRangeChange}
+                />
+              </FormItem>
             </div>
 
             <div className="flex justify-end">
               <Button 
                 type="submit" 
                 disabled={loading}
-                className="bg-wb-primary hover:bg-wb-primary/90"
+                className="bg-wb-primary hover:bg-wb-primary/90 transition-all duration-300 hover:scale-105 active:scale-95"
               >
                 {loading ? "Загрузка..." : "Применить фильтры"}
               </Button>

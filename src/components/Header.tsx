@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -146,11 +147,11 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         </div>
       </div>
       
-      <div className="flex items-center space-x-2 ml-auto">
+      <div className="flex items-center space-x-2">
         <Button 
           variant="outline" 
           onClick={onRefresh} 
-          className="flex items-center gap-2 transition-transform hover:scale-105 active:scale-95"
+          className="flex items-center gap-2 transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
         >
           <RefreshCw className="animate-spin-hover" size={16} />
           Обновить
@@ -161,7 +162,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
             <Button 
               variant="outline" 
               size="icon"
-              className="relative transition-transform hover:scale-105 active:scale-95"
+              className="relative transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
             >
               <Bell size={18} className="transition-transform hover:scale-110" />
               {notificationSettings?.notificationType === 'none' && (
@@ -182,7 +183,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                 <div className="grid grid-cols-3 gap-2">
                   <Button 
                     variant={notificationSettings?.notificationType === 'all' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300"
+                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300 hover:scale-105"
                     onClick={() => handleNotificationSettingsChange('notificationType', 'all')}
                   >
                     <Bell size={14} className="transition-transform duration-300" />
@@ -190,7 +191,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                   </Button>
                   <Button 
                     variant={notificationSettings?.notificationType === 'important' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300"
+                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300 hover:scale-105"
                     onClick={() => handleNotificationSettingsChange('notificationType', 'important')}
                   >
                     <Eye size={14} className="transition-transform duration-300" />
@@ -198,7 +199,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                   </Button>
                   <Button 
                     variant={notificationSettings?.notificationType === 'none' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300"
+                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300 hover:scale-105"
                     onClick={() => handleNotificationSettingsChange('notificationType', 'none')}
                   >
                     <BellOff size={14} className="transition-transform duration-300" />
@@ -244,7 +245,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                     variant="outline" 
                     size="sm"
                     onClick={handleTestNotification}
-                    className="transition-transform hover:scale-105 active:scale-95"
+                    className="transition-all duration-300 hover:scale-105 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
                   >
                     Проверить
                   </Button>
@@ -258,7 +259,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           variant="outline" 
           size="icon" 
           onClick={() => setTokenDialogOpen(true)}
-          className="transition-transform hover:scale-105 active:scale-95"
+          className="transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
         >
           <Key size={18} className="transition-transform hover:scale-110" />
         </Button>
@@ -267,7 +268,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           variant="outline" 
           size="icon" 
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="transition-transform hover:scale-105 active:scale-95"
+          className="transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
         >
           {theme === "dark" ? <Sun size={18} className="transition-transform hover:scale-110" /> : <Moon size={18} className="transition-transform hover:scale-110" />}
         </Button>
@@ -277,12 +278,12 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
             <Button 
               variant="outline" 
               size="icon"
-              className="hover:rotate-[30deg] transition-all duration-300 hover:bg-indigo-100 dark:hover:bg-indigo-900"
+              className="transition-all duration-300 hover:rotate-[30deg] hover:bg-indigo-100 dark:hover:bg-indigo-900"
             >
               <Settings size={18} className="animate-spin-slow hover:animate-spin" />
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <AutoResponder 
               selectedReviews={[]} 
               onSuccess={() => {
@@ -319,14 +320,14 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
               type="button"
               variant="secondary"
               onClick={() => setTokenDialogOpen(false)}
-              className="transition-transform hover:scale-105 active:scale-95"
+              className="transition-all duration-300 hover:scale-105 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
             >
               Отмена
             </Button>
             <Button 
               type="button" 
               onClick={saveWbToken}
-              className="transition-transform hover:scale-105 active:scale-95"
+              className="transition-all duration-300 hover:scale-105 hover:bg-purple-600 active:scale-95"
             >
               Сохранить
             </Button>

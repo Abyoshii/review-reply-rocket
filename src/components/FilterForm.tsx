@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -10,7 +9,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ReviewListParams } from "@/types/wb";
-import { Calendar, Filter, Star } from "lucide-react";
+import { Filter, Star } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 interface FilterFormProps {
   onFilterChange: (filters: ReviewListParams) => void;
@@ -18,9 +19,7 @@ interface FilterFormProps {
 }
 
 const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
-  const [nmId, setNmId] = useState<string>("");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [order, setOrder] = useState<string>("dateDesc");
   const [reviewCount, setReviewCount] = useState<number>(100);
   const [ratingFilter, setRatingFilter] = useState<string>("all");
@@ -34,16 +33,12 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
       order: order as "dateAsc" | "dateDesc" | "ratingAsc" | "ratingDesc"
     };
 
-    if (nmId) {
-      filters.nmId = parseInt(nmId);
+    if (dateRange?.from) {
+      filters.dateFrom = dateRange.from.toISOString().split('T')[0];
     }
 
-    if (dateFrom) {
-      filters.dateFrom = dateFrom;
-    }
-
-    if (dateTo) {
-      filters.dateTo = dateTo;
+    if (dateRange?.to) {
+      filters.dateTo = dateRange.to.toISOString().split('T')[0];
     }
 
     if (ratingFilter !== "all") {
@@ -63,16 +58,12 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
       order: order as "dateAsc" | "dateDesc" | "ratingAsc" | "ratingDesc"
     };
 
-    if (nmId) {
-      filters.nmId = parseInt(nmId);
+    if (dateRange?.from) {
+      filters.dateFrom = dateRange.from.toISOString().split('T')[0];
     }
 
-    if (dateFrom) {
-      filters.dateFrom = dateFrom;
-    }
-
-    if (dateTo) {
-      filters.dateTo = dateTo;
+    if (dateRange?.to) {
+      filters.dateTo = dateRange.to.toISOString().split('T')[0];
     }
 
     if (ratingFilter !== "all") {
@@ -84,60 +75,18 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 mb-4">
-      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div>
+      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="sm:col-span-2">
           <label
-            htmlFor="nmId"
+            htmlFor="dateRange"
             className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
           >
-            Артикул
+            Период
           </label>
-          <Input
-            id="nmId"
-            type="text"
-            value={nmId}
-            onChange={(e) => setNmId(e.target.value)}
-            placeholder="Введите артикул товара"
-            className="dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
           />
-        </div>
-
-        <div>
-          <label
-            htmlFor="dateFrom"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Дата от
-          </label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <Input
-              id="dateFrom"
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="pl-10 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label
-            htmlFor="dateTo"
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-          >
-            Дата до
-          </label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <Input
-              id="dateTo"
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="pl-10 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-            />
-          </div>
         </div>
 
         <div>
@@ -218,7 +167,7 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
               variant={reviewCount === 30 ? "default" : "outline"}
               size="sm"
               onClick={() => handleCountChange(30)}
-              className={reviewCount === 30 ? "bg-wb-secondary hover:bg-wb-accent" : ""}
+              className={`transition-all duration-300 hover:scale-105 active:scale-95 ${reviewCount === 30 ? "bg-wb-secondary hover:bg-wb-accent" : ""}`}
             >
               30
             </Button>
@@ -227,7 +176,7 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
               variant={reviewCount === 50 ? "default" : "outline"}
               size="sm"
               onClick={() => handleCountChange(50)}
-              className={reviewCount === 50 ? "bg-wb-secondary hover:bg-wb-accent" : ""}
+              className={`transition-all duration-300 hover:scale-105 active:scale-95 ${reviewCount === 50 ? "bg-wb-secondary hover:bg-wb-accent" : ""}`}
             >
               50
             </Button>
@@ -236,7 +185,7 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
               variant={reviewCount === 100 ? "default" : "outline"}
               size="sm"
               onClick={() => handleCountChange(100)}
-              className={reviewCount === 100 ? "bg-wb-secondary hover:bg-wb-accent" : ""}
+              className={`transition-all duration-300 hover:scale-105 active:scale-95 ${reviewCount === 100 ? "bg-wb-secondary hover:bg-wb-accent" : ""}`}
             >
               100
             </Button>
@@ -246,7 +195,7 @@ const FilterForm = ({ onFilterChange, loading }: FilterFormProps) => {
         <Button
           type="submit"
           disabled={loading}
-          className="bg-wb-accent hover:bg-wb-accent/80 dark:bg-purple-700 dark:hover:bg-purple-800"
+          className="bg-wb-accent hover:bg-wb-accent/80 dark:bg-purple-700 dark:hover:bg-purple-800 transition-all duration-300 hover:scale-105 active:scale-95"
         >
           <Filter className="mr-2 h-4 w-4" />
           {loading ? "Применение..." : "Применить фильтры"}
