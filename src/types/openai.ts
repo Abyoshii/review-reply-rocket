@@ -41,6 +41,8 @@ export interface GenerateAnswerRequest {
 }
 
 export interface GenerateAnswerResponse {
+  reviewId: string;
   answer: string;
   modelUsed: string;
 }
+
