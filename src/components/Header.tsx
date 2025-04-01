@@ -30,6 +30,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   unansweredCount: number;
@@ -72,16 +73,37 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
     };
   };
 
+  const handleTestNotification = () => {
+    toast({
+      title: "Тестовое уведомление",
+      description: "Это тестовое уведомление с вашими настройками",
+      important: false
+    });
+    
+    setTimeout(() => {
+      toast({
+        title: "Важное уведомление",
+        description: "Это тестовое ВАЖНОЕ уведомление",
+        important: true
+      });
+    }, 1000);
+  };
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center space-x-2">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-white transition-colors duration-300">
-          Система управления отзывами
+        <h1 className="text-2xl font-bold flex items-center">
+          <span className="mr-2 bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
+            Asterion
+          </span>
+          <span className="text-gray-800 dark:text-white transition-colors duration-300">
+            Система управления отзывами
+          </span>
         </h1>
         
         {unansweredCount > 0 && (
           <Badge variant="destructive" className="ml-2">
-            {unansweredCount} ожидают
+            {unansweredCount} в процессе обработки
           </Badge>
         )}
         
@@ -178,22 +200,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      const { toast } = require('@/hooks/use-toast');
-                      toast({
-                        title: "Тестовое уведомление",
-                        description: "Это тестовое уведомление с вашими настройками",
-                        important: false
-                      });
-                      
-                      setTimeout(() => {
-                        toast({
-                          title: "Важное уведомление",
-                          description: "Это тестовое ВАЖНОЕ уведомление",
-                          important: true
-                        });
-                      }, 1000);
-                    }}
+                    onClick={handleTestNotification}
                   >
                     Проверить
                   </Button>
