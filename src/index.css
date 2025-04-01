@@ -128,6 +128,28 @@
   }
 }
 
+/* Animation for gear icon */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  transition: transform 0.3s ease;
+}
+
+.animate-spin-slow:hover {
+  animation: spin 3s linear infinite;
+}
+
+.animate-spin-hover:hover {
+  animation: spin 1s linear infinite;
+}
+
 .animate-gradient-x {
   animation: gradient-x 3s ease infinite;
 }
@@ -152,4 +174,41 @@
 /* Анимация перехода для всех элементов */
 .transition-theme {
   transition: all 0.3s ease;
+}
+
+/* Button animations */
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+/* Checkbox animation */
+[data-state="checked"] {
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: scale-in 0.2s ease;
+}
+
+@keyframes scale-in {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Switch animation */
+[data-state="checked"].switch-thumb {
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+[data-state="unchecked"].switch-thumb {
+  transform: translateX(0%);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }

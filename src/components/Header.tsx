@@ -12,7 +12,6 @@ import {
   Eye,
   EyeOff,
   Key,
-  Bot,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -43,6 +42,7 @@ import { Input } from "@/components/ui/input";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { AutoResponder } from "@/components/AutoResponder";
 
 interface HeaderProps {
   unansweredCount: number;
@@ -72,7 +72,6 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
   const [wbToken, setWbToken] = useState(() => {
     return localStorage.getItem("wb_token") || "";
   });
-  // Add the missing state for autoResponder dialog
   const [autoResponderOpen, setAutoResponderOpen] = useState(false);
 
   const handleNotificationSettingsChange = (key: string, value: any) => {
@@ -149,25 +148,23 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
       </div>
       
       <div className="flex items-center space-x-2 ml-auto">
-        <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors duration-300"
-            >
-              <Bot size={16} />
-              Автоответчик
-            </Button>
-          </DialogTrigger>
-        </Dialog>
+        <Button 
+          variant="outline" 
+          onClick={onRefresh} 
+          className="flex items-center gap-2 transition-transform hover:scale-105 active:scale-95"
+        >
+          <RefreshCw className="animate-spin-hover" size={16} />
+          Обновить
+        </Button>
         
         <Popover>
           <PopoverTrigger asChild>
             <Button 
               variant="outline" 
               size="icon"
-              className="relative"
+              className="relative transition-transform hover:scale-105 active:scale-95"
             >
-              <Bell size={18} />
+              <Bell size={18} className="transition-transform hover:scale-110" />
               {notificationSettings?.notificationType === 'none' && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" />
               )}
@@ -186,26 +183,26 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                 <div className="grid grid-cols-3 gap-2">
                   <Button 
                     variant={notificationSettings?.notificationType === 'all' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1"
+                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300"
                     onClick={() => handleNotificationSettingsChange('notificationType', 'all')}
                   >
-                    <Bell size={14} />
+                    <Bell size={14} className="transition-transform duration-300" />
                     <span>Все</span>
                   </Button>
                   <Button 
                     variant={notificationSettings?.notificationType === 'important' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1"
+                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300"
                     onClick={() => handleNotificationSettingsChange('notificationType', 'important')}
                   >
-                    <Eye size={14} />
+                    <Eye size={14} className="transition-transform duration-300" />
                     <span>Важные</span>
                   </Button>
                   <Button 
                     variant={notificationSettings?.notificationType === 'none' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1"
+                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300"
                     onClick={() => handleNotificationSettingsChange('notificationType', 'none')}
                   >
-                    <BellOff size={14} />
+                    <BellOff size={14} className="transition-transform duration-300" />
                     <span>Отключить</span>
                   </Button>
                 </div>
@@ -223,6 +220,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                     step={0.1}
                     value={[notificationSettings?.transparency || 0.9]}
                     onValueChange={(value) => handleNotificationSettingsChange('transparency', value[0])}
+                    className="transition-opacity hover:opacity-80"
                   />
                 </div>
                 
@@ -237,6 +235,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                     step={1000}
                     value={[notificationSettings?.displayTime || 5000]}
                     onValueChange={(value) => handleNotificationSettingsChange('displayTime', value[0])}
+                    className="transition-opacity hover:opacity-80"
                   />
                 </div>
                 
@@ -246,6 +245,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
                     variant="outline" 
                     size="sm"
                     onClick={handleTestNotification}
+                    className="transition-transform hover:scale-105 active:scale-95"
                   >
                     Проверить
                   </Button>
@@ -259,18 +259,34 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           variant="outline" 
           size="icon" 
           onClick={() => setTokenDialogOpen(true)}
+          className="transition-transform hover:scale-105 active:scale-95"
         >
-          <Key size={18} />
+          <Key size={18} className="transition-transform hover:scale-110" />
         </Button>
         
-        <Button variant="outline" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="transition-transform hover:scale-105 active:scale-95"
+        >
+          {theme === "dark" ? <Sun size={18} className="transition-transform hover:scale-110" /> : <Moon size={18} className="transition-transform hover:scale-110" />}
         </Button>
         
-        <Button variant="outline" onClick={onRefresh} className="flex items-center gap-2">
-          <RefreshCw size={16} />
-          Обновить
-        </Button>
+        <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="icon"
+              className="hover:rotate-[30deg] transition-all duration-300 hover:bg-indigo-100 dark:hover:bg-indigo-900"
+            >
+              <Settings size={18} className="animate-spin-slow hover:animate-spin" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <AutoResponder />
+          </DialogContent>
+        </Dialog>
       </div>
       
       <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
@@ -298,10 +314,15 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
               type="button"
               variant="secondary"
               onClick={() => setTokenDialogOpen(false)}
+              className="transition-transform hover:scale-105 active:scale-95"
             >
               Отмена
             </Button>
-            <Button type="button" onClick={saveWbToken}>
+            <Button 
+              type="button" 
+              onClick={saveWbToken}
+              className="transition-transform hover:scale-105 active:scale-95"
+            >
               Сохранить
             </Button>
           </DialogFooter>
