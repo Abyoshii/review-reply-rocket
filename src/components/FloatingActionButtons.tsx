@@ -11,7 +11,7 @@ interface FloatingActionButtonsProps {
   onGenerateAnswers: () => void;
   onSendAnswers: () => void;
   onRefresh: () => void;
-  onClearSelection: () => void; // New prop for clearing selection
+  onClearSelection: () => void;
   hasAnswers: boolean;
   generationProgress?: { completed: number; total: number };
   sendingProgress?: { sent: number; total: number; failed: number };
@@ -23,7 +23,7 @@ const FloatingActionButtons = ({
   onGenerateAnswers, 
   onSendAnswers, 
   onRefresh, 
-  onClearSelection, // New prop
+  onClearSelection,
   hasAnswers,
   generationProgress,
   sendingProgress
@@ -76,7 +76,7 @@ const FloatingActionButtons = ({
 
   return (
     <div 
-      className={`fixed bottom-6 right-6 flex flex-col items-end space-y-2 transition-all duration-300 z-[100] ${
+      className={`fixed bottom-6 right-6 flex flex-col items-end space-y-2 transition-all duration-300 z-[1000] ${
         isVisible ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'
       }`}
     >
