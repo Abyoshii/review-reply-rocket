@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -27,10 +28,7 @@ import {
   Sliders,
   Thermometer,
   Clock,
-  FileDigit,
-  BellRing,
-  Bell,
-  BellOff
+  FileDigit
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { WbReview } from "@/types/wb";
@@ -94,7 +92,6 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   const [isSending, setIsSending] = useState(false);
   const [processingReviews, setProcessingReviews] = useState<Set<string>>(new Set());
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [promptPreview, setPromptPreview] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [sendingProgress, setSendingProgress] = useState(0);
@@ -113,6 +110,14 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   
   useEffect(() => {
     localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
+    
+    // Применяем настройки к глобальному объекту для тостов
+    window.toastSettings = {
+      duration: notificationSettings.displayTime,
+      important: notificationSettings.notificationType === 'important',
+      disabled: notificationSettings.notificationType === 'none'
+    };
+    
   }, [notificationSettings]);
 
   const handleSettingsChange = (key: keyof AutoResponderSettings, value: any) => {
@@ -137,6 +142,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         title: "Внимание",
         description: "Выберите отзывы для генерации автоответов",
         variant: "destructive",
+        important: true,
       });
       return;
     }
@@ -146,6 +152,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         title: "Превышение лимита",
         description: `Выбрано ${selectedReviews.length} отзывов, но максимально допустимо ${settings.maxReviewsPerRequest}. Уменьшите количество выбранных отзывов или увеличьте лимит в настройках.`,
         variant: "destructive",
+        important: true,
       });
       return;
     }
@@ -166,6 +173,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       }));
       
       console.log(`🚀 Отправляем в массовую обработку ${reviewsForApi.length} отзывов одним запросом`);
+      console.log('Данные отправляемые в API:', reviewsForApi);
       
       const progressInterval = setInterval(() => {
         setGenerationProgress(prev => {
@@ -199,10 +207,12 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       setAnswersMap(result);
       
       if (notificationSettings.notificationType !== 'none') {
+        const isImportant = notificationSettings.notificationType === 'important';
         toast({
           title: "Успешно",
-          description: `Сгенерированы автоответы для ${Object.keys(result).length} отзывов`,
+          description: `Сгенерированы автоответы для ${Object.keys(result).length} отзывов. Использовалась модель: ${effectiveModel}`,
           variant: "default",
+          important: isImportant,
         });
       }
     } catch (error) {
@@ -211,6 +221,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         title: "Ошибка",
         description: "Ошибка при генерации автоответов",
         variant: "destructive",
+        important: true,
       });
     } finally {
       setTimeout(() => {
@@ -228,6 +239,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         title: "Внимание",
         description: "Нет сгенерированных ответов для отправки",
         variant: "destructive",
+        important: true,
       });
       return;
     }
@@ -250,7 +262,8 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         setSendingProgress(Math.round((i / reviewIds.length) * 100));
         
         try {
-          const delay = Math.floor(Math.random() * 300) + 500; // 500-800ms задержка
+          // Случайная задержка от 1.5 до 3 секунд, чтобы анимация была заметна
+          const delay = Math.floor(Math.random() * 1500) + 1500; // 1500-3000мс задержка
           await sleep(delay);
           
           console.log(`📤 Отправка ответа для отзыва ${reviewId} (${i+1}/${reviewIds.length})`);
@@ -295,17 +308,20 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
 
       if (successCount > 0) {
         if (notificationSettings.notificationType !== 'none') {
+          const isImportant = notificationSettings.notificationType === 'important';
           if (errorCount > 0) {
             toast({
               title: "Частичный успех",
               description: `Отправлено ${successCount} ответов. Не удалось отправить ${errorCount} ответов.`,
               variant: "default",
+              important: isImportant,
             });
           } else {
             toast({
               title: "Успешно",
               description: `Отправлено ${successCount} ответов`,
               variant: "default",
+              important: isImportant,
             });
           }
         }
@@ -323,6 +339,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           title: "Ошибка",
           description: "Не удалось отправить ни одного ответа",
           variant: "destructive",
+          important: true,
         });
       }
     } catch (error) {
@@ -332,6 +349,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           title: "Ошибка",
           description: "Ошибка при отправке автоответов",
           variant: "destructive",
+          important: true,
         });
       }
     } finally {
@@ -356,18 +374,8 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       title: "Настройки сброшены",
       description: "Настройки сброшены к значениям по умолчанию",
       variant: "default",
+      important: false,
     });
-  };
-
-  const getNotificationTypeIcon = () => {
-    switch (notificationSettings.notificationType) {
-      case 'all':
-        return <BellRing size={16} />;
-      case 'important':
-        return <Bell size={16} />;
-      case 'none':
-        return <BellOff size={16} />;
-    }
   };
 
   return (
@@ -549,84 +557,6 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                   </p>
                 </div>
                 
-                <Collapsible 
-                  open={showNotificationSettings}
-                  onOpenChange={setShowNotificationSettings}
-                  className="border rounded-md p-3 bg-gray-100 dark:bg-gray-600"
-                >
-                  <CollapsibleTrigger asChild>
-                    <div className="flex justify-between items-center cursor-pointer">
-                      <span className="font-medium flex items-center gap-1">
-                        {getNotificationTypeIcon()} Настройки уведомлений
-                      </span>
-                      <Button variant="ghost" size="sm">
-                        {showNotificationSettings ? "Скрыть" : "Показать"}
-                      </Button>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-3 space-y-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="notificationType">Тип уведомлений</Label>
-                      <Select
-                        value={notificationSettings.notificationType}
-                        onValueChange={(value: 'important' | 'all' | 'none') => 
-                          handleNotificationSettingsChange('notificationType', value)}
-                      >
-                        <SelectTrigger id="notificationType">
-                          <SelectValue placeholder="Выберите тип уведомлений" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="important">Только важные</SelectItem>
-                          <SelectItem value="all">Все уведомления</SelectItem>
-                          <SelectItem value="none">Отключить уведомления</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="transparency" className="flex items-center justify-between">
-                        <span>Прозрачность ({notificationSettings.transparency})</span>
-                      </Label>
-                      <input
-                        id="transparency"
-                        type="range"
-                        min="0.5"
-                        max="1"
-                        step="0.1"
-                        value={notificationSettings.transparency}
-                        onChange={(e) => handleNotificationSettingsChange('transparency', parseFloat(e.target.value))}
-                        className="w-full"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="displayTime" className="flex items-center justify-between">
-                        <span>Время отображения ({notificationSettings.displayTime} мс)</span>
-                      </Label>
-                      <Select
-                        value={String(notificationSettings.displayTime)}
-                        onValueChange={(value) => 
-                          handleNotificationSettingsChange('displayTime', parseInt(value))}
-                      >
-                        <SelectTrigger id="displayTime">
-                          <SelectValue placeholder="Время отображения" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="3000">3 секунды</SelectItem>
-                          <SelectItem value="5000">5 секунд</SelectItem>
-                          <SelectItem value="8000">8 секунд</SelectItem>
-                          <SelectItem value="10000">10 секунд</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <Button onClick={() => setNotificationSettings(defaultNotificationSettings)} 
-                      variant="outline" size="sm" className="w-full">
-                      Сбросить настройки уведомлений
-                    </Button>
-                  </CollapsibleContent>
-                </Collapsible>
-                
                 <Button onClick={resetSettings} variant="outline" size="sm" className="w-full">
                   Сбросить все настройки
                 </Button>
@@ -669,7 +599,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="font-medium">⚙️ Отправка:</span> 
-                    <span>По одному с задержкой ~500мс</span>
+                    <span>По одному с задержкой ~2с</span>
                   </div>
                 </div>
               </AlertDescription>
@@ -690,12 +620,14 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                         title: "Скопировано",
                         description: "Промт скопирован в буфер обмена",
                         variant: "default",
+                        important: false,
                       });
                     } catch (e) {
                       toast({
                         title: "Ошибка",
                         description: "Не удалось скопировать промт",
                         variant: "destructive",
+                        important: true,
                       });
                     }
                   }}
@@ -822,12 +754,14 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                         title: "Скопировано",
                         description: "Все ответы скопированы в буфер обмена",
                         variant: "default",
+                        important: false,
                       });
                     } catch (e) {
                       toast({
                         title: "Ошибка",
                         description: "Не удалось скопировать ответы",
                         variant: "destructive",
+                        important: true,
                       });
                     }
                   }}
@@ -862,4 +796,36 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                       <span className="font-semibold">Отзыв:</span> {review.text || review.pros || "Нет текста, только рейтинг"}
                     </div>
                     <div className={`border-l-4 pl-2 ${
-                      isFailed ? 'border-red-500' : (isSent
+                      isFailed ? 'border-red-500' : (isSent ? 'border-green-500' : (isPending ? 'border-amber-500' : 'border-blue-500'))
+                    }`}>
+                      {isPending && !isSent && !isFailed && (
+                        <div className="flex items-center text-amber-600 mb-2">
+                          <Loader2 size={14} className="animate-spin mr-2" />
+                          <span className="text-xs">Отправка ответа...</span>
+                        </div>
+                      )}
+                      
+                      {isFailed && (
+                        <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs p-2 mb-2 rounded">
+                          Ошибка отправки. Попробуйте снова.
+                        </div>
+                      )}
+                      
+                      <Textarea
+                        value={answersMap[review.id]}
+                        onChange={(e) => updateAnswerText(review.id, e.target.value)}
+                        className="min-h-20 text-sm"
+                        disabled={isPending || isSent}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default AutoResponder;

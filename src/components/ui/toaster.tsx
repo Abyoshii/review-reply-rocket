@@ -35,8 +35,8 @@ export function Toaster() {
       if (savedSettings) {
         const parsedSettings = JSON.parse(savedSettings)
         setSettings({
-          opacity: parsedSettings.opacity || 0.9,
-          duration: parsedSettings.duration || 5000
+          opacity: parsedSettings.transparency || 0.9,
+          duration: parsedSettings.displayTime || 5000
         })
       }
     } catch (e) {
@@ -47,11 +47,11 @@ export function Toaster() {
   return (
     <ToastProvider duration={window.toastSettings?.duration || settings.duration}>
       <div className="toast-container" style={{ opacity: settings.opacity }}>
-        {toasts.map(function ({ id, title, description, action, ...props }) {
+        {toasts.map(function ({ id, title, description, action, important, ...props }) {
           // Skip toast if notifications are disabled or if this is not important and only important should be shown
           if (window.toastSettings?.disabled || 
               (window.toastSettings?.important && 
-               !props.important && 
+               !important && 
                props.variant !== "destructive")) {
             return null
           }
