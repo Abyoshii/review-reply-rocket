@@ -153,3 +153,17 @@
 .transition-theme {
   transition: all 0.3s ease;
 }
+
+/* Анимация вращения для шестеренки */
+@keyframes rotate-gear {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+button:hover .gear-icon {
+  animation: rotate-gear 2s linear infinite;
+}

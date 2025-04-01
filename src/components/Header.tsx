@@ -149,16 +149,16 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
       </div>
       
       <div className="flex items-center space-x-2 ml-auto">
-        <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors duration-300"
-            >
-              <Bot size={16} />
-              Автоответчик
-            </Button>
-          </DialogTrigger>
-        </Dialog>
+        <Button 
+          variant="outline" 
+          size="icon"
+          className="relative"
+        >
+          <Bell size={18} />
+          {notificationSettings?.notificationType === 'none' && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" />
+          )}
+        </Button>
         
         <Popover>
           <PopoverTrigger asChild>
@@ -271,6 +271,17 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           <RefreshCw size={16} />
           Обновить
         </Button>
+        
+        <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800 transition-colors duration-300 ml-auto"
+            >
+              <Settings size={16} className="transition-transform duration-300 ease-in-out group-hover:rotate-180" />
+              Автоответчик
+            </Button>
+          </DialogTrigger>
+        </Dialog>
       </div>
       
       <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
