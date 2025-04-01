@@ -64,3 +64,4 @@ export interface GenerateAutoAnswersRequest {
     cons?: string;
   }[];
 }
+

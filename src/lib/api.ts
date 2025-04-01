@@ -359,6 +359,15 @@ export const OpenAIAPI = {
         systemPrompt += `\nДобавляй в конце каждого ответа: "${settings.signature}"\n`;
       }
       
+      // Рассчитываем оптимальное значение max_tokens в зависимости от количества отзывов
+      const maxTokens = Math.min(4000, 300 * reviews.length);
+      
+      console.log("Отправляем запрос к OpenAI с параметрами:", {
+        model: settings.model,
+        reviewsCount: reviews.length,
+        maxTokens
+      });
+      
       const response = await axios.post(
         OPENAI_API_BASE_URL,
         {
@@ -370,11 +379,11 @@ export const OpenAIAPI = {
             },
             {
               role: "user",
-              content: reviewsText
+              content: `Отзывы:\n\n${reviewsText}\n\nСформируй ответы под каждым номером отзыва.`
             }
           ],
           temperature: 0.7,
-          max_tokens: 2000
+          max_tokens: maxTokens
         },
         {
           headers: {

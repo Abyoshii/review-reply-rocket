@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import {
   Check,
   Settings,
   Send,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { WbReview } from "@/types/wb";
@@ -30,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { debounce } from "@/lib/utils";
 
 interface AutoResponderProps {
   selectedReviews: WbReview[];
@@ -38,7 +41,7 @@ interface AutoResponderProps {
 
 const defaultSettings: AutoResponderSettings = {
   model: "gpt-3.5-turbo",
-  maxReviewsPerRequest: 5,
+  maxReviewsPerRequest: 10,
   language: "russian",
   tone: "friendly",
   useEmoji: true,
@@ -46,11 +49,21 @@ const defaultSettings: AutoResponderSettings = {
 };
 
 const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
-  const [settings, setSettings] = useState<AutoResponderSettings>(defaultSettings);
+  const [settings, setSettings] = useState<AutoResponderSettings>(() => {
+    // Пытаемся загрузить настройки из localStorage
+    const savedSettings = localStorage.getItem('autoResponderSettings');
+    return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
+  });
   const [answersMap, setAnswersMap] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [selectedReviewsForGeneration, setSelectedReviewsForGeneration] = useState<WbReview[]>([]);
+  const [processingReviews, setProcessingReviews] = useState<Set<string>>(new Set());
+
+  // Сохраняем настройки в localStorage при их изменении
+  useEffect(() => {
+    localStorage.setItem('autoResponderSettings', JSON.stringify(settings));
+  }, [settings]);
 
   const handleSettingsChange = (key: keyof AutoResponderSettings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -62,7 +75,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     toast.info(`Выбрано ${selectedReviews.length} отзывов для генерации`);
   };
 
-  const generateAutoAnswers = async () => {
+  const generateAutoAnswers = useCallback(debounce(async () => {
     if (selectedReviewsForGeneration.length === 0) {
       toast.warning("Выберите отзывы для генерации автоответов");
       return;
@@ -74,15 +87,25 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     }
 
     setIsGenerating(true);
+    
+    // Отмечаем все отзывы как обрабатываемые
+    const reviewIds = selectedReviewsForGeneration.map(r => r.id);
+    setProcessingReviews(new Set(reviewIds));
+    
     try {
+      // Подготавливаем информацию о отзывах для отправки в API
+      const reviewsForApi = selectedReviewsForGeneration.map(review => ({
+        id: review.id,
+        text: review.text || undefined,
+        pros: review.pros,
+        cons: review.cons
+      }));
+      
+      console.log(`Отправляем в обработку ${reviewsForApi.length} отзывов`);
+      
       const result = await OpenAIAPI.generateAutoAnswers({
         settings,
-        reviews: selectedReviewsForGeneration.map(review => ({
-          id: review.id,
-          text: review.text || undefined,
-          pros: review.pros,
-          cons: review.cons
-        }))
+        reviews: reviewsForApi
       });
 
       setAnswersMap(result);
@@ -92,10 +115,11 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       toast.error("Ошибка при генерации автоответов");
     } finally {
       setIsGenerating(false);
+      setProcessingReviews(new Set());
     }
-  };
+  }, 500), [selectedReviewsForGeneration, settings]);
 
-  const sendAutoAnswers = async () => {
+  const sendAutoAnswers = useCallback(debounce(async () => {
     const reviewIds = Object.keys(answersMap);
     if (reviewIds.length === 0) {
       toast.warning("Нет сгенерированных ответов для отправки");
@@ -103,21 +127,38 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     }
 
     setIsSending(true);
+    
+    // Создаем копию мапы ответов для отслеживания уже отправленных
+    const sentAnswers = new Set<string>();
+    
     try {
       let successCount = 0;
       let errorCount = 0;
 
-      for (const reviewId of reviewIds) {
-        try {
-          await WbAPI.sendAnswer({
-            id: reviewId,
-            text: answersMap[reviewId]
-          });
-          successCount++;
-        } catch (error) {
-          console.error(`Error sending answer for review ${reviewId}:`, error);
-          errorCount++;
-        }
+      // Отправляем ответы по 5 штук параллельно для ускорения
+      const batchSize = 5;
+      for (let i = 0; i < reviewIds.length; i += batchSize) {
+        const batch = reviewIds.slice(i, i + batchSize);
+        const promises = batch.map(async (reviewId) => {
+          // Пропускаем уже отправленные
+          if (sentAnswers.has(reviewId)) return;
+          
+          try {
+            await WbAPI.sendAnswer({
+              id: reviewId,
+              text: answersMap[reviewId]
+            });
+            sentAnswers.add(reviewId);
+            successCount++;
+            return { success: true, reviewId };
+          } catch (error) {
+            console.error(`Error sending answer for review ${reviewId}:`, error);
+            errorCount++;
+            return { success: false, reviewId, error };
+          }
+        });
+
+        await Promise.all(promises);
       }
 
       if (successCount > 0) {
@@ -126,7 +167,13 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           toast.warning(`Не удалось отправить ${errorCount} ответов`);
         }
         onSuccess();
-        setAnswersMap({});
+        
+        // Удаляем из мапы только отправленные ответы
+        const newAnswersMap = { ...answersMap };
+        sentAnswers.forEach(id => {
+          delete newAnswersMap[id];
+        });
+        setAnswersMap(newAnswersMap);
       } else {
         toast.error("Не удалось отправить ни одного ответа");
       }
@@ -136,6 +183,20 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
     } finally {
       setIsSending(false);
     }
+  }, 500), [answersMap, onSuccess]);
+
+  // Очистка выбранных отзывов
+  const clearSelection = () => {
+    setSelectedReviewsForGeneration([]);
+    toast.info("Выбор отзывов очищен");
+  };
+
+  // Обновление текста ответа
+  const updateAnswerText = (reviewId: string, text: string) => {
+    setAnswersMap(prev => ({
+      ...prev,
+      [reviewId]: text
+    }));
   };
 
   return (
@@ -160,7 +221,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
               <Label htmlFor="model">Модель</Label>
               <Select
                 value={settings.model}
-                onValueChange={(value) => handleSettingsChange('model', value)}
+                onValueChange={(value: "gpt-3.5-turbo" | "gpt-4" | "gpt-4o") => handleSettingsChange('model', value)}
               >
                 <SelectTrigger id="model">
                   <SelectValue placeholder="Выберите модель" />
@@ -188,13 +249,16 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                   <SelectItem value="20">20 отзывов</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Рекомендуется не более 10 отзывов за раз для качественной генерации
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="language">Язык ответа</Label>
               <Select
                 value={settings.language}
-                onValueChange={(value) => handleSettingsChange('language', value)}
+                onValueChange={(value: "russian" | "english" | "kazakh") => handleSettingsChange('language', value)}
               >
                 <SelectTrigger id="language">
                   <SelectValue placeholder="Выберите язык" />
@@ -211,7 +275,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
               <Label htmlFor="tone">Тон ответа</Label>
               <Select
                 value={settings.tone}
-                onValueChange={(value) => handleSettingsChange('tone', value)}
+                onValueChange={(value: "professional" | "friendly" | "formal") => handleSettingsChange('tone', value)}
               >
                 <SelectTrigger id="tone">
                   <SelectValue placeholder="Выберите тон" />
@@ -238,7 +302,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
               <Input
                 id="signature"
                 placeholder="С уважением, команда магазина"
-                value={settings.signature}
+                value={settings.signature || ""}
                 onChange={(e) => handleSettingsChange('signature', e.target.value)}
               />
             </div>
@@ -253,14 +317,24 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           <div className="text-sm space-y-3">
             <div className="flex justify-between">
               <p>Доступно отзывов: <strong>{selectedReviews.length}</strong></p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={useSelectedReviews}
-                disabled={selectedReviews.length === 0}
-              >
-                Использовать выбранные
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={clearSelection}
+                  disabled={selectedReviewsForGeneration.length === 0}
+                >
+                  Очистить
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={useSelectedReviews}
+                  disabled={selectedReviews.length === 0}
+                >
+                  Использовать выбранные
+                </Button>
+              </div>
             </div>
             
             <p>Выбрано для генерации: <strong>{selectedReviewsForGeneration.length}</strong></p>
@@ -302,9 +376,19 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 onClick={generateAutoAnswers} 
                 disabled={isGenerating || selectedReviewsForGeneration.length === 0}
                 variant="outline" 
-                className="w-full"
+                className="w-full flex items-center gap-2"
               >
-                {isGenerating ? "Генерация..." : "Сгенерировать автоответы"}
+                {isGenerating ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> 
+                    Генерация... ({Object.keys(answersMap).length}/{selectedReviewsForGeneration.length})
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={16} /> 
+                    Сгенерировать автоответы
+                  </>
+                )}
               </Button>
               
               <Button 
@@ -313,8 +397,17 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 variant="default"
                 className="w-full bg-wb-secondary hover:bg-wb-accent"
               >
-                <Send size={16} className="mr-2" />
-                {isSending ? "Отправка..." : "Отправить все автоответы"}
+                {isSending ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin mr-2" /> 
+                    Отправка...
+                  </>
+                ) : (
+                  <>
+                    <Send size={16} className="mr-2" />
+                    Отправить все автоответы
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -335,7 +428,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                     <span className="font-semibold text-sm">Ответ:</span>
                     <Textarea
                       value={answersMap[review.id] || ""}
-                      onChange={(e) => setAnswersMap(prev => ({ ...prev, [review.id]: e.target.value }))}
+                      onChange={(e) => updateAnswerText(review.id, e.target.value)}
                       className="mt-1 text-sm"
                     />
                   </div>
@@ -352,8 +445,17 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           disabled={isSending || Object.keys(answersMap).length === 0}
           className="bg-wb-secondary hover:bg-wb-accent"
         >
-          <Send size={16} className="mr-2" />
-          {isSending ? "Отправка..." : "Отправить все ответы"}
+          {isSending ? (
+            <>
+              <Loader2 size={16} className="animate-spin mr-2" /> 
+              Отправка...
+            </>
+          ) : (
+            <>
+              <Send size={16} className="mr-2" />
+              Отправить все ответы
+            </>
+          )}
         </Button>
       </DialogFooter>
     </>
