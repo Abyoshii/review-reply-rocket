@@ -20,7 +20,7 @@ import {
 } from "@/types/openai";
 import { toast } from "sonner";
 
-// WB API
+// WB API base URLs and token handling
 const WB_API_BASE_URL = "https://feedbacks-api.wildberries.ru/api/v1";
 const FEEDBACKS_URL = `${WB_API_BASE_URL}/feedbacks`;
 const QUESTIONS_URL = `${WB_API_BASE_URL}/questions`;
@@ -191,7 +191,7 @@ export const WbAPI = {
       if (axios.isAxiosError(error) && error.response) {
         toast.error(`Ошибка получения вопросов: ${error.response.status} ${error.response.statusText}`);
       } else {
-        toast.error("Ошибка получения вопросов. Проверьте консоль для деталей.");
+        toast.error("Ошибка получен��я вопросов. Проверьте консоль для деталей.");
       }
       throw error;
     }
@@ -261,6 +261,13 @@ export const OpenAIAPI = {
     const model = isComplexReview ? "gpt-4o" : "gpt-3.5-turbo";
     
     try {
+      console.log("Sending to OpenAI:", {
+        reviewId: request.reviewId,
+        reviewText: request.reviewText,
+        productName: request.productName,
+        model: model
+      });
+      
       const response = await axios.post(
         OPENAI_API_BASE_URL,
         {
@@ -272,7 +279,9 @@ export const OpenAIAPI = {
             },
             {
               role: "user",
-              content: `Отзыв: ${request.reviewText}`
+              content: request.productName 
+                ? `Отзыв на товар "${request.productName}": ${request.reviewText}`
+                : `Отзыв: ${request.reviewText}`
             }
           ],
           temperature: 0.7,
@@ -317,7 +326,11 @@ export const OpenAIAPI = {
       // Создаем строку с отзывами в нумерованном списке
       const reviewsText = reviews.map((review, index) => {
         const reviewText = review.text || review.pros || "Нет текста, только рейтинг";
-        return `${index + 1}. "${reviewText}"`;
+        const productName = review.productName || '';
+        
+        return productName 
+          ? `${index + 1}. Товар "${productName}": "${reviewText}"`
+          : `${index + 1}. "${reviewText}"`;
       }).join("\n");
       
       // Выбираем модель в зависимости от количества отзывов
@@ -337,7 +350,7 @@ ${settings.useEmoji ? '- Используй эмодзи (1-2 на ответ).'
 - Не нумеруй ответы.
 - Каждый отзыв — отдельный ответ. Пиши по 2–5 предложений.
 - Если отзыв содержит плюсы и минусы — прокомментируй оба.
-- Отвечай так, чтобы человек поверил, что пишет реальный менеджер.
+- Отвечай так, чтобы человек поверил, что пишет реальн��й менеджер.
 
 Учитывай, что:
 - За доставку отвечает Wildberries

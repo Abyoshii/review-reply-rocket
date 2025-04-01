@@ -74,7 +74,8 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       
       const request: GenerateAnswerRequest = {
         reviewText: fullReviewText,
-        reviewId: review.id
+        reviewId: review.id,
+        productName: review.productName || review.productDetails?.productName
       };
 
       const response = await OpenAIAPI.generateAnswer(request);

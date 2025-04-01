@@ -38,6 +38,7 @@ export interface OpenAIResponse {
 export interface GenerateAnswerRequest {
   reviewText: string;
   reviewId: string;
+  productName?: string;
 }
 
 export interface GenerateAnswerResponse {
@@ -64,5 +65,6 @@ export interface GenerateAutoAnswersRequest {
     text?: string;
     pros?: string;
     cons?: string;
+    productName?: string;
   }[];
 }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -162,7 +161,8 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         id: review.id,
         text: review.text || undefined,
         pros: review.pros,
-        cons: review.cons
+        cons: review.cons,
+        productName: review.productName || review.productDetails?.productName
       }));
       
       console.log(`🚀 Отправляем в массовую обработку ${reviewsForApi.length} отзывов одним запросом`);
@@ -862,68 +862,4 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                       <span className="font-semibold">Отзыв:</span> {review.text || review.pros || "Нет текста, только рейтинг"}
                     </div>
                     <div className={`border-l-4 pl-2 ${
-                      isFailed ? 'border-red-500' : (isSent ? 'border-green-500' : (isPending ? 'border-amber-500' : 'border-blue-500'))
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-sm">Ответ:</span>
-                        {isSent && (
-                          <Badge variant="outline" className="text-green-600 border-green-600">
-                            <Check size={12} className="mr-1" /> Отправлен
-                          </Badge>
-                        )}
-                        {isPending && (
-                          <Badge variant="outline" className="text-amber-600 border-amber-600">
-                            <Clock size={12} className="mr-1" /> Отправляется...
-                          </Badge>
-                        )}
-                        {isFailed && (
-                          <Badge variant="outline" className="text-red-600 border-red-600">
-                            <AlertCircle size={12} className="mr-1" /> Ошибка отправки
-                          </Badge>
-                        )}
-                      </div>
-                      <Textarea 
-                        value={answersMap[review.id] || ""}
-                        onChange={(e) => updateAnswerText(review.id, e.target.value)}
-                        className={`mt-1 text-sm ${
-                          isSent || isPending ? 'bg-gray-50 dark:bg-gray-800' : ''
-                        }`}
-                        disabled={isSent || isPending}
-                      />
-                      {isFailed && (
-                        <div className="text-xs text-red-600 mt-1">
-                          Не удалось отправить ответ. <Button size="sm" variant="ghost" className="h-auto p-0 text-xs underline text-red-600">Попробовать снова</Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
-      <DialogFooter className="gap-2 mt-4">
-        <Button 
-          onClick={sendAutoAnswers}
-          disabled={isSending || isGenerating || Object.keys(answersMap).length === 0}
-          className="bg-wb-secondary hover:bg-wb-accent"
-        >
-          {isSending ? (
-            <>
-              <Loader2 size={16} className="animate-spin mr-2" /> 
-              Отправка... ({sentReviews.size}/{sentReviews.size + pendingReviews.size})
-            </>
-          ) : (
-            <>
-              <Send size={16} className="mr-2" />
-              Отправить все ответы
-            </>
-          )}
-        </Button>
-      </DialogFooter>
-    </>
-  );
-};
-
-export default AutoResponder;
+                      isFailed ? 'border-red-500' : (isSent
