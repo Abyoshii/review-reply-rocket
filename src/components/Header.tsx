@@ -112,14 +112,11 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
   return (
     <div className="flex items-center justify-between py-3 px-4 bg-[#0A0D14] text-white">
       <div className="flex flex-col items-start">
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-3xl font-bold">
           <span className="mr-2 text-purple-400 font-bold">
             Asterion
           </span>
         </h1>
-        <span className="text-xs text-gray-400 transition-colors duration-300">
-          Система управления отзывами
-        </span>
         
         <div className="flex items-center mt-2">
           {unansweredCount > 0 && (
