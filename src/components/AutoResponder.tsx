@@ -13,7 +13,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge"; // Added Badge import
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { 
   Bot,
   AlertCircle,
@@ -27,9 +28,12 @@ import {
   Sliders,
   Thermometer,
   Clock,
-  FileDigit
+  FileDigit,
+  BellRing,
+  Bell,
+  BellOff
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { WbReview } from "@/types/wb";
 import { AutoResponderSettings } from "@/types/openai";
 import { OpenAIAPI, WbAPI } from "@/lib/api";
@@ -52,6 +56,12 @@ interface AutoResponderProps {
   onSuccess: () => void;
 }
 
+interface NotificationSettings {
+  transparency: number;
+  displayTime: number;
+  notificationType: 'important' | 'all' | 'none';
+}
+
 const defaultSettings: AutoResponderSettings = {
   model: "auto",
   maxReviewsPerRequest: 20,
@@ -63,22 +73,35 @@ const defaultSettings: AutoResponderSettings = {
   customPrompt: ""
 };
 
+const defaultNotificationSettings: NotificationSettings = {
+  transparency: 0.9,
+  displayTime: 5000,
+  notificationType: 'important'
+};
+
 const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   const [settings, setSettings] = useState<AutoResponderSettings>(() => {
     const savedSettings = localStorage.getItem('autoResponderSettings');
     return savedSettings ? JSON.parse(savedSettings) : defaultSettings;
   });
+  
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => {
+    const savedSettings = localStorage.getItem('notificationSettings');
+    return savedSettings ? JSON.parse(savedSettings) : defaultNotificationSettings;
+  });
+  
   const [answersMap, setAnswersMap] = useState<Record<string, string>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [selectedReviewsForGeneration, setSelectedReviewsForGeneration] = useState<WbReview[]>([]);
   const [processingReviews, setProcessingReviews] = useState<Set<string>>(new Set());
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [promptPreview, setPromptPreview] = useState("");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [sendingProgress, setSendingProgress] = useState(0);
   const [sentReviews, setSentReviews] = useState<Set<string>>(new Set());
   const [pendingReviews, setPendingReviews] = useState<Set<string>>(new Set());
+  const [failedReviews, setFailedReviews] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const preview = generateSystemPrompt(settings);
@@ -88,35 +111,54 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
   useEffect(() => {
     localStorage.setItem('autoResponderSettings', JSON.stringify(settings));
   }, [settings]);
+  
+  useEffect(() => {
+    localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings));
+  }, [notificationSettings]);
 
   const handleSettingsChange = (key: keyof AutoResponderSettings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
+  
+  const handleNotificationSettingsChange = (key: keyof NotificationSettings, value: any) => {
+    setNotificationSettings(prev => ({ ...prev, [key]: value }));
+  };
 
-  const useSelectedReviews = () => {
-    setSelectedReviewsForGeneration(selectedReviews);
-    toast.info(`Выбрано ${selectedReviews.length} отзывов для генерации`);
+  const getGenerationMode = () => {
+    if (settings.model === "gpt-4" || settings.model === "gpt-4o") {
+      return "Массовый (один запрос)";
+    } else {
+      return "Поочередный (отдельные запросы)";
+    }
   };
 
   const generateAutoAnswers = useCallback(debounce(async () => {
-    if (selectedReviewsForGeneration.length === 0) {
-      toast.warning("Выберите отзывы для генерации автоответов");
+    if (selectedReviews.length === 0) {
+      toast({
+        title: "Внимание",
+        description: "Выберите отзывы для генерации автоответов",
+        variant: "destructive",
+      });
       return;
     }
 
-    if (selectedReviewsForGeneration.length > settings.maxReviewsPerRequest) {
-      toast.warning(`Выбрано ${selectedReviewsForGeneration.length} отзывов, но максимально допустимо ${settings.maxReviewsPerRequest}. Уменьшите количество выбранных отзывов или увеличьте лимит в настройках.`);
+    if (selectedReviews.length > settings.maxReviewsPerRequest) {
+      toast({
+        title: "Превышение лимита",
+        description: `Выбрано ${selectedReviews.length} отзывов, но максимально допустимо ${settings.maxReviewsPerRequest}. Уменьшите количество выбранных отзывов или увеличьте лимит в настройках.`,
+        variant: "destructive",
+      });
       return;
     }
 
     setIsGenerating(true);
     setGenerationProgress(0);
     
-    const reviewIds = selectedReviewsForGeneration.map(r => r.id);
+    const reviewIds = selectedReviews.map(r => r.id);
     setProcessingReviews(new Set(reviewIds));
     
     try {
-      const reviewsForApi = selectedReviewsForGeneration.map(review => ({
+      const reviewsForApi = selectedReviews.map(review => ({
         id: review.id,
         text: review.text || undefined,
         pros: review.pros,
@@ -155,10 +197,21 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       setGenerationProgress(100);
       
       setAnswersMap(result);
-      toast.success(`Сгенерированы автоответы для ${Object.keys(result).length} отзывов`);
+      
+      if (notificationSettings.notificationType !== 'none') {
+        toast({
+          title: "Успешно",
+          description: `Сгенерированы автоответы для ${Object.keys(result).length} отзывов`,
+          variant: "default",
+        });
+      }
     } catch (error) {
       console.error("Error generating auto answers:", error);
-      toast.error("Ошибка при генерации автоответов");
+      toast({
+        title: "Ошибка",
+        description: "Ошибка при генерации автоответов",
+        variant: "destructive",
+      });
     } finally {
       setTimeout(() => {
         setIsGenerating(false);
@@ -166,20 +219,25 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         setGenerationProgress(0);
       }, 500);
     }
-  }, 500), [selectedReviewsForGeneration, settings]);
+  }, 500), [selectedReviews, settings, notificationSettings]);
 
   const sendAutoAnswers = useCallback(debounce(async () => {
     const reviewIds = Object.keys(answersMap);
     if (reviewIds.length === 0) {
-      toast.warning("Нет сгенерированных ответов для отправки");
+      toast({
+        title: "Внимание",
+        description: "Нет сгенерированных ответов для отправки",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsSending(true);
     setSendingProgress(0);
+    setFailedReviews(new Set());
     
+    // Сначала все отзывы перемещаем в фантомный буфер (fanout buffer)
     setSentReviews(new Set());
-    
     setPendingReviews(new Set(reviewIds));
     
     try {
@@ -192,7 +250,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         setSendingProgress(Math.round((i / reviewIds.length) * 100));
         
         try {
-          const delay = Math.floor(Math.random() * 1000) + 500;
+          const delay = Math.floor(Math.random() * 300) + 500; // 500-800ms задержка
           await sleep(delay);
           
           console.log(`📤 Отправка ответа для отзыва ${reviewId} (${i+1}/${reviewIds.length})`);
@@ -219,6 +277,12 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           console.error(`Error sending answer for review ${reviewId}:`, error);
           errorCount++;
           
+          setFailedReviews(prev => {
+            const updated = new Set(prev);
+            updated.add(reviewId);
+            return updated;
+          });
+          
           setPendingReviews(prev => {
             const updated = new Set(prev);
             updated.delete(reviewId);
@@ -230,10 +294,22 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
       setSendingProgress(100);
 
       if (successCount > 0) {
-        toast.success(`Успешно отправлено ${successCount} ответов`);
-        if (errorCount > 0) {
-          toast.warning(`Не удалось отправить ${errorCount} ответов`);
+        if (notificationSettings.notificationType !== 'none') {
+          if (errorCount > 0) {
+            toast({
+              title: "Частичный успех",
+              description: `Отправлено ${successCount} ответов. Не удалось отправить ${errorCount} ответов.`,
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Успешно",
+              description: `Отправлено ${successCount} ответов`,
+              variant: "default",
+            });
+          }
         }
+        
         onSuccess();
         
         const sentIds = Array.from(sentReviews);
@@ -242,12 +318,22 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
           delete newAnswersMap[id];
         });
         setAnswersMap(newAnswersMap);
-      } else {
-        toast.error("Не удалось отправить ни одного ответа");
+      } else if (notificationSettings.notificationType !== 'none') {
+        toast({
+          title: "Ошибка",
+          description: "Не удалось отправить ни одного ответа",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error sending auto answers:", error);
-      toast.error("Ошибка при отправке автоответов");
+      if (notificationSettings.notificationType !== 'none') {
+        toast({
+          title: "Ошибка",
+          description: "Ошибка при отправке автоответов",
+          variant: "destructive",
+        });
+      }
     } finally {
       setTimeout(() => {
         setIsSending(false);
@@ -255,12 +341,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         setPendingReviews(new Set());
       }, 500);
     }
-  }, 500), [answersMap, onSuccess]);
-
-  const clearSelection = () => {
-    setSelectedReviewsForGeneration([]);
-    toast.info("Выбор отзывов очищен");
-  };
+  }, 500), [answersMap, onSuccess, notificationSettings]);
 
   const updateAnswerText = (reviewId: string, text: string) => {
     setAnswersMap(prev => ({
@@ -271,7 +352,22 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
 
   const resetSettings = () => {
     setSettings(defaultSettings);
-    toast.info("Настройки сброшены к значениям по умолчанию");
+    toast({
+      title: "Настройки сброшены",
+      description: "Настройки сброшены к значениям по умолчанию",
+      variant: "default",
+    });
+  };
+
+  const getNotificationTypeIcon = () => {
+    switch (notificationSettings.notificationType) {
+      case 'all':
+        return <BellRing size={16} />;
+      case 'important':
+        return <Bell size={16} />;
+      case 'none':
+        return <BellOff size={16} />;
+    }
   };
 
   return (
@@ -328,9 +424,6 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                   <SelectItem value="20">20 отзывов</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Рекомендуется не более 20 отзывов за раз для качественной генерации
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -456,6 +549,84 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                   </p>
                 </div>
                 
+                <Collapsible 
+                  open={showNotificationSettings}
+                  onOpenChange={setShowNotificationSettings}
+                  className="border rounded-md p-3 bg-gray-100 dark:bg-gray-600"
+                >
+                  <CollapsibleTrigger asChild>
+                    <div className="flex justify-between items-center cursor-pointer">
+                      <span className="font-medium flex items-center gap-1">
+                        {getNotificationTypeIcon()} Настройки уведомлений
+                      </span>
+                      <Button variant="ghost" size="sm">
+                        {showNotificationSettings ? "Скрыть" : "Показать"}
+                      </Button>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3 space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="notificationType">Тип уведомлений</Label>
+                      <Select
+                        value={notificationSettings.notificationType}
+                        onValueChange={(value: 'important' | 'all' | 'none') => 
+                          handleNotificationSettingsChange('notificationType', value)}
+                      >
+                        <SelectTrigger id="notificationType">
+                          <SelectValue placeholder="Выберите тип уведомлений" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="important">Только важные</SelectItem>
+                          <SelectItem value="all">Все уведомления</SelectItem>
+                          <SelectItem value="none">Отключить уведомления</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="transparency" className="flex items-center justify-between">
+                        <span>Прозрачность ({notificationSettings.transparency})</span>
+                      </Label>
+                      <input
+                        id="transparency"
+                        type="range"
+                        min="0.5"
+                        max="1"
+                        step="0.1"
+                        value={notificationSettings.transparency}
+                        onChange={(e) => handleNotificationSettingsChange('transparency', parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="displayTime" className="flex items-center justify-between">
+                        <span>Время отображения ({notificationSettings.displayTime} мс)</span>
+                      </Label>
+                      <Select
+                        value={String(notificationSettings.displayTime)}
+                        onValueChange={(value) => 
+                          handleNotificationSettingsChange('displayTime', parseInt(value))}
+                      >
+                        <SelectTrigger id="displayTime">
+                          <SelectValue placeholder="Время отображения" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3000">3 секунды</SelectItem>
+                          <SelectItem value="5000">5 секунд</SelectItem>
+                          <SelectItem value="8000">8 секунд</SelectItem>
+                          <SelectItem value="10000">10 секунд</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <Button onClick={() => setNotificationSettings(defaultNotificationSettings)} 
+                      variant="outline" size="sm" className="w-full">
+                      Сбросить настройки уведомлений
+                    </Button>
+                  </CollapsibleContent>
+                </Collapsible>
+                
                 <Button onClick={resetSettings} variant="outline" size="sm" className="w-full">
                   Сбросить все настройки
                 </Button>
@@ -469,33 +640,40 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
             <AlertCircle size={16} /> Информация
           </h3>
           
-          <div className="text-sm space-y-3">
-            <div className="flex justify-between">
-              <p>Доступно отзывов: <strong>{selectedReviews.length}</strong></p>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={clearSelection}
-                  disabled={selectedReviewsForGeneration.length === 0}
-                >
-                  Очистить
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={useSelectedReviews}
-                  disabled={selectedReviews.length === 0}
-                >
-                  Использовать выбранные
-                </Button>
-              </div>
-            </div>
-            
-            <p>Выбрано для генерации: <strong>{selectedReviewsForGeneration.length}</strong></p>
-            <p>Лимит за один запрос: <strong>{settings.maxReviewsPerRequest}</strong></p>
-            
-            <Separator />
+          <div className="space-y-4">
+            <Alert>
+              <AlertTitle className="flex items-center gap-1">
+                <Bot size={16} /> Статус автоответчика: 
+                <Badge variant="outline" className="ml-1">
+                  {settings.model === "auto" ? 
+                    (selectedReviews.length >= 10 ? "GPT-4o (массовый режим)" : "GPT-3.5 Turbo (поочередный режим)") : 
+                    (settings.model === "gpt-4o" ? "GPT-4o (массовый режим)" : 
+                      (settings.model === "gpt-4" ? "GPT-4 (массовый режим)" : "GPT-3.5 Turbo (поочередный режим)"))}
+                </Badge>
+              </AlertTitle>
+              <AlertDescription className="mt-2">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">📦 Модель:</span> 
+                    <span>{settings.model === "auto" ? 
+                      (selectedReviews.length >= 10 ? "gpt-4o" : "gpt-3.5-turbo") : 
+                      settings.model}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">📑 Количество отзывов:</span> 
+                    <span>{selectedReviews.length}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">⌛ Режим генерации:</span> 
+                    <span>{getGenerationMode()}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">⚙️ Отправка:</span> 
+                    <span>По одному с задержкой ~500мс</span>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
             
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -508,18 +686,32 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                   onClick={() => {
                     try {
                       navigator.clipboard.writeText(promptPreview);
-                      toast.success("Промт скопирован в буфер обмена");
+                      toast({
+                        title: "Скопировано",
+                        description: "Промт скопирован в буфер обмена",
+                        variant: "default",
+                      });
                     } catch (e) {
-                      toast.error("Не удалось скопировать промт");
+                      toast({
+                        title: "Ошибка",
+                        description: "Не удалось скопировать промт",
+                        variant: "destructive",
+                      });
                     }
                   }}
                 >
                   Копировать
                 </Button>
               </div>
-              <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded text-xs max-h-32 overflow-y-auto whitespace-pre-line border">
-                {promptPreview}
-              </div>
+              <Textarea
+                value={promptPreview}
+                onChange={(e) => handleSettingsChange('customPrompt', e.target.value)}
+                className="min-h-32 text-sm"
+                placeholder="Промт будет сгенерирован автоматически на основе настроек"
+              />
+              <p className="text-xs text-gray-500">
+                Все изменения промта влияют на генерацию ответов. Настройки автоматически обновляются при изменении промта.
+              </p>
             </div>
             
             <Separator />
@@ -563,6 +755,9 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                 <div className="flex justify-between text-xs">
                   <p>Отправлено: {sentReviews.size}</p>
                   <p>Ожидает: {pendingReviews.size}</p>
+                  {failedReviews.size > 0 && (
+                    <p className="text-red-500">Ошибки: {failedReviews.size}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -570,7 +765,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
             <div className="pt-2 space-y-2">
               <Button 
                 onClick={generateAutoAnswers} 
-                disabled={isGenerating || isSending || selectedReviewsForGeneration.length === 0}
+                disabled={isGenerating || isSending || selectedReviews.length === 0}
                 variant="outline" 
                 className="w-full flex items-center gap-2"
               >
@@ -623,9 +818,17 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                     const allAnswers = Object.values(answersMap).join('\n\n');
                     try {
                       navigator.clipboard.writeText(allAnswers);
-                      toast.success("Все ответы скопированы в буфер обмена");
+                      toast({
+                        title: "Скопировано",
+                        description: "Все ответы скопированы в буфер обмена",
+                        variant: "default",
+                      });
                     } catch (e) {
-                      toast.error("Не удалось скопировать ответы");
+                      toast({
+                        title: "Ошибка",
+                        description: "Не удалось скопировать ответы",
+                        variant: "destructive",
+                      });
                     }
                   }}
                 >
@@ -641,11 +844,12 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
         <div className="mt-4 space-y-3">
           <h3 className="text-lg font-medium">Сгенерированные ответы</h3>
           <div className="max-h-64 overflow-y-auto space-y-3 bg-gray-50 dark:bg-gray-800 p-3 rounded">
-            {selectedReviewsForGeneration
+            {selectedReviews
               .filter(review => answersMap[review.id])
               .map((review) => {
                 const isPending = pendingReviews.has(review.id);
                 const isSent = sentReviews.has(review.id);
+                const isFailed = failedReviews.has(review.id);
                 
                 return (
                   <div 
@@ -658,7 +862,7 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                       <span className="font-semibold">Отзыв:</span> {review.text || review.pros || "Нет текста, только рейтинг"}
                     </div>
                     <div className={`border-l-4 pl-2 ${
-                      isSent ? 'border-green-500' : (isPending ? 'border-amber-500' : 'border-blue-500')
+                      isFailed ? 'border-red-500' : (isSent ? 'border-green-500' : (isPending ? 'border-amber-500' : 'border-blue-500'))
                     }`}>
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-sm">Ответ:</span>
@@ -672,6 +876,11 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                             <Clock size={12} className="mr-1" /> Отправляется...
                           </Badge>
                         )}
+                        {isFailed && (
+                          <Badge variant="outline" className="text-red-600 border-red-600">
+                            <AlertCircle size={12} className="mr-1" /> Ошибка отправки
+                          </Badge>
+                        )}
                       </div>
                       <Textarea 
                         value={answersMap[review.id] || ""}
@@ -681,6 +890,11 @@ const AutoResponder = ({ selectedReviews, onSuccess }: AutoResponderProps) => {
                         }`}
                         disabled={isSent || isPending}
                       />
+                      {isFailed && (
+                        <div className="text-xs text-red-600 mt-1">
+                          Не удалось отправить ответ. <Button size="sm" variant="ghost" className="h-auto p-0 text-xs underline text-red-600">Попробовать снова</Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
