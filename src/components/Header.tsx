@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -42,7 +41,7 @@ import { Input } from "@/components/ui/input";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { AutoResponder } from "@/components/AutoResponder";
+import AutoResponder from "@/components/AutoResponder";
 
 interface HeaderProps {
   unansweredCount: number;
