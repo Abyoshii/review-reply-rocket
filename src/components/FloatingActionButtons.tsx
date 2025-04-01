@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Send } from "lucide-react";
-import AutoResponder from "./AutoResponder";
 import { WbReview } from "@/types/wb";
 
 interface FloatingActionButtonsProps {
@@ -24,9 +23,6 @@ const FloatingActionButtons = ({
 }: FloatingActionButtonsProps) => {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-
-  // Get selected reviews data
-  const selectedReviewsData = reviews.filter(review => selectedReviews.has(review.id));
 
   useEffect(() => {
     const handleScroll = () => {
@@ -80,11 +76,6 @@ const FloatingActionButtons = ({
           <Send className="mr-2 h-4 w-4" />
           Отправить ответы
         </Button>
-        
-        <AutoResponder 
-          selectedReviews={selectedReviewsData} 
-          onSuccess={onRefresh} 
-        />
       </div>
     </div>
   );

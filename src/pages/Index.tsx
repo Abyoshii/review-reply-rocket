@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import FilterForm from "@/components/FilterForm";
@@ -6,11 +5,18 @@ import ReviewsTable from "@/components/ReviewsTable";
 import QuestionsTable from "@/components/QuestionsTable";
 import QuestionsFilterForm from "@/components/QuestionsFilterForm";
 import ArchiveReviewsTable from "@/components/ArchiveReviewsTable";
+import AutoResponder from "@/components/AutoResponder";
 import { WbAPI } from "@/lib/api";
 import { WbReview, ReviewListParams, QuestionListParams, WbQuestion } from "@/types/wb";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Text, MessageCircle, ArchiveIcon } from "lucide-react";
+import { Text, MessageCircle, ArchiveIcon, Bot } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const Index = () => {
   const [unansweredReviews, setUnansweredReviews] = useState<WbReview[]>([]);
@@ -60,7 +66,9 @@ const Index = () => {
   // Выбранная вкладка
   const [activeTab, setActiveTab] = useState<string>("reviews");
   // Выбранная подвкладка отзывов
-  const [activeReviewsTab, setActiveReviewsTab] = useState<string>("all");
+  const [activeReviewsTab, setActiveReviewsTab] = useState<string>("unanswered");
+  // Состояние для диалога автоответчика
+  const [autoResponderOpen, setAutoResponderOpen] = useState(false);
 
   // Загрузка отзывов при изменении фильтров
   useEffect(() => {
@@ -100,16 +108,16 @@ const Index = () => {
   const fetchUnansweredReviews = async () => {
     setLoadingUnanswered(true);
     try {
-      console.log("Загружаем неотвеченные отзывы с параметрами:", unansweredFilters);
-      const response = await WbAPI.getReviews(unansweredFilters);
+      const filters = { ...unansweredFilters, isAnswered: false };
+      console.log("Загружаем неотвеченные отзывы с параметрами:", filters);
+      
+      const response = await WbAPI.getReviews(filters);
       
       console.log("Ответ API для неотвеченных отзывов:", response);
       
-      // Проверяем, что response.data.feedbacks существует и является массивом
       if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
         setUnansweredReviews(response.data.feedbacks);
       } else {
-        // Если структура ответа не соответствует ожидаемой, выводим сообщение и устанавливаем пустой массив
         console.error("Некорректная структура ответа API для неотвеченных отзывов:", response);
         toast.error("Получены некорректные данные от API");
         setUnansweredReviews([]);
@@ -127,16 +135,16 @@ const Index = () => {
   const fetchAnsweredReviews = async () => {
     setLoadingAnswered(true);
     try {
-      console.log("Загружаем отвеченные отзывы с параметрами:", answeredFilters);
-      const response = await WbAPI.getReviews(answeredFilters);
+      const filters = { ...answeredFilters, isAnswered: true };
+      console.log("Загружаем отвеченные отзывы с параметрами:", filters);
+      
+      const response = await WbAPI.getReviews(filters);
       
       console.log("Ответ API для отвеченных отзывов:", response);
       
-      // Проверяем, что response.data.feedbacks существует и является массивом
       if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
         setAnsweredReviews(response.data.feedbacks);
       } else {
-        // Если структура ответа не соответствует ожидаемой, выводим сообщение и устанавливаем пустой массив
         console.error("Некорректная структура ответа API для отвеченных отзывов:", response);
         toast.error("Получены некорректные данные от API");
         setAnsweredReviews([]);
@@ -159,11 +167,10 @@ const Index = () => {
       
       console.log("Ответ API для архивных отзывов:", response);
       
-      // Проверяем структуру ответа
       if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
         setArchiveReviews(response.data.feedbacks);
       } else {
-        console.error("Некорректная структура ответа API для архивных отзывов:", response);
+        console.error("Некорректная структура ответа API дл�� архивных отзывов:", response);
         toast.error("Получены некорректные данные от API");
         setArchiveReviews([]);
       }
@@ -195,7 +202,6 @@ const Index = () => {
       
       console.log("Ответ API для неотвеченных вопросов:", response);
       
-      // Проверяем структуру ответа
       if (response.data && response.data.questions && Array.isArray(response.data.questions)) {
         setUnansweredQuestions(response.data.questions);
       } else {
@@ -221,7 +227,6 @@ const Index = () => {
       
       console.log("Ответ API для отвеченных вопросов:", response);
       
-      // Проверяем структуру ответа
       if (response.data && response.data.questions && Array.isArray(response.data.questions)) {
         setAnsweredQuestions(response.data.questions);
       } else {
@@ -251,9 +256,11 @@ const Index = () => {
   // Функция обновления данных
   const handleRefresh = () => {
     if (activeTab === "reviews") {
-      fetchUnansweredReviews();
-      fetchAnsweredReviews();
-      if (activeReviewsTab === "archive") {
+      if (activeReviewsTab === "unanswered") {
+        fetchUnansweredReviews();
+      } else if (activeReviewsTab === "answered") {
+        fetchAnsweredReviews();
+      } else if (activeReviewsTab === "archive") {
         fetchArchiveReviews();
       }
       fetchUnansweredCount();
@@ -267,14 +274,14 @@ const Index = () => {
 
   // Функция обработки изменения фильтров для неотвеченных отзывов
   const handleUnansweredFilterChange = (newFilters: ReviewListParams) => {
-    // Сохраняем параметр isAnswered = false
-    setUnansweredFilters({...newFilters, isAnswered: false});
+    // Всегда устанавливаем isAnswered=false для неотвеченных отзывов
+    setUnansweredFilters({ ...newFilters, isAnswered: false });
   };
 
   // Функция обработки изменения фильтров для отвеченных отзывов
   const handleAnsweredFilterChange = (newFilters: ReviewListParams) => {
-    // Сохраняем параметр isAnswered = true
-    setAnsweredFilters({...newFilters, isAnswered: true});
+    // Всегда устанавливаем isAnswered=true для отвеченных отзывов
+    setAnsweredFilters({ ...newFilters, isAnswered: true });
   };
 
   // Функция обработки изменения фильтров для архивных отзывов
@@ -307,20 +314,62 @@ const Index = () => {
   const handleReviewsTabChange = (tab: string) => {
     setActiveReviewsTab(tab);
     
-    // Загружаем данные архива при первом открытии этой вкладки
-    if (tab === "archive" && archiveReviews.length === 0) {
+    // Загружаем соответствующие данные при смене вкладки
+    if (tab === "unanswered" && unansweredReviews.length === 0) {
+      fetchUnansweredReviews();
+    } else if (tab === "answered" && answeredReviews.length === 0) {
+      fetchAnsweredReviews();
+    } else if (tab === "archive" && archiveReviews.length === 0) {
       fetchArchiveReviews();
     }
+  };
+
+  // Функция для обработки успешной операции в AutoResponder
+  const handleAutoResponderSuccess = () => {
+    handleRefresh();
+    setAutoResponderOpen(false);
+  };
+
+  // Получаем выбранный список отзывов в зависимости от активной вкладки
+  const getSelectedReviews = () => {
+    if (activeReviewsTab === "unanswered") {
+      return unansweredReviews;
+    } else if (activeReviewsTab === "answered") {
+      return answeredReviews;
+    } else if (activeReviewsTab === "archive") {
+      return archiveReviews;
+    }
+    return [];
   };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       <div className="container mx-auto px-4 py-6">
-        <Header 
-          unansweredCount={unansweredCount}
-          unansweredQuestionsCount={unansweredQuestionsCount}
-          onRefresh={handleRefresh} 
-        />
+        <div className="flex justify-between items-center mb-4">
+          <Header 
+            unansweredCount={unansweredCount}
+            unansweredQuestionsCount={unansweredQuestionsCount}
+            onRefresh={handleRefresh} 
+          />
+          
+          {/* Кнопка автоответчика, всегда видимая */}
+          <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-800"
+              >
+                <Bot size={16} />
+                Автоответчик
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <AutoResponder 
+                selectedReviews={getSelectedReviews()} 
+                onSuccess={handleAutoResponderSuccess} 
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
         
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList className="mb-4 grid grid-cols-2 mx-auto max-w-md">
@@ -335,59 +384,14 @@ const Index = () => {
           <TabsContent value="reviews" className="space-y-6">
             <Tabs value={activeReviewsTab} onValueChange={handleReviewsTabChange} className="space-y-4">
               <TabsList className="mb-4 grid grid-cols-3 mx-auto max-w-md">
-                <TabsTrigger value="all">Все отзывы</TabsTrigger>
                 <TabsTrigger value="unanswered">Ждут ответа</TabsTrigger>
+                <TabsTrigger value="answered">Есть ответ</TabsTrigger>
                 <TabsTrigger value="archive" className="flex items-center gap-1">
                   <ArchiveIcon size={14} /> Архив
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="all" className="space-y-8">
-                <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Секция неотвеченных отзывов */}
-                  <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
-                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                      <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm mr-3">ЖДУТ ОТВЕТА</span>
-                      Неотвеченные отзывы
-                    </h2>
-                    
-                    <FilterForm 
-                      onFilterChange={handleUnansweredFilterChange} 
-                      loading={loadingUnanswered} 
-                    />
-                    
-                    <ReviewsTable 
-                      reviews={unansweredReviews} 
-                      loading={loadingUnanswered} 
-                      onRefresh={handleRefresh} 
-                      isAnswered={false}
-                    />
-                  </section>
-                  
-                  {/* Секция отвеченных отзывов */}
-                  <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
-                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                      <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm mr-3">ОТВЕЧЕННЫЕ</span>
-                      Отвеченные отзывы
-                    </h2>
-                    
-                    <FilterForm 
-                      onFilterChange={handleAnsweredFilterChange} 
-                      loading={loadingAnswered} 
-                    />
-                    
-                    <ReviewsTable 
-                      reviews={answeredReviews} 
-                      loading={loadingAnswered} 
-                      onRefresh={handleRefresh} 
-                      isAnswered={true}
-                    />
-                  </section>
-                </section>
-              </TabsContent>
-              
               <TabsContent value="unanswered">
-                {/* Полноэкранная секция неотвеченных отзывов */}
                 <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
                   <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
                     <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm mr-3">ЖДУТ ОТВЕТА</span>
@@ -408,8 +412,28 @@ const Index = () => {
                 </section>
               </TabsContent>
               
+              <TabsContent value="answered">
+                <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
+                  <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
+                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm mr-3">ОТВЕЧЕННЫЕ</span>
+                    Отвеченные отзывы
+                  </h2>
+                  
+                  <FilterForm 
+                    onFilterChange={handleAnsweredFilterChange} 
+                    loading={loadingAnswered} 
+                  />
+                  
+                  <ReviewsTable 
+                    reviews={answeredReviews} 
+                    loading={loadingAnswered} 
+                    onRefresh={handleRefresh} 
+                    isAnswered={true}
+                  />
+                </section>
+              </TabsContent>
+              
               <TabsContent value="archive">
-                {/* Секция архивных отзывов */}
                 <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
                   <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
                     <span className="bg-gray-500 text-white px-3 py-1 rounded-full text-sm mr-3">АРХИВ</span>
