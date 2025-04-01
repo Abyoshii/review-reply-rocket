@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { WbReview, PhotoLink } from "@/types/wb";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +17,8 @@ import {
   CheckCircle, 
   Edit, 
   Save, 
-  Send 
+  Send,
+  Loader2
 } from "lucide-react";
 import FloatingActionButtons from "./FloatingActionButtons";
 
@@ -33,9 +33,11 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
   const [selectedReviews, setSelectedReviews] = useState<Set<string>>(new Set());
   const [generatingAnswers, setGeneratingAnswers] = useState<Set<string>>(new Set());
   const [sendingAnswers, setSendingAnswers] = useState<Set<string>>(new Set());
+  const [phantomSending, setPhantomSending] = useState<Set<string>>(new Set());
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [editingAnswers, setEditingAnswers] = useState<Set<string>>(new Set());
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
+  const [sendProgress, setSendProgress] = useState({ sent: 0, total: 0, failed: 0 });
 
   const toggleReviewSelection = (reviewId: string) => {
     const newSelectedReviews = new Set(selectedReviews);
@@ -82,10 +84,14 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         [review.id]: response.answer
       }));
 
-      toast.success(`Ответ сгенерирован! Использована модель: ${response.modelUsed}`);
+      toast.success(`Ответ сгенерирован! Использована модель: ${response.modelUsed}`, {
+        important: true
+      });
     } catch (error) {
       console.error("Ошибка при генерации ответа:", error);
-      toast.error("Не удалось сгенерировать ответ. Пожалуйста, попробуйте позже.");
+      toast.error("Не удалось сгенерировать ответ. Пожалуйста, попробуйте позже.", {
+        important: true
+      });
     } finally {
       const updatedGeneratingAnswers = new Set(generatingAnswers);
       updatedGeneratingAnswers.delete(review.id);
@@ -95,9 +101,18 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
   const sendAnswer = async (review: WbReview) => {
     if (!answers[review.id]) {
-      toast.error("Нельзя отправить пустой ответ. Пожалуйста, сначала сгенерируйте ответ.");
+      toast.error("Нельзя отправить пустой ответ. Пожалуйста, сначала сгенерируйте ответ.", {
+        important: true
+      });
       return;
     }
+
+    const newPhantomSending = new Set(phantomSending);
+    newPhantomSending.add(review.id);
+    setPhantomSending(newPhantomSending);
+
+    const randomDelay = 1500 + Math.random() * 1500; // 1.5 to 3 seconds
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
 
     const newSendingAnswers = new Set(sendingAnswers);
     newSendingAnswers.add(review.id);
@@ -109,12 +124,31 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         text: answers[review.id]
       });
 
-      toast.success("Ответ успешно отправлен!");
-      onRefresh();
+      toast.success("Ответ успешно отправлен!", {
+        important: true
+      });
+      setSendProgress(prev => ({ ...prev, sent: prev.sent + 1 }));
+      
+      if (sendProgress.total === sendProgress.sent + 1) {
+        setTimeout(() => {
+          onRefresh();
+          toast.success(`Все ответы успешно отправлены: ${sendProgress.sent + 1} из ${sendProgress.total}`, {
+            important: true
+          });
+          setSendProgress({ sent: 0, total: 0, failed: 0 });
+        }, 500);
+      }
     } catch (error) {
       console.error("Ошибка при отправке ответа:", error);
-      toast.error("Не удалось отправить ответ. Пожалуйста, попробуйте позже.");
+      toast.error("Не удалось отправить ответ. Пожалуйста, попробуйте позже.", {
+        important: true
+      });
+      setSendProgress(prev => ({ ...prev, failed: prev.failed + 1 }));
     } finally {
+      const updatedPhantomSending = new Set(phantomSending);
+      updatedPhantomSending.delete(review.id);
+      setPhantomSending(updatedPhantomSending);
+      
       const updatedSendingAnswers = new Set(sendingAnswers);
       updatedSendingAnswers.delete(review.id);
       setSendingAnswers(updatedSendingAnswers);
@@ -142,9 +176,18 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
   const saveEditedAnswer = async (review: WbReview) => {
     if (!editedAnswers[review.id]) {
-      toast.error("Нельзя сохранить пустой ответ.");
+      toast.error("Нельзя сохранить пустой ответ.", {
+        important: true
+      });
       return;
     }
+
+    const newPhantomSending = new Set(phantomSending);
+    newPhantomSending.add(review.id);
+    setPhantomSending(newPhantomSending);
+
+    const randomDelay = 1500 + Math.random() * 1500; // 1.5 to 3 seconds
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
 
     const newSendingAnswers = new Set(sendingAnswers);
     newSendingAnswers.add(review.id);
@@ -156,9 +199,10 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
         text: editedAnswers[review.id]
       });
 
-      toast.success("Ответ успешно отредактирован!");
+      toast.success("Ответ успешно отредактирован!", {
+        important: true
+      });
       
-      // Убираем из режима редактирования
       const newEditingAnswers = new Set(editingAnswers);
       newEditingAnswers.delete(review.id);
       setEditingAnswers(newEditingAnswers);
@@ -166,8 +210,14 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       onRefresh();
     } catch (error) {
       console.error("Ошибка при редактировании ответа:", error);
-      toast.error("Не удалось отредактировать ответ. Пожалуйста, попробуйте позже.");
+      toast.error("Не удалось отредактировать ответ. Пожалуйста, попробуйте позже.", {
+        important: true
+      });
     } finally {
+      const updatedPhantomSending = new Set(phantomSending);
+      updatedPhantomSending.delete(review.id);
+      setPhantomSending(updatedPhantomSending);
+      
       const updatedSendingAnswers = new Set(sendingAnswers);
       updatedSendingAnswers.delete(review.id);
       setSendingAnswers(updatedSendingAnswers);
@@ -190,11 +240,15 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
 
   const generateSelectedAnswers = async () => {
     if (selectedReviews.size === 0) {
-      toast.warning("Не выбрано ни одного отзыва для генерации ответов");
+      toast.warning("Не выбрано ни одного отзыва для генерации ответов", {
+        important: true
+      });
       return;
     }
 
-    toast.info(`Начата генерация ответов для ${selectedReviews.size} отзывов. Это может занять некоторое время.`);
+    toast.info(`Начата генерация ответов для ${selectedReviews.size} отзывов. Это может занять некоторое время.`, {
+      important: true
+    });
 
     const selectedReviewsArray = Array.from(selectedReviews);
     for (const reviewId of selectedReviewsArray) {
@@ -204,12 +258,16 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       }
     }
 
-    toast.success(`Сгенерированы ответы для ${selectedReviews.size} отзывов`);
+    toast.success(`Сгенерированы ответы для ${selectedReviews.size} отзывов`, {
+      important: true
+    });
   };
 
   const sendSelectedAnswers = async () => {
     if (selectedReviews.size === 0) {
-      toast.warning("Не выбрано ни одного отзыва для отправки ответов");
+      toast.warning("Не выбрано ни одного отзыва для отправки ответов", {
+        important: true
+      });
       return;
     }
 
@@ -217,23 +275,32 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
     const reviewsWithoutAnswers = Array.from(selectedReviews).filter(id => !answers[id]);
 
     if (reviewsWithoutAnswers.length > 0) {
-      toast.warning(`У ${reviewsWithoutAnswers.length} выбранных отзывов нет сгенерированных ответов`);
+      toast.warning(`У ${reviewsWithoutAnswers.length} выбранных отзывов нет сгенерированных ответов`, {
+        important: true
+      });
     }
 
     if (reviewsWithAnswers.length === 0) {
       return;
     }
 
-    toast.info(`Начата отправка ответов на ${reviewsWithAnswers.length} отзывов. Это может занять некоторое время.`);
+    setSendProgress({ sent: 0, total: reviewsWithAnswers.length, failed: 0 });
+
+    const newPhantomSending = new Set(phantomSending);
+    reviewsWithAnswers.forEach(id => newPhantomSending.add(id));
+    setPhantomSending(newPhantomSending);
+
+    toast.info(`Начата отправка ответов на ${reviewsWithAnswers.length} отзывов. Это может занять некоторое время.`, {
+      important: true
+    });
 
     for (const reviewId of reviewsWithAnswers) {
       const review = reviews?.find(r => r.id === reviewId);
       if (review) {
-        await sendAnswer(review);
+        sendAnswer(review);
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
-
-    toast.success(`Отправлены ответы на ${reviewsWithAnswers.length} отзывов`);
   };
 
   const formatDate = (dateString: string) => {
@@ -323,9 +390,18 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
             </Button>
           </>
         )}
+        
+        {sendProgress.total > 0 && (
+          <div className="ml-auto flex items-center text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+            <Loader2 size={14} className="mr-2 animate-spin" />
+            Отправка: {sendProgress.sent}/{sendProgress.total}
+            {sendProgress.failed > 0 && (
+              <span className="ml-2 text-red-500">Ошибок: {sendProgress.failed}</span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Плавающие кнопки действий */}
       <FloatingActionButtons 
         selectedReviews={selectedReviews}
         reviews={reviews || []}
@@ -342,16 +418,29 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
       ) : (
         <div className="space-y-4">
           {Array.isArray(reviews) && reviews.map((review) => (
-            <Card key={review.id} className={`p-4 shadow-sm dark:bg-gray-700 dark:text-white transition-colors duration-300 ${review.answer ? 'border-l-4 border-green-500' : ''}`}>
+            <Card 
+              key={review.id} 
+              className={`p-4 shadow-sm dark:bg-gray-700 dark:text-white transition-colors duration-300 
+                ${review.answer ? 'border-l-4 border-green-500' : ''} 
+                ${phantomSending.has(review.id) ? 'animate-pulse opacity-70' : ''}`}
+            >
               <div className="flex items-start space-x-4">
                 <div>
                   <Checkbox 
                     checked={selectedReviews.has(review.id)} 
                     onCheckedChange={() => toggleReviewSelection(review.id)}
                     className="mt-1 dark:border-gray-500 transition-colors duration-300"
+                    disabled={phantomSending.has(review.id) || sendingAnswers.has(review.id)}
                   />
                 </div>
                 <div className="flex-1 space-y-3">
+                  {(phantomSending.has(review.id) || sendingAnswers.has(review.id)) && (
+                    <div className="absolute right-4 top-4 flex items-center bg-black/70 text-white px-3 py-1 rounded-full text-xs z-10">
+                      <Loader2 size={14} className="mr-2 animate-spin" />
+                      {sendingAnswers.has(review.id) ? "Отправка ответа..." : "Обработка..."}
+                    </div>
+                  )}
+                  
                   <div className="flex flex-wrap gap-2 items-center">
                     <Badge variant="outline" className="flex items-center gap-1 dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">
                       <Calendar size={14} /> {formatDateCompact(review.createdDate)}
@@ -530,24 +619,35 @@ const ReviewsTable = ({ reviews, loading, onRefresh, isAnswered }: ReviewsTableP
                         value={answers[review.id] || ""}
                         onChange={(e) => updateAnswer(review.id, e.target.value)}
                         className="min-h-24 dark:bg-gray-800 dark:text-white dark:border-gray-600 transition-colors duration-300"
+                        disabled={phantomSending.has(review.id) || sendingAnswers.has(review.id)}
                       />
                       
                       <div className="flex flex-wrap gap-2">
                         <Button
                           variant="outline"
                           onClick={() => generateAnswer(review)}
-                          disabled={generatingAnswers.has(review.id)}
+                          disabled={generatingAnswers.has(review.id) || phantomSending.has(review.id) || sendingAnswers.has(review.id)}
                           className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
                         >
-                          {generatingAnswers.has(review.id) ? "Генерация..." : "Сгенерировать ответ"}
+                          {generatingAnswers.has(review.id) ? (
+                            <>
+                              <Loader2 size={16} className="mr-2 animate-spin" />
+                              Генерация...
+                            </>
+                          ) : "Сгенерировать ответ"}
                         </Button>
                         
                         <Button
                           className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
                           onClick={() => sendAnswer(review)}
-                          disabled={!answers[review.id] || sendingAnswers.has(review.id)}
+                          disabled={!answers[review.id] || phantomSending.has(review.id) || sendingAnswers.has(review.id)}
                         >
-                          {sendingAnswers.has(review.id) ? "Отправка..." : "Отправить ответ"}
+                          {phantomSending.has(review.id) ? (
+                            <>
+                              <Loader2 size={16} className="mr-2 animate-spin" />
+                              Отправка...
+                            </>
+                          ) : "Отправить ответ"}
                         </Button>
                       </div>
                     </div>
