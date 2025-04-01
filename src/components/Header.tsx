@@ -144,7 +144,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         </div>
       </div>
       
-      <div className="flex space-x-2">
+      <div className="flex space-x-2 ml-auto">
         <Popover>
           <PopoverTrigger asChild>
             <Button 
@@ -158,7 +158,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80">
+          <PopoverContent className="w-80 z-50">
             <div className="space-y-4">
               <h4 className="font-medium flex items-center gap-2">
                 <Bell size={16} /> Настройки уведомлений

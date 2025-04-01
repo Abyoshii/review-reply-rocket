@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import FilterForm from "@/components/FilterForm";
@@ -135,9 +134,6 @@ const Index = () => {
         });
         // Remove from unanswered list (visual effect only)
         setUnansweredReviews(prev => prev.filter(r => r.id !== reviewId));
-        
-        // Automatically switch to the processing tab
-        setActiveReviewsTab("processing");
       }
     } 
     else if (newState === "answered") {
@@ -193,9 +189,6 @@ const Index = () => {
       
       // Remove from unanswered list
       setUnansweredReviews(prev => prev.filter(r => !reviewIds.includes(r.id)));
-      
-      // Automatically switch to the processing tab
-      setActiveReviewsTab("processing");
     }
   };
 
@@ -399,7 +392,7 @@ const Index = () => {
   const fetchAnsweredQuestions = async () => {
     setLoadingAnsweredQuestions(true);
     try {
-      console.log("Загружаем отвеченные вопросы с параметрами:", answeredQuestionsFilters);
+      console.log("За��ружаем отвеченные вопросы с параметрами:", answeredQuestionsFilters);
       const response = await WbAPI.getQuestions(answeredQuestionsFilters);
       
       if (response.data && response.data.questions && Array.isArray(response.data.questions)) {

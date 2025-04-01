@@ -60,7 +60,7 @@ export function Toaster() {
           }
           
           return (
-            <Toast key={id} {...props} className="opacity-90 rounded-lg pointer-events-auto">
+            <Toast key={id} {...props} className="opacity-90 rounded-lg pointer-events-auto z-40">
               <div className="grid gap-1">
                 {title && <ToastTitle>{title}</ToastTitle>}
                 {description && (
@@ -73,7 +73,7 @@ export function Toaster() {
           )
         })}
       </div>
-      <ToastViewport className="fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:right-0 sm:top-0 sm:flex-col md:max-w-[420px]" />
+      <ToastViewport className="fixed top-0 z-40 flex max-h-screen w-full flex-col-reverse p-4 sm:right-0 sm:top-0 sm:flex-col md:max-w-[420px]" />
     </ToastProvider>
   )
 }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { WbReview, PhotoLink } from "@/types/wb";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +47,7 @@ const ReviewsTable = ({
   const [editingAnswers, setEditingAnswers] = useState<Set<string>>(new Set());
   const [editedAnswers, setEditedAnswers] = useState<Record<string, string>>({});
   const [sendProgress, setSendProgress] = useState({ sent: 0, total: 0, failed: 0 });
+  const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [modelUsed, setModelUsed] = useState<Record<string, string>>({});
 
   const toggleReviewSelection = (reviewId: string) => {
@@ -102,8 +102,11 @@ const ReviewsTable = ({
         [review.id]: response.modelUsed
       }));
 
-      // No longer showing toast notifications for each generation
-      // Instead, we'll show model info near the textarea
+      // Update generation progress
+      setGenerationProgress(prev => ({
+        ...prev,
+        completed: prev.completed + 1
+      }));
     } catch (error) {
       console.error("Ошибка при генерации ответа:", error);
       toast({
@@ -302,6 +305,9 @@ const ReviewsTable = ({
       return;
     }
 
+    // Reset and set up progress tracking
+    setGenerationProgress({ completed: 0, total: selectedReviews.size });
+
     // Only show a single notification for batch operations
     toast({
       title: "Начата генерация",
@@ -322,6 +328,11 @@ const ReviewsTable = ({
       description: `Сгенерированы ответы для ${selectedReviews.size} отзывов`,
       important: true
     });
+    
+    // Reset progress after completion
+    setTimeout(() => {
+      setGenerationProgress({ completed: 0, total: 0 });
+    }, 2000);
   };
 
   const sendSelectedAnswers = async () => {
@@ -359,6 +370,14 @@ const ReviewsTable = ({
       important: true
     });
 
+    // Move all selected reviews to processing immediately
+    if (onReviewStateChange) {
+      for (const reviewId of reviewsWithAnswers) {
+        onReviewStateChange(reviewId, "sending");
+      }
+    }
+
+    // Then process them one by one
     for (const reviewId of reviewsWithAnswers) {
       const review = reviews?.find(r => r.id === reviewId);
       if (review) {
@@ -443,33 +462,41 @@ const ReviewsTable = ({
             <Button 
               variant="outline" 
               onClick={generateSelectedAnswers}
-              disabled={selectedReviews.size === 0}
+              disabled={selectedReviews.size === 0 || generationProgress.total > 0}
               className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
             >
-              <MessageSquare size={16} className="mr-2" />
-              Сгенерировать ответы ({selectedReviews.size})
+              {generationProgress.total > 0 ? (
+                <>
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                  Генерация ({generationProgress.completed}/{generationProgress.total})
+                </>
+              ) : (
+                <>
+                  <MessageSquare size={16} className="mr-2" />
+                  Сгенерировать ответы ({selectedReviews.size})
+                </>
+              )}
             </Button>
             
             <Button 
               variant="default" 
               onClick={sendSelectedAnswers}
-              disabled={selectedReviews.size === 0}
+              disabled={selectedReviews.size === 0 || sendProgress.total > 0}
               className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
             >
-              <Send size={16} className="mr-2" />
-              Отправить ответы ({selectedReviews.size})
+              {sendProgress.total > 0 ? (
+                <>
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                  Отправка ({sendProgress.sent}/{sendProgress.total})
+                </>
+              ) : (
+                <>
+                  <Send size={16} className="mr-2" />
+                  Отправить ответы ({selectedReviews.size})
+                </>
+              )}
             </Button>
           </>
-        )}
-        
-        {sendProgress.total > 0 && (
-          <div className="ml-auto flex items-center text-sm bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-            <Loader2 size={14} className="mr-2 animate-spin" />
-            Отправка: {sendProgress.sent}/{sendProgress.total}
-            {sendProgress.failed > 0 && (
-              <span className="ml-2 text-red-500">Ошибок: {sendProgress.failed}</span>
-            )}
-          </div>
         )}
       </div>
 
@@ -480,6 +507,8 @@ const ReviewsTable = ({
         onSendAnswers={sendSelectedAnswers}
         onRefresh={onRefresh}
         hasAnswers={Object.keys(answers).length > 0}
+        generationProgress={generationProgress.total > 0 ? generationProgress : undefined}
+        sendingProgress={sendProgress.total > 0 ? sendProgress : undefined}
       />
 
       {loading ? (
