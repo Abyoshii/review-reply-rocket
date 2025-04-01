@@ -53,7 +53,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
 
     try {
       const request: GenerateAnswerRequest = {
-        reviewText: review.text || "Покупатель не оставил текстовый отзыв, только рейтинг",
+        reviewText: review.text,
         reviewId: review.id
       };
 
@@ -170,7 +170,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
         <Button 
           variant="outline" 
           onClick={toggleSelectAll}
-          className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
         >
           {selectedReviews.size === (reviews?.length || 0) ? "Снять выбор" : "Выбрать все"}
         </Button>
@@ -178,7 +177,6 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
           variant="outline" 
           onClick={generateSelectedAnswers}
           disabled={selectedReviews.size === 0}
-          className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
         >
           Сгенерировать ответы ({selectedReviews.size})
         </Button>
@@ -186,7 +184,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
           variant="default" 
           onClick={sendSelectedAnswers}
           disabled={selectedReviews.size === 0}
-          className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
+          className="bg-wb-secondary hover:bg-wb-accent"
         >
           Отправить ответы ({selectedReviews.size})
         </Button>
@@ -194,36 +192,34 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
 
       {/* Список отзывов */}
       {loading ? (
-        <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">Загрузка отзывов...</div>
-      ) : !Array.isArray(reviews) || reviews.length === 0 ? (
-        <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">Нет отзывов для отображения</div>
+        <div className="text-center py-8">Загрузка отзывов...</div>
+      ) : !reviews || reviews.length === 0 ? (
+        <div className="text-center py-8">Нет отзывов для отображения</div>
       ) : (
         <div className="space-y-4">
           {Array.isArray(reviews) && reviews.map((review) => (
-            <Card key={review.id} className="p-4 shadow-sm dark:bg-gray-700 dark:text-white transition-colors duration-300">
+            <Card key={review.id} className="p-4 shadow-sm">
               <div className="flex items-start space-x-4">
                 <div>
                   <Checkbox 
                     checked={selectedReviews.has(review.id)} 
                     onCheckedChange={() => toggleReviewSelection(review.id)}
-                    className="mt-1 dark:border-gray-500 transition-colors duration-300"
+                    className="mt-1"
                   />
                 </div>
                 <div className="flex-1 space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold dark:text-gray-200 transition-colors duration-300">Артикул: {review.nmId}</span>
-                    <Badge variant="outline" className="dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">{review.brandName}</Badge>
-                    <Badge variant="outline" className="dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">{review.supplierArticle}</Badge>
-                    <Badge className="bg-amber-500 dark:bg-amber-600 transition-colors duration-300">Рейтинг: {review.rating}</Badge>
-                    <Badge variant="outline" className="dark:border-gray-500 dark:text-gray-300 transition-colors duration-300">{new Date(review.createdDate).toLocaleDateString()}</Badge>
+                    <span className="font-semibold">Артикул: {review.nmId}</span>
+                    <Badge variant="outline">{review.brandName}</Badge>
+                    <Badge variant="outline">{review.supplierArticle}</Badge>
+                    <Badge className="bg-amber-500">Рейтинг: {review.rating}</Badge>
+                    <Badge variant="outline">{new Date(review.createdDate).toLocaleDateString()}</Badge>
                   </div>
                   
-                  <h3 className="font-semibold text-lg dark:text-white transition-colors duration-300">{review.productName}</h3>
+                  <h3 className="font-semibold text-lg">{review.productName}</h3>
                   
-                  <div className="border-l-4 border-wb-light dark:border-purple-500 pl-3 py-1 bg-gray-50 dark:bg-gray-800 rounded transition-colors duration-300">
-                    <p className="text-gray-700 dark:text-gray-300 transition-colors duration-300">
-                      {review.text || "Покупатель не оставил текстовый отзыв, только рейтинг"}
-                    </p>
+                  <div className="border-l-4 border-wb-light pl-3 py-1 bg-gray-50 rounded">
+                    <p className="text-gray-700">{review.text}</p>
                   </div>
                   
                   {/* Фото отзыва */}
@@ -235,7 +231,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
                           href={photo} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="block w-16 h-16 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300"
+                          className="block w-16 h-16 rounded overflow-hidden border"
                         >
                           <img src={photo} alt="Фото к отзыву" className="w-full h-full object-cover" />
                         </a>
@@ -249,7 +245,7 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
                       placeholder="Ответ на отзыв будет сгенерирован здесь..."
                       value={answers[review.id] || ""}
                       onChange={(e) => updateAnswer(review.id, e.target.value)}
-                      className="min-h-24 dark:bg-gray-800 dark:text-white dark:border-gray-600 transition-colors duration-300"
+                      className="min-h-24"
                     />
                     
                     <div className="flex flex-wrap gap-2">
@@ -257,13 +253,12 @@ const ReviewsTable = ({ reviews, loading, onRefresh }: ReviewsTableProps) => {
                         variant="outline"
                         onClick={() => generateAnswer(review)}
                         disabled={generatingAnswers.has(review.id)}
-                        className="dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors duration-300"
                       >
                         {generatingAnswers.has(review.id) ? "Генерация..." : "Сгенерировать ответ"}
                       </Button>
                       
                       <Button
-                        className="bg-wb-secondary hover:bg-wb-accent dark:bg-purple-700 dark:hover:bg-purple-800 transition-colors duration-300"
+                        className="bg-wb-secondary hover:bg-wb-accent"
                         onClick={() => sendAnswer(review)}
                         disabled={!answers[review.id] || sendingAnswers.has(review.id)}
                       >
