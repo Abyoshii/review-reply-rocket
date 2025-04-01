@@ -118,7 +118,7 @@ const FloatingActionButtons = ({
           onClick={onGenerateAnswers} 
           variant="outline" 
           size="sm"
-          className="w-full"
+          className="w-full transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 active:scale-95"
           disabled={generationInProgress || allSent}
         >
           {generationInProgress ? (
@@ -138,7 +138,7 @@ const FloatingActionButtons = ({
           onClick={onSendAnswers} 
           disabled={!hasAnswers || sendingInProgress || allSent}
           size="sm"
-          className="w-full bg-wb-secondary hover:bg-wb-accent"
+          className="w-full bg-wb-secondary hover:bg-wb-accent transition-all duration-300 hover:scale-105 active:scale-95"
         >
           {sendingInProgress ? (
             <>

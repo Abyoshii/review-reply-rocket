@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -13,14 +12,6 @@ import {
   EyeOff,
   Key,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -147,14 +138,15 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         </div>
       </div>
       
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 ml-auto">
         <Button 
           variant="outline" 
+          size="icon"
           onClick={onRefresh} 
-          className="flex items-center gap-2 transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
+          className="flex items-center transition-all duration-300 hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
+          title="Обновить"
         >
           <RefreshCw className="animate-spin-hover" size={16} />
-          Обновить
         </Button>
         
         <Popover>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import FilterForm from "@/components/FilterForm";
@@ -17,12 +16,6 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 const Index = () => {
   // Main data states
@@ -504,21 +497,12 @@ const Index = () => {
                   >
                     В обработке {processingReviewIds.size > 0 && `(${processingReviewIds.size})`}
                   </TabsTrigger>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <TabsTrigger 
-                        value="answered"
-                        className="transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
-                      >
-                        Отвеченные
-                      </TabsTrigger>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => handleReviewsTabChange("answered")}>
-                        Отвеченные отзывы
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <TabsTrigger 
+                    value="answered"
+                    className="transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
+                  >
+                    Есть ответы
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="unanswered">
@@ -572,7 +556,7 @@ const Index = () => {
                 <TabsContent value="answered">
                   <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
                     <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                      <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm mr-3">ОТВЕЧЕННЫЕ</span>
+                      <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm mr-3">ЕСТЬ ОТВЕТЫ</span>
                       Отвеченные отзывы {answeredCount > 0 && `(${answeredCount})`}
                     </h2>
                     
