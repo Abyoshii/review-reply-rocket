@@ -10,13 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { AutoResponderSettings } from "@/types/openai";
 import { toast } from "@/hooks/use-toast";
-import { Clock, Bot, MessageSquare, Cpu, Zap, Bell } from "lucide-react";
+import { Clock, Bot, MessageSquare, Cpu, Zap, Bell, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface AutoResponseSettingsProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStartAutoResponse: (settings: AutoResponseSettings, interval: number) => void;
+  onStartAutoResponse: (settings: AutoResponderSettings, interval: number) => void;
   onStopAutoResponse: () => void;
   isAutoResponseActive: boolean;
 }
@@ -28,7 +28,7 @@ const AutoResponseSettings = ({
   onStopAutoResponse,
   isAutoResponseActive
 }: AutoResponseSettingsProps) => {
-  const [settings, setSettings] = useState<AutoResponseSettings>({
+  const [settings, setSettings] = useState<AutoResponderSettings>({
     model: "gpt-3.5-turbo",
     maxReviewsPerRequest: 5,
     language: "russian",
@@ -39,7 +39,7 @@ const AutoResponseSettings = ({
   });
 
   const [checkInterval, setCheckInterval] = useState(15);
-  const [savedSettings, setSavedSettings] = useState<AutoResponseSettings | null>(null);
+  const [savedSettings, setSavedSettings] = useState<AutoResponderSettings | null>(null);
   const [savedInterval, setSavedInterval] = useState<number | null>(null);
 
   useEffect(() => {
