@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import AutoResponder from "@/components/AutoResponder";
 
 interface HeaderProps {
@@ -41,6 +42,7 @@ interface HeaderProps {
 
 const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: HeaderProps) => {
   const { theme, setTheme } = useTheme();
+  const isMobile = useIsMobile();
   const [notificationSettings, setNotificationSettings] = useState(() => {
     try {
       const savedSettings = localStorage.getItem("notification_settings");
@@ -112,28 +114,28 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
   return (
     <div className="flex items-center justify-between py-3 px-4 bg-[#0A0D14] text-white">
       <div className="flex flex-col items-start">
-        <h1 className="text-3xl font-bold">
-          <span className="mr-2 text-purple-400 font-bold">
+        <h1 className={`text-3xl font-bold ${isMobile ? 'text-center w-full' : ''}`}>
+          <span className="mr-2 font-bold bg-gradient-to-r from-purple-400 via-purple-500 to-violet-500 bg-clip-text text-transparent animate-gradient-x bg-size-200">
             Asterion
           </span>
         </h1>
         
-        <div className="flex items-center mt-2">
+        <div className={`flex items-center mt-2 ${isMobile ? 'flex-wrap justify-center gap-1' : ''}`}>
           {unansweredCount > 0 && (
-            <Badge variant="destructive" className="ml-2">
+            <Badge variant="destructive" className={`${isMobile ? 'mb-1' : 'ml-2'}`}>
               {unansweredCount} в процессе обработки
             </Badge>
           )}
           
           {unansweredQuestionsCount > 0 && (
-            <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 ml-2">
+            <Badge variant="outline" className={`bg-amber-100 text-amber-800 border-amber-300 ${isMobile ? 'mb-1' : 'ml-2'}`}>
               {unansweredQuestionsCount} вопросов
             </Badge>
           )}
         </div>
       </div>
       
-      <div className="flex items-center gap-1">
+      <div className={`flex items-center ${isMobile ? 'flex-wrap justify-center gap-2 mt-2' : 'gap-1'}`}>
         <Button 
           variant="nav" 
           size="navIcon"
@@ -141,7 +143,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           className="text-white rounded-md"
           title="Обновить"
         >
-          <RefreshCw size={20} />
+          <RefreshCw size={isMobile ? 18 : 20} />
         </Button>
         
         <Popover>
@@ -151,7 +153,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
               size="navIcon"
               className="relative text-white rounded-md"
             >
-              <Bell size={20} />
+              <Bell size={isMobile ? 18 : 20} />
               {notificationSettings?.notificationType === 'none' && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" />
               )}
@@ -248,7 +250,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           onClick={() => setTokenDialogOpen(true)}
           className="text-white rounded-md"
         >
-          <Key size={20} />
+          <Key size={isMobile ? 18 : 20} />
         </Button>
         
         <Button 
@@ -257,7 +259,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="text-white rounded-md"
         >
-          {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+          {theme === "dark" ? <Sun size={isMobile ? 18 : 20} /> : <Moon size={isMobile ? 18 : 20} />}
         </Button>
         
         <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
@@ -267,10 +269,10 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
               size="navIcon"
               className="text-white rounded-md"
             >
-              <Settings size={20} />
+              <Settings size={isMobile ? 18 : 20} />
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className={`${isMobile ? 'w-[90vw] max-w-[90vw]' : 'max-w-4xl'} max-h-[90vh] overflow-y-auto`}>
             <AutoResponder 
               selectedReviews={[]} 
               onSuccess={() => {
