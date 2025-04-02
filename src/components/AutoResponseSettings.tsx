@@ -150,7 +150,11 @@ const AutoResponseSettings = ({
               </Label>
               <Select
                 value={settings.maxReviewsPerRequest.toString()}
-                onValueChange={(value: any) => setSettings({ ...settings, maxReviewsPerRequest: Number(value) })}
+                onValueChange={(value: string) => {
+                  // Convert string to one of the valid literal types (5, 10, or 20)
+                  const numValue = Number(value) as 5 | 10 | 20;
+                  setSettings({ ...settings, maxReviewsPerRequest: numValue });
+                }}
               >
                 <SelectTrigger id="max-reviews">
                   <SelectValue placeholder="Выберите количество" />
