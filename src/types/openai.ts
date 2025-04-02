@@ -68,3 +68,11 @@ export interface GenerateAutoAnswersRequest {
     productName?: string;
   }[];
 }
+
+export interface AutoResponseServiceStatus {
+  isRunning: boolean;
+  lastCheck: Date | null;
+  processedCount: number;
+  successCount: number;
+  failedCount: number;
+}

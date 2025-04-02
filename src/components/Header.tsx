@@ -1,38 +1,32 @@
-
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  RefreshCw, 
-  Moon, 
-  Sun, 
-  Bell,
-  BellOff,
-  Settings,
-  Key,
-} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+  Bell,
+  RefreshCw,
+  Sun,
+  Moon,
+  Settings,
+  Bot,
+  Key,
+} from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import AutoResponder from "@/components/AutoResponder";
+import HeaderAutoResponse from "@/components/HeaderAutoResponse";
 
 interface HeaderProps {
   unansweredCount: number;
@@ -59,11 +53,14 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
     };
   });
   
+  const [autoResponderOpen, setAutoResponderOpen] = useState(false);
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [wbToken, setWbToken] = useState(() => {
     return localStorage.getItem("wb_token") || "";
   });
-  const [autoResponderOpen, setAutoResponderOpen] = useState(false);
+  const [apiToken, setApiToken] = useState(() => {
+    return localStorage.getItem("api_token") || "";
+  });
 
   const handleNotificationSettingsChange = (key: string, value: any) => {
     const updatedSettings = {
@@ -80,6 +77,10 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
       important: updatedSettings.notificationType === 'important',
       disabled: updatedSettings.notificationType === 'none'
     };
+  };
+
+  const updateNotificationSettings = (key: string, value: any) => {
+    handleNotificationSettingsChange(key, value);
   };
 
   const handleTestNotification = () => {
@@ -100,7 +101,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
       }, 1000);
     }, 100);
   };
-  
+
   const saveWbToken = () => {
     localStorage.setItem("wb_token", wbToken);
     setTokenDialogOpen(false);
@@ -109,6 +110,10 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
       description: "Токен Wildberries успешно сохранен",
       important: true
     });
+  };
+
+  const saveApiToken = () => {
+    localStorage.setItem("api_token", apiToken);
   };
 
   return (
@@ -139,12 +144,14 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         <Button 
           variant="nav" 
           size="navIcon"
-          onClick={onRefresh} 
+          onClick={onRefresh}
           className="text-white rounded-md"
           title="Обновить"
         >
           <RefreshCw size={isMobile ? 18 : 20} />
         </Button>
+        
+        <HeaderAutoResponse onRefresh={onRefresh} />
         
         <Popover>
           <PopoverTrigger asChild>
@@ -159,86 +166,90 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 z-50">
-            <div className="space-y-4">
-              <h4 className="font-medium flex items-center gap-2">
-                <Bell size={16} /> Настройки уведомлений
-              </h4>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>Тип уведомлений</Label>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <Button 
-                    variant={notificationSettings?.notificationType === 'all' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300 hover:scale-105"
-                    onClick={() => handleNotificationSettingsChange('notificationType', 'all')}
-                  >
-                    <Bell size={14} className="transition-transform duration-300" />
-                    <span>Все</span>
-                  </Button>
-                  <Button 
-                    variant={notificationSettings?.notificationType === 'important' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300 hover:scale-105"
-                    onClick={() => handleNotificationSettingsChange('notificationType', 'important')}
-                  >
-                    <Bell size={14} className="transition-transform duration-300" />
-                    <span>Важные</span>
-                  </Button>
-                  <Button 
-                    variant={notificationSettings?.notificationType === 'none' ? "default" : "outline"} 
-                    className="w-full h-auto py-1 px-2 text-xs flex flex-col items-center gap-1 transition-all duration-300 hover:scale-105"
-                    onClick={() => handleNotificationSettingsChange('notificationType', 'none')}
-                  >
-                    <BellOff size={14} className="transition-transform duration-300" />
-                    <span>Отключить</span>
-                  </Button>
-                </div>
+          <PopoverContent className="w-80 p-0 shadow-md rounded-lg">
+            <div className="bg-white dark:bg-gray-800 rounded-md overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-500 to-violet-600 text-white py-3 px-4">
+                <h3 className="font-medium">Настройки уведомлений</h3>
               </div>
-              
-              <div className="space-y-4">
+              <div className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="transparency">Прозрачность ({Math.round((1 - (notificationSettings?.transparency || 0.9)) * 100)}%)</Label>
+                  <label className="block font-medium text-sm">Тип уведомлений</label>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => updateNotificationSettings('notificationType', 'all')}
+                      className={`px-3 py-1.5 text-sm rounded-md transition duration-150 ${
+                        notificationSettings?.notificationType === 'all'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      Все
+                    </button>
+                    <button
+                      onClick={() => updateNotificationSettings('notificationType', 'important')}
+                      className={`px-3 py-1.5 text-sm rounded-md transition duration-150 ${
+                        notificationSettings?.notificationType === 'important'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      Важные
+                    </button>
+                    <button
+                      onClick={() => updateNotificationSettings('notificationType', 'none')}
+                      className={`px-3 py-1.5 text-sm rounded-md transition duration-150 ${
+                        notificationSettings?.notificationType === 'none'
+                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      Отключены
+                    </button>
                   </div>
-                  <Slider 
-                    id="transparency"
-                    min={0}
-                    max={0.9}
-                    step={0.1}
-                    value={[notificationSettings?.transparency || 0.9]}
-                    onValueChange={(value) => handleNotificationSettingsChange('transparency', value[0])}
-                    className="transition-opacity hover:opacity-80"
-                  />
                 </div>
                 
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="displayTime">Время отображения ({(notificationSettings?.displayTime || 5000) / 1000}с)</Label>
-                  </div>
-                  <Slider 
-                    id="displayTime"
-                    min={1000}
-                    max={10000}
-                    step={1000}
-                    value={[notificationSettings?.displayTime || 5000]}
-                    onValueChange={(value) => handleNotificationSettingsChange('displayTime', value[0])}
-                    className="transition-opacity hover:opacity-80"
+                  <label className="block font-medium text-sm">Время отображения (сек)</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    step="1"
+                    value={notificationSettings?.displayTime ? notificationSettings.displayTime / 1000 : 5}
+                    onChange={(e) => updateNotificationSettings('displayTime', parseInt(e.target.value) * 1000)}
+                    className="w-full"
                   />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>1с</span>
+                    <span>{notificationSettings?.displayTime ? notificationSettings.displayTime / 1000 : 5}с</span>
+                    <span>10с</span>
+                  </div>
                 </div>
                 
-                <div className="pt-2 border-t flex justify-between items-center">
-                  <Label htmlFor="test-notification" className="text-sm">Тестовое уведомление</Label>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleTestNotification}
-                    className="transition-all duration-300 hover:scale-105 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
-                  >
-                    Проверить
-                  </Button>
+                <div className="space-y-2">
+                  <label className="block font-medium text-sm">Прозрачность</label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="1"
+                    step="0.1"
+                    value={notificationSettings?.transparency || 0.9}
+                    onChange={(e) => updateNotificationSettings('transparency', parseFloat(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>50%</span>
+                    <span>{Math.round((notificationSettings?.transparency || 0.9) * 100)}%</span>
+                    <span>100%</span>
+                  </div>
                 </div>
+                
+                <button
+                  onClick={testNotification}
+                  className="w-full py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-md transition"
+                >
+                  Проверить уведомления
+                </button>
               </div>
             </div>
           </PopoverContent>
@@ -246,7 +257,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         
         <Button 
           variant="nav" 
-          size="navIcon" 
+          size="navIcon"
           onClick={() => setTokenDialogOpen(true)}
           className="text-white rounded-md"
         >
@@ -255,7 +266,7 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
         
         <Button 
           variant="nav" 
-          size="navIcon" 
+          size="navIcon"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="text-white rounded-md"
         >
@@ -282,47 +293,53 @@ const Header = ({ unansweredCount, unansweredQuestionsCount, onRefresh }: Header
             />
           </DialogContent>
         </Dialog>
+        
+        <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>API Токены</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">OpenAI API Key</label>
+                <div className="flex">
+                  <input
+                    type="password"
+                    value={apiToken}
+                    onChange={(e) => setApiToken(e.target.value)}
+                    placeholder="sk-..."
+                    className="flex-1 px-3 py-2 border rounded-l-md dark:bg-gray-800 dark:border-gray-700"
+                  />
+                  <button
+                    onClick={saveApiToken}
+                    className="px-4 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 transition"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Wildberries Token</label>
+                <div className="flex">
+                  <input
+                    type="password"
+                    value={wbToken}
+                    onChange={(e) => setWbToken(e.target.value)}
+                    placeholder="WB токен..."
+                    className="flex-1 px-3 py-2 border rounded-l-md dark:bg-gray-800 dark:border-gray-700"
+                  />
+                  <button
+                    onClick={saveWbToken}
+                    className="px-4 py-2 bg-purple-500 text-white rounded-r-md hover:bg-purple-600 transition"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-      
-      <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Токен Wildberries</DialogTitle>
-            <DialogDescription>
-              Введите ваш токен доступа к API Wildberries
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-4">
-            <Label htmlFor="wb-token" className="sr-only">
-              Токен
-            </Label>
-            <Input
-              id="wb-token"
-              value={wbToken}
-              onChange={(e) => setWbToken(e.target.value)}
-              placeholder="Введите токен Wildberries"
-              className="w-full"
-            />
-          </div>
-          <DialogFooter className="sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setTokenDialogOpen(false)}
-              className="transition-all duration-300 hover:scale-105 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
-            >
-              Отмена
-            </Button>
-            <Button 
-              type="button" 
-              onClick={saveWbToken}
-              className="transition-all duration-300 hover:scale-105 hover:bg-purple-600 active:scale-95"
-            >
-              Сохранить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
