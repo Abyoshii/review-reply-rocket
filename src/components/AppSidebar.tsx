@@ -40,7 +40,7 @@ const AppSidebar = () => {
   };
 
   return (
-    <Sidebar>
+    <Sidebar variant="floating">
       <SidebarHeader className="flex items-center justify-between py-2 px-2">
         <div 
           onClick={toggleSidebar}
