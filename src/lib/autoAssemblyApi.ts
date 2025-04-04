@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { 
   AssemblyOrder, 
@@ -8,140 +9,16 @@ import {
   AddOrderToSupplyResponse,
   ProductCategory,
   Supply,
-  ProductCardResponse,
-  ProductCardInfo
 } from "@/types/wb";
 import { addAuthHeaders } from "./securityUtils";
 import { toast } from "sonner";
 import { logObjectStructure } from "./imageUtils";
+import { determineProductCategory } from "./utils/categoryUtils";
+import { formatTimeAgo } from "./utils/formatUtils";
+import { getProductCardInfo } from "./utils/productUtils";
 
 // Обновленный базовый URL для Marketplace API
 const WB_API_BASE_URL = "https://marketplace-api.wildberries.ru/api/v3";
-// URL для API карточек товаров
-const WB_CARD_API_URL = "https://card.wb.ru/cards/detail";
-
-// Ключевые слова для определения категории товара
-const PERFUME_KEYWORDS = [
-  "духи", "туалетная вода", "парфюмерная вода", "аромат", 
-  "eau de parfum", "eau de toilette", "edp", "edt", "парфюм"
-];
-
-const CLOTHING_KEYWORDS = [
-  "куртка", "брюки", "спортивные", "платье", "футболка", "джинсы", 
-  "шорты", "юбка", "бейсболка", "толстовка", "жилет", "рубашка", 
-  "свитер", "пальто", "худи", "джемпер", "костюм", "кофта", "майка"
-];
-
-// Функция для определения категории товара по названию
-export const determineProductCategory = (productName: string): ProductCategory => {
-  if (!productName) return ProductCategory.MISC;
-  
-  const nameLower = productName.toLowerCase();
-  
-  // Проверяем по ключевым словам для парфюмерии
-  if (PERFUME_KEYWORDS.some(keyword => nameLower.includes(keyword))) {
-    return ProductCategory.PERFUME;
-  }
-  
-  // Проверяем по ключевым словам для одежды
-  if (CLOTHING_KEYWORDS.some(keyword => nameLower.includes(keyword))) {
-    return ProductCategory.CLOTHING;
-  }
-  
-  // По умолчанию - мелочёвка
-  return ProductCategory.MISC;
-};
-
-// Функция для получения информации о товаре по nmId
-export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo | null> => {
-  try {
-    const cardUrl = `${WB_CARD_API_URL}?appType=1&curr=rub&dest=12345&nm=${nmId}`;
-    console.log(`🔍 Запрос данных карточки товара: ${cardUrl}`);
-    
-    const response = await axios.get<ProductCardResponse>(cardUrl);
-    
-    console.log(`Ответ API карточки товара для nmId=${nmId}:`, response.data);
-    
-    if (response.data && response.data.data && response.data.data.products && response.data.data.products.length > 0) {
-      const product = response.data.data.products[0];
-      
-      // Формируем URL изображения согласно запросу
-      // https://basket-01.wb.ru/vol{nmId // 100000}/part{nmId // 1000}/{nmId}/images/c246x328/1.jpg
-      const vol = Math.floor(product.id / 100000);
-      const part = Math.floor(product.id / 1000);
-      const imageBaseUrl = `https://basket-01.wb.ru/vol${vol}/part${part}/${product.id}/images/c246x328/1.jpg`;
-      
-      console.log(`Сформирован URL изображения: ${imageBaseUrl}`);
-      
-      return {
-        nmId: product.id,
-        name: product.name,
-        brand: product.brand || "",
-        image: imageBaseUrl,
-        category: product.subjectName || product.subject || ""
-      };
-    }
-    
-    console.log(`Не найдены данные товара для nmId=${nmId}`);
-    return null;
-  } catch (error) {
-    console.error(`Ошибка при получении данных карточки товара для nmId=${nmId}:`, error);
-    return null;
-  }
-};
-
-// Функция для форматирования времени в человекочитаемый вид
-export const formatTimeAgo = (dateString: string): string => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  
-  if (days > 0) {
-    if (days === 1) return 'вчера';
-    if (days < 7) return `${days} ${getDaysText(days)}`;
-    
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  }
-  
-  if (hours > 0) return `${hours} ${getHoursText(hours)}`;
-  if (minutes > 0) return `${minutes} ${getMinutesText(minutes)}`;
-  
-  return 'только что';
-};
-
-// Вспомогательные функции для склонения слов
-const getDaysText = (days: number): string => {
-  if (days >= 5 && days <= 20) return 'дней';
-  const remainder = days % 10;
-  if (remainder === 1) return 'день';
-  if (remainder >= 2 && remainder <= 4) return 'дня';
-  return 'дней';
-};
-
-const getHoursText = (hours: number): string => {
-  if (hours >= 5 && hours <= 20) return 'часов';
-  const remainder = hours % 10;
-  if (remainder === 1) return 'час';
-  if (remainder >= 2 && remainder <= 4) return 'часа';
-  return 'часов';
-};
-
-const getMinutesText = (minutes: number): string => {
-  if (minutes >= 5 && minutes <= 20) return 'минут';
-  const remainder = minutes % 10;
-  if (remainder === 1) return 'минута';
-  if (remainder >= 2 && remainder <= 4) return 'минуты';
-  return 'минут';
-};
 
 // API для работы с автосборкой
 export const AutoAssemblyAPI = {
@@ -506,7 +383,7 @@ export const AutoAssemblyAPI = {
       return [];
     } catch (error) {
       console.error(`Error fetching orders for supply ${supplyId}:`, error);
-      logObjectStructure(error, "Дета��ьная ошибка при получении заказов для поставки");
+      logObjectStructure(error, "Детальная ошибка при получении заказов для поставки");
       toast.error(`Ошибка при загрузке заказов для поставки ${supplyId}`);
       return [];
     }
@@ -655,3 +532,5 @@ export const AutoAssemblyAPI = {
     }
   }
 };
+
+export { determineProductCategory, formatTimeAgo };
