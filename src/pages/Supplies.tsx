@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +72,6 @@ const Supplies = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [showQrDialog, setShowQrDialog] = useState<boolean>(false);
   
-  // Загрузка данных
   const loadSupplies = async () => {
     setIsLoading(true);
     try {
@@ -92,7 +90,6 @@ const Supplies = () => {
     loadSupplies();
   }, []);
   
-  // Загрузка следующей страницы
   const loadNextPage = async () => {
     if (!nextPageToken) return;
     
@@ -109,7 +106,6 @@ const Supplies = () => {
     }
   };
   
-  // Загрузка заказов для поставки
   const loadSupplyOrders = async (supply: Supply) => {
     setSelectedSupply(supply);
     setIsLoadingOrders(true);
@@ -125,7 +121,6 @@ const Supplies = () => {
     }
   };
   
-  // Создание новой поставки
   const createSupply = async () => {
     if (!newSupplyName.trim()) {
       toast.error("Пожалуйста, введите название поставки");
@@ -148,7 +143,6 @@ const Supplies = () => {
     }
   };
   
-  // Удаление поставки
   const deleteSupply = async (supplyId: number) => {
     const success = await SuppliesAPI.deleteSupply(supplyId);
     if (success) {
@@ -156,7 +150,6 @@ const Supplies = () => {
     }
   };
   
-  // Передача поставки в доставку
   const deliverSupply = async (supplyId: number) => {
     const success = await SuppliesAPI.deliverSupply(supplyId);
     if (success) {
@@ -164,7 +157,6 @@ const Supplies = () => {
     }
   };
   
-  // Получение QR-кода поставки
   const getSupplyBarcode = async (supplyId: number) => {
     const url = await SuppliesAPI.getSupplyBarcode(supplyId);
     if (url) {
@@ -173,12 +165,10 @@ const Supplies = () => {
     }
   };
   
-  // Перейти к коробам для поставки
   const goToBoxes = (supply: Supply) => {
     navigate(`/trbx/${supply.id}`);
   };
   
-  // Форматирование даты
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -194,10 +184,9 @@ const Supplies = () => {
     }
   };
   
-  // Получение статуса поставки
   const getStatusBadge = (status: string, done: boolean) => {
     if (done) {
-      return <Badge variant="success">Доставлена</Badge>;
+      return <Badge variant="secondary" className="bg-green-500 hover:bg-green-600">Доставлена</Badge>;
     }
     
     switch(status.toLowerCase()) {
@@ -206,9 +195,9 @@ const Supplies = () => {
       case 'in_progress':
         return <Badge variant="secondary">В процессе</Badge>;
       case 'ready_to_ship':
-        return <Badge variant="blue">Готова к отправке</Badge>;
+        return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">Готова к отправке</Badge>;
       case 'shipped':
-        return <Badge variant="purple">Отправлена</Badge>;
+        return <Badge variant="secondary" className="bg-purple-600 hover:bg-purple-700">Отправлена</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -403,7 +392,6 @@ const Supplies = () => {
         )}
       </Card>
       
-      {/* Диалог создания новой поставки */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
@@ -450,7 +438,6 @@ const Supplies = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Диалог просмотра заказов в поставке */}
       <Dialog open={showOrdersDialog} onOpenChange={setShowOrdersDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -506,7 +493,6 @@ const Supplies = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Диалог с QR-кодом поставки */}
       <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
