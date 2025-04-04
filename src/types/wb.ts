@@ -1,3 +1,4 @@
+
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -231,6 +232,14 @@ export enum ProductCategory {
   MISC = "Мелочёвка"
 }
 
+// Новый тип для информации о товаре из карточки
+export interface ProductCardInfo {
+  nmId: number;
+  name: string;
+  brand: string;
+  image: string;
+}
+
 // Типы для заказов автосборки
 export interface AssemblyOrder {
   id: number;
@@ -246,6 +255,8 @@ export interface AssemblyOrder {
   selected?: boolean;
   category?: ProductCategory;
   inSupply?: boolean;
+  nmId?: number;  // Добавлен nmId для связи с данными карточки товара
+  productInfo?: ProductCardInfo;  // Информация о товаре из карточки
 }
 
 // Фильтры
@@ -305,4 +316,20 @@ export interface AutoAssemblyResult {
   perfumeSupplyId?: number;
   clothingSupplyId?: number;
   miscSupplyId?: number;
+}
+
+// Интерфейс для ответа API карточки товара
+export interface ProductCardResponse {
+  data: {
+    products: ProductCardData[];
+  };
+}
+
+export interface ProductCardData {
+  id: number;
+  name: string;
+  brand: string;
+  brandId: number;
+  images: string[];
+  // другие поля из API карточки товара...
 }

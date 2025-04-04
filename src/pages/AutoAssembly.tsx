@@ -39,7 +39,8 @@ import {
   Edit,
   Download,
   Send,
-  Trash2
+  Trash2,
+  Image
 } from "lucide-react";
 import { 
   Dialog,
@@ -57,7 +58,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply } from "@/types/wb";
-import { AutoAssemblyAPI, determineProductCategory } from "@/lib/autoAssemblyApi";
+import { AutoAssemblyAPI, determineProductCategory, formatTimeAgo } from "@/lib/autoAssemblyApi";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const AutoAssembly = () => {
   const [activeTab, setActiveTab] = useState("orders");
@@ -359,6 +361,11 @@ const AutoAssembly = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const formatPrice = (price: number): string => {
+    // Делим на 100 согласно требованию в задаче
+    return (price / 100).toFixed(2);
   };
 
   const getCategoryDisplay = (category?: ProductCategory) => {
@@ -698,9 +705,9 @@ const AutoAssembly = () => {
                           onCheckedChange={toggleSelectAll}
                         />
                       </TableHead>
-                      <TableHead>ID</TableHead>
+                      <TableHead>Задание</TableHead>
                       <TableHead>Артикул</TableHead>
-                      <TableHead className="hidden md:table-cell">Наименование</TableHead>
+                      <TableHead className="w-[250px] ">Товар</TableHead>
                       <TableHead className="hidden lg:table-cell">Создан</TableHead>
                       <TableHead className="hidden md:table-cell">Доставка до</TableHead>
                       <TableHead className="hidden lg:table-cell">Склад</TableHead>
@@ -747,20 +754,48 @@ const AutoAssembly = () => {
                           </TableCell>
                           <TableCell>{order.id}</TableCell>
                           <TableCell>{order.supplierArticle || "-"}</TableCell>
-                          <TableCell className="hidden md:table-cell max-w-[200px] truncate">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger className="text-left cursor-default">
-                                  {order.productName}
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {order.productName}
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                          <TableCell className="max-w-[250px]">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8 rounded-md">
+                                <AvatarImage 
+                                  src={order.productInfo?.image} 
+                                  alt={order.productName} 
+                                  className="object-contain"
+                                />
+                                <AvatarFallback className="rounded-md bg-muted">
+                                  <Image className="h-4 w-4 text-muted-foreground" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger className="text-left truncate max-w-[180px] cursor-default">
+                                      {order.productName}
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                      <p>{order.productName}</p>
+                                      {order.productInfo?.brand && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          Бренд: {order.productInfo.brand}
+                                        </p>
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                {order.productInfo?.brand && (
+                                  <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                    Бренд: {order.productInfo.brand}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </TableCell>
-                          <TableCell className="hidden lg:table-cell">{formatDate(order.createdAt)}</TableCell>
-                          <TableCell className="hidden md:table-cell">{formatDate(order.ddate)}</TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {formatTimeAgo(order.createdAt)}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {new Date(order.ddate).toLocaleDateString('ru-RU')}
+                          </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             {warehouses.find(w => w.id === order.warehouseId)?.name || "-"}
                           </TableCell>
@@ -781,10 +816,10 @@ const AutoAssembly = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-medium">{order.salePrice.toFixed(2)} ₽</span>
+                              <span className="font-medium">{formatPrice(order.price)} ₽</span>
                               {order.price !== order.salePrice && (
                                 <span className="text-sm text-muted-foreground line-through">
-                                  {order.price.toFixed(2)} ₽
+                                  {formatPrice(order.salePrice)} ₽
                                 </span>
                               )}
                             </div>
@@ -870,94 +905,3 @@ const AutoAssembly = () => {
                     onClick={() => setActiveTab("orders")}
                   >
                     Перейти к сборочным заданиям
-                  </Button>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Название</TableHead>
-                      <TableHead>Категория</TableHead>
-                      <TableHead>Создана</TableHead>
-                      <TableHead>Кол-во заказов</TableHead>
-                      <TableHead>Статус</TableHead>
-                      <TableHead>Действия</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSupplies.map((supply) => (
-                      <TableRow key={supply.id}>
-                        <TableCell>{supply.id}</TableCell>
-                        <TableCell>{supply.name}</TableCell>
-                        <TableCell>{getCategoryDisplay(supply.category).badge}</TableCell>
-                        <TableCell>{formatDate(supply.createdAt)}</TableCell>
-                        <TableCell>{supply.ordersCount}</TableCell>
-                        <TableCell>
-                          <Badge variant={supply.status === 'new' ? 'outline' : 'secondary'}>
-                            {supply.status === 'new' ? 'Новая' : 
-                             supply.status === 'in_delivery' ? 'В доставке' : 
-                             supply.status === 'delivered' ? 'Доставлена' : 'Отменена'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Редактировать название</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Скачать стикеры</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <Send className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Передать в доставку</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Удалить поставку</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
-
-export default AutoAssembly;

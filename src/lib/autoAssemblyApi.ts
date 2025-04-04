@@ -8,13 +8,17 @@ import {
   GetOrdersResponse,
   AddOrderToSupplyResponse,
   ProductCategory,
-  Supply
+  Supply,
+  ProductCardResponse,
+  ProductCardInfo
 } from "@/types/wb";
 import { addAuthHeaders } from "./securityUtils";
 import { toast } from "sonner";
 
 // Обновленный базовый URL для Marketplace API
 const WB_API_BASE_URL = "https://marketplace-api.wildberries.ru/api/v3";
+// URL для API карточек товаров
+const WB_CARD_API_URL = "https://card.wb.ru/cards/detail";
 
 // Ключевые слова для определения категории товара
 const PERFUME_KEYWORDS = [
@@ -48,6 +52,89 @@ export const determineProductCategory = (productName: string): ProductCategory =
   return ProductCategory.MISC;
 };
 
+// Функция для получения информации о товаре по nmId
+export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo | null> => {
+  try {
+    const response = await axios.get<ProductCardResponse>(
+      `${WB_CARD_API_URL}?appType=1&curr=rub&dest=12345&nm=${nmId}`
+    );
+    
+    console.log(`Product card response for nmId=${nmId}:`, response.data);
+    
+    if (response.data && response.data.data && response.data.data.products && response.data.data.products.length > 0) {
+      const product = response.data.data.products[0];
+      
+      return {
+        nmId: product.id,
+        name: product.name,
+        brand: product.brand,
+        image: product.images && product.images.length > 0 
+          ? `https://images.wbstatic.net/c516x688/new/${Math.floor(product.id/10000)}0000/${product.id}-1.jpg` 
+          : ''
+      };
+    }
+    
+    console.log(`No product data found for nmId=${nmId}`);
+    return null;
+  } catch (error) {
+    console.error(`Error fetching product card info for nmId=${nmId}:`, error);
+    return null;
+  }
+};
+
+// Функция для форматирования времени в человекочитаемый вид
+export const formatTimeAgo = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (days > 0) {
+    if (days === 1) return 'вчера';
+    if (days < 7) return `${days} ${getDaysText(days)}`;
+    
+    return date.toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  }
+  
+  if (hours > 0) return `${hours} ${getHoursText(hours)}`;
+  if (minutes > 0) return `${minutes} ${getMinutesText(minutes)}`;
+  
+  return 'только что';
+};
+
+// Вспомогательные функции для склонения слов
+const getDaysText = (days: number): string => {
+  if (days >= 5 && days <= 20) return 'дней';
+  const remainder = days % 10;
+  if (remainder === 1) return 'день';
+  if (remainder >= 2 && remainder <= 4) return 'дня';
+  return 'дней';
+};
+
+const getHoursText = (hours: number): string => {
+  if (hours >= 5 && hours <= 20) return 'часов';
+  const remainder = hours % 10;
+  if (remainder === 1) return 'час';
+  if (remainder >= 2 && remainder <= 4) return 'часа';
+  return 'часов';
+};
+
+const getMinutesText = (minutes: number): string => {
+  if (minutes >= 5 && minutes <= 20) return 'минут';
+  const remainder = minutes % 10;
+  if (remainder === 1) return 'минута';
+  if (remainder >= 2 && remainder <= 4) return 'минуты';
+  return 'минут';
+};
+
 // API для работы с автосборкой
 export const AutoAssemblyAPI = {
   // Получение списка заказов для сборки
@@ -61,21 +148,49 @@ export const AutoAssemblyAPI = {
       
       // Проверяем ответ API с учетом новой структуры ответа
       if (response.data && Array.isArray(response.data.orders)) {
-        // Преобразуем данные API в наш формат
-        return response.data.orders.map((order: any) => ({
+        const orders = response.data.orders.map((order: any) => ({
           id: order.id,
           orderUid: order.orderUid || `WB-${Math.random().toString(36).substr(2, 9)}`,
           createdAt: order.createdAt || new Date().toISOString(),
           ddate: order.ddate || new Date(Date.now() + 86400000 * 3).toISOString(),
           price: order.price || 0,
           salePrice: order.salePrice || 0,
-          supplierArticle: order.supplierArticle || "",
-          productName: order.productName || "Неизвестный товар",
+          supplierArticle: order.article || "",
+          productName: "Загрузка...",
           warehouseId: order.warehouseId || 1,
           cargoType: order.cargoType || 0,
           inSupply: order.inSupply || false,
-          category: determineProductCategory(order.productName)
+          nmId: order.nmId || null
         }));
+        
+        // Получаем информацию о товарах для каждого заказа
+        const ordersWithProductInfo = await Promise.all(
+          orders.map(async (order: AssemblyOrder) => {
+            if (order.nmId) {
+              try {
+                const productInfo = await getProductCardInfo(order.nmId);
+                if (productInfo) {
+                  return {
+                    ...order,
+                    productInfo,
+                    productName: productInfo.name,
+                    category: determineProductCategory(productInfo.name)
+                  };
+                }
+              } catch (error) {
+                console.error(`Error fetching product info for nmId=${order.nmId}:`, error);
+              }
+            }
+            // Если не удалось получить информацию о товаре
+            return {
+              ...order,
+              productName: order.supplierArticle ? `Товар ${order.supplierArticle}` : "Неизвестный товар",
+              category: determineProductCategory(order.productName)
+            };
+          })
+        );
+        
+        return ordersWithProductInfo;
       }
       
       // Если API не вернуло данные или вернуло в неожиданном формате, используем тестовые данные
