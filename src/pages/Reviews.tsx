@@ -8,7 +8,7 @@ import QuestionsTable from "@/components/QuestionsTable";
 import QuestionsFilterForm from "@/components/QuestionsFilterForm";
 import AutoResponder from "@/components/AutoResponder";
 import ArchiveReviewsTable from "@/components/ArchiveReviewsTable";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import FloatingActionButtons from "@/components/FloatingActionButtons";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -58,11 +58,7 @@ const Reviews = () => {
     } catch (error) {
       console.error("Ошибка при получении данных:", error);
       setLoading(false);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось загрузить данные. Пожалуйста, попробуйте позже.",
-        variant: "destructive",
-      });
+      toast.error("Не удалось загрузить данные. Пожалуйста, попробуйте позже.");
     }
   };
 
@@ -87,11 +83,7 @@ const Reviews = () => {
   // Обработчик ответа на отзывы
   const handleReplyToReviews = () => {
     if (selectedReviews.length === 0) {
-      toast({
-        title: "Внимание",
-        description: "Выберите хотя бы один отзыв для ответа",
-        variant: "destructive",
-      });
+      toast.error("Выберите хотя бы один отзыв для ответа");
       return;
     }
     
@@ -109,10 +101,7 @@ const Reviews = () => {
 
   // Обработчик успешного автоответа
   const handleAutoResponseSuccess = () => {
-    toast({
-      title: "Успешно",
-      description: "Автоответы успешно отправлены",
-    });
+    toast.success("Автоответы успешно отправлены");
     setAutoResponderOpen(false);
     setSelectedReviews([]);
     fetchData();
@@ -137,18 +126,14 @@ const Reviews = () => {
         <TabsContent value="new">
           <Card>
             <CardContent className="p-4">
-              <FilterForm onFilter={() => console.log("Фильтр применен")} />
+              <FilterForm />
               <ReviewsTable 
                 reviews={reviews || []}
                 loading={loading}
-                selectedReviews={selectedReviews}
-                onSelectReview={handleSelectReview}
-                onSelectAll={handleSelectAllReviews}
               />
               
               {reviews && reviews.length > 0 && (
                 <FloatingActionButtons 
-                  selectedCount={selectedReviews.length}
                   onReply={handleReplyToReviews}
                   onArchive={() => console.log("Архивация")}
                   onDelete={() => console.log("Удаление")}
@@ -161,8 +146,12 @@ const Reviews = () => {
         <TabsContent value="questions">
           <Card>
             <CardContent className="p-4">
-              <QuestionsFilterForm onFilter={() => console.log("Фильтр вопросов применен")} />
-              <QuestionsTable questions={questions || []} loading={loading} />
+              <QuestionsFilterForm />
+              <QuestionsTable 
+                questions={questions || []} 
+                loading={loading} 
+                onRefresh={handleRefresh}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -170,7 +159,7 @@ const Reviews = () => {
         <TabsContent value="archive">
           <Card>
             <CardContent className="p-4">
-              <FilterForm onFilter={() => console.log("Фильтр применен в архиве")} />
+              <FilterForm />
               <ArchiveReviewsTable reviews={archiveReviews || []} loading={loading} />
             </CardContent>
           </Card>
