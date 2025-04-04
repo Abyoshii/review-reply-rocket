@@ -39,6 +39,7 @@ export interface GenerateAnswerRequest {
   reviewText: string;
   reviewId: string;
   productName?: string;
+  rating?: number; // Добавлено поле рейтинга для обработки отзыва
 }
 
 export interface GenerateAnswerResponse {
@@ -56,6 +57,18 @@ export interface AutoResponderSettings {
   signature?: string;
   temperature?: number;
   customPrompt?: string;
+  // Новые поля для рейтингов
+  templates?: {
+    positive?: string; // Шаблон для хороших отзывов (4-5 звезд)
+    neutral?: string;  // Шаблон для нейтральных отзывов (3 звезды)
+    negative?: string; // Шаблон для плохих отзывов (1-2 звезды)
+  };
+  // Настройки фильтрации для автоответчика
+  filters?: {
+    minRating?: number; // Минимальный рейтинг для автоответа
+    maxRating?: number; // Максимальный рейтинг для автоответа
+    keywords?: string[]; // Ключевые слова для фильтрации
+  };
 }
 
 export interface GenerateAutoAnswersRequest {
@@ -66,6 +79,7 @@ export interface GenerateAutoAnswersRequest {
     pros?: string;
     cons?: string;
     productName?: string;
+    rating?: number; // Добавлено поле рейтинга
   }[];
 }
 
@@ -75,4 +89,17 @@ export interface AutoResponseServiceStatus {
   processedCount: number;
   successCount: number;
   failedCount: number;
+}
+
+// Интерфейс для определения типа отзыва по рейтингу
+export interface ReviewRatingType {
+  type: "positive" | "neutral" | "negative";
+  rating: number;
+}
+
+// Интерфейс для настроек безопасной авторизации
+export interface SecuritySettings {
+  useHeaderApiKey: boolean;
+  headerName: string;
+  obfuscateTokens: boolean;
 }

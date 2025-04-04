@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { OpenAIAPI, WbAPI } from "@/lib/api";
-import { GenerateAnswerRequest } from "@/types/openai";
+import { GenerateAnswerRequest, ReviewRatingType } from "@/types/openai";
 import { 
   Star, 
   Calendar, 
@@ -22,6 +22,7 @@ import {
   Cpu
 } from "lucide-react";
 import FloatingActionButtons from "./FloatingActionButtons";
+import RatingStars from "./RatingStars";
 
 interface ReviewsTableProps {
   reviews: WbReview[];
@@ -86,7 +87,8 @@ const ReviewsTable = ({
       const request: GenerateAnswerRequest = {
         reviewText: fullReviewText,
         reviewId: review.id,
-        productName: review.productName || review.productDetails?.productName
+        productName: review.productName || review.productDetails?.productName,
+        rating: review.rating || review.productValuation || 0
       };
 
       const response = await OpenAIAPI.generateAnswer(request);
@@ -408,23 +410,10 @@ const ReviewsTable = ({
     }
   };
 
-  const renderRating = (rating: number) => {
-    const stars = [];
-    for (let i = 0; i < 5; i++) {
-      stars.push(
-        <Star 
-          key={i} 
-          size={16} 
-          className={`${i < rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}`}
-        />
-      );
-    }
-    return (
-      <div className="flex items-center">
-        {stars}
-        <span className="ml-1 text-sm font-medium">{rating}</span>
-      </div>
-    );
+  const getRatingType = (rating: number): ReviewRatingType => {
+    if (rating >= 4) return { type: "positive", rating };
+    if (rating === 3) return { type: "neutral", rating };
+    return { type: "negative", rating };
   };
 
   const hasValidPhotoLinks = (photoLinks: any): photoLinks is PhotoLink[] => {
@@ -434,6 +423,10 @@ const ReviewsTable = ({
   const filteredReviews = reviews.filter(review => 
     !processingReviewIds || !processingReviewIds.has(review.id)
   );
+
+  const renderRating = (rating: number) => {
+    return <RatingStars rating={rating} showBadge={true} />;
+  };
 
   return (
     <div className="space-y-4">
@@ -549,9 +542,7 @@ const ReviewsTable = ({
                       </Badge>
                     )}
                     
-                    <Badge className="bg-amber-500 dark:bg-amber-600 transition-colors duration-300">
-                      {renderRating(review.rating || review.productValuation || 0)}
-                    </Badge>
+                    {renderRating(review.rating || review.productValuation || 0)}
                     
                     {review.answer && (
                       <Badge className="bg-green-500 dark:bg-green-600 transition-colors duration-300 flex items-center gap-1">
@@ -725,7 +716,7 @@ const ReviewsTable = ({
                         {modelUsed[review.id] && (
                           <div className="text-xs text-gray-500 mt-1 flex items-center">
                             <Cpu size={12} className="mr-1" /> 
-                            Сгенерировано: {modelUsed[review.id].includes('gpt-4') ? 'GPT-4' : 'GPT-3.5'}
+                            Сгене��ировано: {modelUsed[review.id].includes('gpt-4') ? 'GPT-4' : 'GPT-3.5'}
                           </div>
                         )}
                       </div>
