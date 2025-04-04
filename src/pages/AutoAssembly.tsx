@@ -9,7 +9,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Truck, Box, Filter, Search, ArrowDownWideNarrow, CheckCheck, Loader2, RefreshCw, Droplets, Shirt, Paperclip, Edit, Download, Send, Trash2, Image } from "lucide-react";
+import { Package, Truck, Box, Filter, Search, ArrowDownWideNarrow, CheckCheck, Loader2, RefreshCw, Droplets, Shirt, Paperclip, Edit, Download, Send, Trash2, Image, ImageOff } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply } from "@/types/wb";
@@ -307,6 +307,7 @@ const AutoAssembly = () => {
   };
 
   const formatPrice = (price: number): string => {
+    // Округляем цену до 2 знаков после запятой
     return (price / 100).toFixed(2);
   };
 
@@ -371,8 +372,6 @@ const AutoAssembly = () => {
   const getSupplyBarcode = async (supplyId: number) => {
     const url = await SuppliesAPI.getSupplyBarcode(supplyId);
     if (url) {
-      // setQrCodeUrl(url);
-      // setShowQrDialog(true);
       const link = document.createElement('a');
       link.href = url;
       link.download = `qrcode_${supplyId}.png`;
@@ -607,7 +606,10 @@ const AutoAssembly = () => {
                       <TableHead className="w-[250px] ">Наименование</TableHead>
                       <TableHead className="hidden lg:table-cell">Создан</TableHead>
                       <TableHead className="hidden md:table-cell">Доставка до</TableHead>
-                      <TableHead className="hidden lg:table-cell">Склад</TableHead>
+                      {/* Скрываем склад, если warehouseId отсутствует */}
+                      {filteredOrders.some(order => order.warehouseId !== undefined) && (
+                        <TableHead className="hidden lg:table-cell">Склад</TableHead>
+                      )}
                       <TableHead className="hidden md:table-cell">Категория</TableHead>
                       <TableHead className="hidden sm:table-cell">Тип груза</TableHead>
                       <TableHead>Цена</TableHead>
@@ -648,7 +650,7 @@ const AutoAssembly = () => {
                                   <AvatarImage src={order.productInfo.image} alt={order.productInfo.name} className="object-contain" />
                                 ) : (
                                   <AvatarFallback className="rounded-md bg-muted">
-                                    <Image className="h-4 w-4 text-muted-foreground" />
+                                    <ImageOff className="h-4 w-4 text-muted-foreground" />
                                   </AvatarFallback>
                                 )}
                               </Avatar>
@@ -657,11 +659,11 @@ const AutoAssembly = () => {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <div className="text-left font-medium text-sm truncate w-full cursor-default">
-                                        {order.productInfo?.name || order.productName}
+                                        {order.productInfo?.name || order.productName || "Неизвестный товар"}
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-xs">
-                                      <p className="font-medium">{order.productInfo?.name || order.productName}</p>
+                                      <p className="font-medium">{order.productInfo?.name || order.productName || "Неизвестный товар"}</p>
                                       {order.productInfo?.category && (
                                         <p className="text-xs text-muted-foreground mt-1">
                                           Категория: {order.productInfo.category}
@@ -694,9 +696,11 @@ const AutoAssembly = () => {
                           <TableCell className="hidden md:table-cell">
                             {new Date(order.ddate).toLocaleDateString('ru-RU')}
                           </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            {warehouses.find(w => w.id === order.warehouseId)?.name || "-"}
-                          </TableCell>
+                          {filteredOrders.some(o => o.warehouseId !== undefined) && (
+                            <TableCell className="hidden lg:table-cell">
+                              {order.warehouseId ? warehouses.find(w => w.id === order.warehouseId)?.name || "-" : "-"}
+                            </TableCell>
+                          )}
                           <TableCell className="hidden md:table-cell">
                             <TooltipProvider>
                               <Tooltip>
@@ -714,9 +718,9 @@ const AutoAssembly = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-medium">{formatPrice(order.price)} ₽</span>
+                              <span className="font-medium">{formatPrice(order.salePrice)} ₽</span>
                               {order.price !== order.salePrice && <span className="text-sm text-muted-foreground line-through">
-                                  {formatPrice(order.salePrice)} ₽
+                                  {formatPrice(order.price)} ₽
                                 </span>}
                             </div>
                           </TableCell>
@@ -775,63 +779,4 @@ const AutoAssembly = () => {
                     Создайте поставки вручную или используйте автоматическое формирование
                   </p>
                   <Button className="mt-4" onClick={() => setActiveTab("orders")}>
-                    Перейти к сборочным заданиям
-                  </Button>
-                </div> : <div className="space-y-4">
-                  {supplies.map(supply => <Card key={supply.id} className="overflow-hidden">
-                      <div className="bg-muted/30 p-4 flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-3">
-                          <Truck className="h-5 w-5 text-muted-foreground" />
-                          <div>
-                            <h3 className="font-medium text-lg">{supply.name}</h3>
-                            <p className="text-sm text-muted-foreground">ID: {supply.supplyId}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Badge variant={supply.done ? "outline" : "secondary"} className={supply.done ? "bg-green-50 text-green-700 border-green-200" : ""}>
-                            {supply.status}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {formatDate(supply.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <CardContent className="p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                          <div className="space-y-1">
-                            <div className="text-sm text-muted-foreground">
-                              Количество заказов: <strong>{supply.ordersCount}</strong>
-                            </div>
-                            {supply.category && (
-                              <Badge variant="outline" className="mr-2">
-                                {getCategoryDisplay(supply.category).icon}
-                                {supply.category}
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" size="sm" onClick={() => getSupplyBarcode(supply.id)}>
-                              <Download className="mr-2 h-4 w-4" />
-                              QR-код поставки
-                            </Button>
-                            
-                            {!supply.done && <Button variant="default" size="sm" onClick={() => deliverSupply(supply.id)}>
-                              <Send className="mr-2 h-4 w-4" />
-                              Передать в доставку
-                            </Button>}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>)}
-                </div>}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>;
-};
-
-export default AutoAssembly;
+                    Перейти к с

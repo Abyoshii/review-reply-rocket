@@ -60,26 +60,25 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     
     const response = await axios.get<ProductCardResponse>(cardUrl);
     
-    // Логируем полный ответ для анализа структуры данных
     console.log(`Ответ API карточки товара для nmId=${nmId}:`, response.data);
-    logObjectStructure(response.data, `Подробная структура ответа API карточки товара для nmId=${nmId}`);
     
     if (response.data && response.data.data && response.data.data.products && response.data.data.products.length > 0) {
       const product = response.data.data.products[0];
       
-      // Извлекаем категорию товара, если она существует
-      const category = product.subjectName || product.subject || "";
-      console.log(`Найдена категория для товара ${product.name}: ${category}`);
+      // Формируем URL изображения согласно запросу
+      // https://basket-01.wb.ru/vol{nmId // 100000}/part{nmId // 1000}/{nmId}/images/c246x328/1.jpg
+      const vol = Math.floor(product.id / 100000);
+      const part = Math.floor(product.id / 1000);
+      const imageBaseUrl = `https://basket-01.wb.ru/vol${vol}/part${part}/${product.id}/images/c246x328/1.jpg`;
       
-      const imageBaseUrl = `https://images.wbstatic.net/c516x688/new/${Math.floor(product.id/10000)}0000/${product.id}-1.jpg`;
       console.log(`Сформирован URL изображения: ${imageBaseUrl}`);
       
       return {
         nmId: product.id,
         name: product.name,
-        brand: product.brand,
+        brand: product.brand || "",
         image: imageBaseUrl,
-        category: category
+        category: product.subjectName || product.subject || ""
       };
     }
     
@@ -167,7 +166,7 @@ export const AutoAssemblyAPI = {
           salePrice: order.salePrice || 0,
           supplierArticle: order.article || "",
           productName: "Загрузка...",
-          warehouseId: order.warehouseId || 1,
+          warehouseId: order.warehouseId,
           cargoType: order.cargoType || 0,
           inSupply: order.inSupply || false,
           nmId: order.nmId || null
@@ -208,82 +207,32 @@ export const AutoAssemblyAPI = {
       
       const mockOrders: AssemblyOrder[] = [
         {
-          id: 5632423,
+          id: 3194125865,
           orderUid: "WB-GI-1122334455",
           createdAt: new Date(Date.now() - 3600000).toISOString(),
           ddate: new Date(Date.now() + 86400000 * 3).toISOString(),
-          price: 1290.50,
-          salePrice: 990.00,
-          supplierArticle: "ABC123",
-          productName: "Футболка белая с принтом",
+          price: 38000,
+          salePrice: 35300,
+          supplierArticle: "UI-girodдез-1",
+          productName: "Товар UI-girodдез-1",
           warehouseId: 1,
-          cargoType: 0,
-          inSupply: false
+          cargoType: 1,
+          inSupply: false,
+          nmId: 320314850
         },
         {
-          id: 5632424,
+          id: 3194123163,
           orderUid: "WB-GI-1122334456",
           createdAt: new Date(Date.now() - 7200000).toISOString(),
           ddate: new Date(Date.now() + 86400000 * 2).toISOString(),
-          price: 2490.00,
-          salePrice: 1990.00,
-          supplierArticle: "DEF456",
-          productName: "Джинсы классические",
+          price: 245000,
+          salePrice: 230300,
+          supplierArticle: "UI-AmberMystery",
+          productName: "Товар UI-AmberMystery",
           warehouseId: 2,
           cargoType: 1,
-          inSupply: false
-        },
-        {
-          id: 5632425,
-          orderUid: "WB-GI-1122334457",
-          createdAt: new Date(Date.now() - 10800000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 4).toISOString(),
-          price: 4990.00,
-          salePrice: 3990.00,
-          supplierArticle: "GHI789",
-          productName: "Куртка демисезонная",
-          warehouseId: 1,
-          cargoType: 2,
-          inSupply: false
-        },
-        {
-          id: 5632426,
-          orderUid: "WB-GI-1122334458",
-          createdAt: new Date(Date.now() - 14400000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 2).toISOString(),
-          price: 1590.00,
-          salePrice: 1290.00,
-          supplierArticle: "JKL012",
-          productName: "Парфюмерная вода женская Fleur 50мл",
-          warehouseId: 1,
-          cargoType: 0,
-          inSupply: false
-        },
-        {
-          id: 5632427,
-          orderUid: "WB-GI-1122334459",
-          createdAt: new Date(Date.now() - 18000000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 3).toISOString(),
-          price: 2990.00,
-          salePrice: 2490.00,
-          supplierArticle: "MNO345",
-          productName: "Аромат для дома Vanilla",
-          warehouseId: 2,
-          cargoType: 0,
-          inSupply: false
-        },
-        {
-          id: 5632428,
-          orderUid: "WB-GI-1122334460",
-          createdAt: new Date(Date.now() - 21600000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 4).toISOString(),
-          price: 890.00,
-          salePrice: 790.00,
-          supplierArticle: "PQR678",
-          productName: "Чехол для смартфона",
-          warehouseId: 1,
-          cargoType: 0,
-          inSupply: false
+          inSupply: false,
+          nmId: 320314851
         }
       ];
       
@@ -300,82 +249,32 @@ export const AutoAssemblyAPI = {
       // В случае ошибки возвращаем тестовые данные
       const mockOrders: AssemblyOrder[] = [
         {
-          id: 5632423,
+          id: 3194125865,
           orderUid: "WB-GI-1122334455",
           createdAt: new Date(Date.now() - 3600000).toISOString(),
           ddate: new Date(Date.now() + 86400000 * 3).toISOString(),
-          price: 1290.50,
-          salePrice: 990.00,
-          supplierArticle: "ABC123",
-          productName: "Футболка белая с принтом",
+          price: 38000,
+          salePrice: 35300,
+          supplierArticle: "UI-girodдез-1",
+          productName: "Товар UI-girodдез-1",
           warehouseId: 1,
-          cargoType: 0,
-          inSupply: false
+          cargoType: 1,
+          inSupply: false,
+          nmId: 320314850
         },
         {
-          id: 5632424,
+          id: 3194123163,
           orderUid: "WB-GI-1122334456",
           createdAt: new Date(Date.now() - 7200000).toISOString(),
           ddate: new Date(Date.now() + 86400000 * 2).toISOString(),
-          price: 2490.00,
-          salePrice: 1990.00,
-          supplierArticle: "DEF456",
-          productName: "Джинсы классические",
+          price: 245000,
+          salePrice: 230300,
+          supplierArticle: "UI-AmberMystery",
+          productName: "Товар UI-AmberMystery",
           warehouseId: 2,
           cargoType: 1,
-          inSupply: false
-        },
-        {
-          id: 5632425,
-          orderUid: "WB-GI-1122334457",
-          createdAt: new Date(Date.now() - 10800000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 4).toISOString(),
-          price: 4990.00,
-          salePrice: 3990.00,
-          supplierArticle: "GHI789",
-          productName: "Куртка демисезонная",
-          warehouseId: 1,
-          cargoType: 2,
-          inSupply: false
-        },
-        {
-          id: 5632426,
-          orderUid: "WB-GI-1122334458",
-          createdAt: new Date(Date.now() - 14400000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 2).toISOString(),
-          price: 1590.00,
-          salePrice: 1290.00,
-          supplierArticle: "JKL012",
-          productName: "Парфюмерная вода женская Fleur 50мл",
-          warehouseId: 1,
-          cargoType: 0,
-          inSupply: false
-        },
-        {
-          id: 5632427,
-          orderUid: "WB-GI-1122334459",
-          createdAt: new Date(Date.now() - 18000000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 3).toISOString(),
-          price: 2990.00,
-          salePrice: 2490.00,
-          supplierArticle: "MNO345",
-          productName: "Аромат для дома Vanilla",
-          warehouseId: 2,
-          cargoType: 0,
-          inSupply: false
-        },
-        {
-          id: 5632428,
-          orderUid: "WB-GI-1122334460",
-          createdAt: new Date(Date.now() - 21600000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 4).toISOString(),
-          price: 890.00,
-          salePrice: 790.00,
-          supplierArticle: "PQR678",
-          productName: "Чехол для смартфона",
-          warehouseId: 1,
-          cargoType: 0,
-          inSupply: false
+          inSupply: false,
+          nmId: 320314851
         }
       ];
       
@@ -607,7 +506,7 @@ export const AutoAssemblyAPI = {
       return [];
     } catch (error) {
       console.error(`Error fetching orders for supply ${supplyId}:`, error);
-      logObjectStructure(error, "Детальная ошибка при получении заказов для поставки");
+      logObjectStructure(error, "Дета��ьная ошибка при получении заказов для поставки");
       toast.error(`Ошибка при загрузке заказов для поставки ${supplyId}`);
       return [];
     }
