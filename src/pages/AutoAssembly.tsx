@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -75,6 +76,26 @@ const AutoAssembly = () => {
     { id: 2, name: "Пакет" },
   ];
 
+  // Определение filteredOrders ПЕРЕД его использованием
+  const filteredOrders = orders.filter((order) => {
+    if (filterState.warehouseId && order.warehouseId !== filterState.warehouseId.id) {
+      return false;
+    }
+    if (filterState.productCategory && order.category !== filterState.productCategory) {
+      return false;
+    }
+    if (filterState.cargoType && order.cargoType !== filterState.cargoType.id) {
+      return false;
+    }
+    if (filterState.dateFrom && new Date(order.createdAt) < filterState.dateFrom) {
+      return false;
+    }
+    if (filterState.dateTo && new Date(order.createdAt) > filterState.dateTo) {
+      return false;
+    }
+    return true;
+  });
+
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -138,7 +159,8 @@ const AutoAssembly = () => {
   const handleAutoAssemble = async () => {
     setIsLoading(true);
     try {
-      const result = await AutoAssemblyAPI.autoAssembleOrders(filteredOrders);
+      // Создаем поставки на основе категорий товаров
+      const result = await AutoAssemblyAPI.createCategorizedSupplies(filteredOrders);
       setAutoAssemblyResult(result);
       setShowResultDialog(true);
     } catch (error) {
@@ -192,11 +214,32 @@ const AutoAssembly = () => {
   const handleAssembleOrders = async () => {
     setIsProcessing(true);
     try {
-      const result = await AutoAssemblyAPI.assembleOrders(selectedOrders);
-      console.log("Assemble orders result:", result);
-      toast.success("Заказы успешно собраны", {
-        description: `Выбрано ${selectedOrders.length} заказов`
-      });
+      // Упрощенный вариант - просто добавляем заказы в первую доступную поставку или создаем новую
+      if (supplies.length === 0) {
+        toast.info("Создаем новую поставку для заказов");
+        const currentDate = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const supplyName = `Поставка от ${currentDate}`;
+        const supplyId = await AutoAssemblyAPI.createSupply(supplyName);
+        
+        if (supplyId) {
+          for (const orderId of selectedOrders) {
+            await AutoAssemblyAPI.addOrderToSupply(supplyId, orderId);
+          }
+          toast.success("Заказы успешно добавлены в новую поставку", {
+            description: `Выбрано ${selectedOrders.length} заказов`
+          });
+        }
+      } else {
+        // Используем первую доступную поставку
+        const supplyId = supplies[0].id;
+        for (const orderId of selectedOrders) {
+          await AutoAssemblyAPI.addOrderToSupply(supplyId, orderId);
+        }
+        toast.success(`Заказы добавлены в поставку ${supplies[0].name}`, {
+          description: `Выбрано ${selectedOrders.length} заказов`
+        });
+      }
+      
       loadData();
       setSelectedOrders([]);
     } catch (error) {
@@ -212,25 +255,6 @@ const AutoAssembly = () => {
   const handleFilterChange = (newFilterState: Partial<FilterState>) => {
     setFilterState((prev) => ({ ...prev, ...newFilterState }));
   };
-
-  const filteredOrders = orders.filter((order) => {
-    if (filterState.warehouseId && order.warehouseId !== filterState.warehouseId.id) {
-      return false;
-    }
-    if (filterState.productCategory && order.productCategory !== filterState.productCategory) {
-      return false;
-    }
-    if (filterState.cargoType && order.cargoType !== filterState.cargoType.name) {
-      return false;
-    }
-    if (filterState.dateFrom && new Date(order.orderDate) < filterState.dateFrom) {
-      return false;
-    }
-    if (filterState.dateTo && new Date(order.orderDate) > filterState.dateTo) {
-      return false;
-    }
-    return true;
-  });
 
   const handleSort = (key: keyof AssemblyOrder) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -270,6 +294,11 @@ const AutoAssembly = () => {
     setShowTokenDiagnostics(true);
   }, []);
   
+  // Функции для конвертирования между типами для соответствия интерфейсам компонентов
+  const handleSetActiveTab = useCallback((tab: "orders" | "supplies") => {
+    setActiveTab(tab);
+  }, []);
+  
   return (
     <div className="container mx-auto py-6 max-w-7xl">
       {/* Заголовок и кнопки управления */}
@@ -306,7 +335,7 @@ const AutoAssembly = () => {
         showResultDialog={showResultDialog} 
         setShowResultDialog={setShowResultDialog} 
         autoAssemblyResult={autoAssemblyResult} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={handleSetActiveTab}
       />
       
       <TokenDiagnostics 
@@ -314,7 +343,7 @@ const AutoAssembly = () => {
         onOpenChange={setShowTokenDiagnostics}
       />
       
-      <Tabs defaultValue="orders" value={activeTab} onValueChange={setActiveTab} className="mb-6">
+      <Tabs defaultValue="orders" value={activeTab} onValueChange={(value: string) => setActiveTab(value as "orders" | "supplies")} className="mb-6">
         <TabsList>
           <TabsTrigger value="orders" className="flex items-center">
             <Package className="mr-2 h-4 w-4" />
@@ -328,7 +357,6 @@ const AutoAssembly = () => {
         
         <TabsContent value="orders" className="space-y-4">
           <OrdersFilters 
-            filterState={filterState} 
             onFilterChange={handleFilterChange} 
             warehouseOptions={warehouseOptions}
             cargoTypeOptions={cargoTypeOptions}
@@ -358,7 +386,7 @@ const AutoAssembly = () => {
             isLoading={isLoading}
             supplies={supplies}
             loadData={loadData}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleSetActiveTab}
             navigate={navigate}
           />
         </TabsContent>
