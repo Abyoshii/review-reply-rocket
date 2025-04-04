@@ -354,7 +354,7 @@ const AutoAssembly = () => {
                       <SelectValue placeholder="Все склады" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Все склады</SelectItem>
+                      <SelectItem value="all">Все склады</SelectItem>
                       {warehouses.map(warehouse => (
                         <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
                           {warehouse.name}
@@ -374,7 +374,7 @@ const AutoAssembly = () => {
                       <SelectValue placeholder="Все типы" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Все типы</SelectItem>
+                      <SelectItem value="all">Все типы</SelectItem>
                       {cargoTypes.map(cargoType => (
                         <SelectItem key={cargoType.id} value={cargoType.id.toString()}>
                           {cargoType.name}
