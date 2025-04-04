@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { 
   AssemblyOrder, 
@@ -14,6 +13,7 @@ import {
 } from "@/types/wb";
 import { addAuthHeaders } from "./securityUtils";
 import { toast } from "sonner";
+import { logObjectStructure } from "./imageUtils";
 
 // Обновленный базовый URL для Marketplace API
 const WB_API_BASE_URL = "https://marketplace-api.wildberries.ru/api/v3";
@@ -55,29 +55,37 @@ export const determineProductCategory = (productName: string): ProductCategory =
 // Функция для получения информации о товаре по nmId
 export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo | null> => {
   try {
-    const response = await axios.get<ProductCardResponse>(
-      `${WB_CARD_API_URL}?appType=1&curr=rub&dest=12345&nm=${nmId}`
-    );
+    const cardUrl = `${WB_CARD_API_URL}?appType=1&curr=rub&dest=12345&nm=${nmId}`;
+    console.log(`🔍 Запрос данных карточки товара: ${cardUrl}`);
     
-    console.log(`Product card response for nmId=${nmId}:`, response.data);
+    const response = await axios.get<ProductCardResponse>(cardUrl);
+    
+    // Логируем полный ответ для анализа структуры данных
+    logObjectStructure(response.data, `Ответ API карточки товара для nmId=${nmId}`);
     
     if (response.data && response.data.data && response.data.data.products && response.data.data.products.length > 0) {
       const product = response.data.data.products[0];
+      
+      // Извлекаем категорию товара, если она существует
+      const category = product.subjectName || product.subject || "";
+      console.log(`Найдена категория для товара ${product.name}: ${category}`);
+      
+      const imageBaseUrl = `https://images.wbstatic.net/c516x688/new/${Math.floor(product.id/10000)}0000/${product.id}-1.jpg`;
+      console.log(`Сформирован URL изображения: ${imageBaseUrl}`);
       
       return {
         nmId: product.id,
         name: product.name,
         brand: product.brand,
-        image: product.images && product.images.length > 0 
-          ? `https://images.wbstatic.net/c516x688/new/${Math.floor(product.id/10000)}0000/${product.id}-1.jpg` 
-          : ''
+        image: imageBaseUrl,
+        category: category
       };
     }
     
-    console.log(`No product data found for nmId=${nmId}`);
+    console.log(`Не найдены данные товара для nmId=${nmId}`);
     return null;
   } catch (error) {
-    console.error(`Error fetching product card info for nmId=${nmId}:`, error);
+    console.error(`Ошибка при получении данных карточки товара для nmId=${nmId}:`, error);
     return null;
   }
 };
@@ -193,7 +201,7 @@ export const AutoAssemblyAPI = {
         return ordersWithProductInfo;
       }
       
-      // Если API не вернуло данные или вернуло в неожиданном формате, используем тестовые данные
+      // Если API не вернуло данные или вернуло в неожиданном формате, используем тестовыми данными
       console.log("API returned unexpected format, using mock data");
       
       const mockOrders: AssemblyOrder[] = [
