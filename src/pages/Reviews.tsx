@@ -14,7 +14,7 @@ import AutoResponseSettings from "@/components/AutoResponseSettings";
 import AutoResponseService from "@/components/AutoResponseService";
 import FloatingActionButtons from "@/components/FloatingActionButtons";
 import { WbAPI } from "@/lib/api";
-import { WbReview } from "@/types/wb";
+import { WbReview, WbQuestion } from "@/types/wb";
 import { AutoResponderSettings as AutoResponderSettingsType } from "@/types/openai";
 
 const Reviews = () => {
@@ -25,14 +25,13 @@ const Reviews = () => {
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [archiveLoading, setArchiveLoading] = useState(true);
   const [reviews, setReviews] = useState<WbReview[]>([]);
-  const [questions, setQuestions] = useState<WbReview[]>([]);
+  const [questions, setQuestions] = useState<WbQuestion[]>([]);
   const [archiveReviews, setArchiveReviews] = useState<WbReview[]>([]);
   const [isAutoResponseActive, setIsAutoResponseActive] = useState(false);
   const [autoResponseSettings, setAutoResponseSettings] = useState<AutoResponderSettingsType>({
-    maxReviewsPerRequest: 10,
-    positiveTemplate: "Спасибо за ваш отзыв! Мы рады, что вам понравился товар.",
-    negativeTemplate: "Спасибо за ваш отзыв. Мы сожалеем о вашем опыте и постараемся исправить ситуацию.",
-    neutralTemplate: "Благодарим за обратную связь. Ваше мнение важно для нас.",
+    maxTokens: 150,
+    temperature: 0.7,
+    maxReviews: 10,
     useAI: true
   });
   const [autoResponseStatus, setAutoResponseStatus] = useState({
@@ -201,8 +200,9 @@ const Reviews = () => {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-400">Отзывы</h1>
         <HeaderAutoResponse 
-          onToggleAutoResponse={() => setAutoResponseExpanded(!autoResponseExpanded)}
-          isActive={isAutoResponseActive}
+          unansweredCount={reviews?.length || 0}
+          unansweredQuestionsCount={questions?.length || 0}
+          onRefresh={handleRefresh}
         />
       </div>
 
@@ -276,7 +276,7 @@ const Reviews = () => {
             </CardHeader>
             <CardContent>
               <ReviewsTable 
-                reviews={reviews}
+                reviews={reviews || []}
                 loading={reviewsLoading}
                 onRefresh={fetchReviews}
                 isAnswered={false}
@@ -307,7 +307,7 @@ const Reviews = () => {
             </CardHeader>
             <CardContent>
               <QuestionsTable 
-                questions={questions}
+                questions={questions || []}
                 loading={questionsLoading}
                 onRefresh={fetchQuestions}
               />
@@ -325,7 +325,7 @@ const Reviews = () => {
             </CardHeader>
             <CardContent>
               <ArchiveReviewsTable 
-                reviews={archiveReviews}
+                reviews={archiveReviews || []}
                 loading={archiveLoading}
               />
             </CardContent>
@@ -337,7 +337,7 @@ const Reviews = () => {
         <FloatingActionButtons 
           onRefresh={handleRefresh}
           selectedReviews={new Set()}
-          reviews={reviews}
+          reviews={reviews || []}
           onGenerateAnswers={() => {}}
           onSendAnswers={() => {}}
           onClearSelection={() => {}}

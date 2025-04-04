@@ -10,14 +10,18 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem
+  SidebarMenuItem,
+  SidebarTrigger,
+  useSidebar
 } from "@/components/ui/sidebar";
-import { Package, MessageSquare, Box, LayoutDashboard } from "lucide-react";
+import { Package, MessageSquare, Box, LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "./ui/button";
 
 const AppSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
+  const { state, toggleSidebar } = useSidebar();
   
   // Определение активной страницы
   const isActive = (path: string) => {
@@ -26,16 +30,24 @@ const AppSidebar = () => {
 
   return (
     <Sidebar>
-      <SidebarHeader className="flex items-center justify-center py-2">
-        <div className="text-xl font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2">
+      <SidebarHeader className="flex items-center justify-between py-2 px-2">
+        <div className={`text-xl font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2 transition-opacity duration-300 ${state === 'collapsed' ? 'opacity-0' : 'opacity-100'}`}>
           <Box className="h-6 w-6" />
           <span>WB Контроль</span>
         </div>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleSidebar}
+          className="hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-300 animate-pulse"
+        >
+          {state === 'expanded' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </Button>
       </SidebarHeader>
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Навигация</SidebarGroupLabel>
+          <SidebarGroupLabel className="transition-all duration-300">Навигация</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -55,6 +67,7 @@ const AppSidebar = () => {
                   isActive={isActive("/reviews")} 
                   onClick={() => navigate("/reviews")}
                   tooltip="Отзывы и управление отзывами"
+                  className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-300"
                 >
                   <MessageSquare size={18} />
                   <span>Отзывы</span>
@@ -66,6 +79,7 @@ const AppSidebar = () => {
                   isActive={isActive("/auto-assembly")} 
                   onClick={() => navigate("/auto-assembly")}
                   tooltip="Автосборка"
+                  className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-300"
                 >
                   <Package size={18} />
                   <span>Автосборка</span>

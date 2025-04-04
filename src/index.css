@@ -218,6 +218,67 @@ button:active {
   transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Sidebar animations */
+.sidebar-transition {
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Enhanced sidebar collapse/expand animations */
+[data-state="expanded"] {
+  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+[data-state="collapsed"] {
+  transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Smooth fade for sidebar content */
+[data-sidebar="menu-button"] > span {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+[data-state="collapsed"] [data-sidebar="menu-button"] > span {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+/* Beautiful hover effect for sidebar items */
+[data-sidebar="menu-button"]:hover {
+  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transform: translateX(4px);
+}
+
+/* Enhanced active state for sidebar items */
+[data-active="true"][data-sidebar="menu-button"] {
+  position: relative;
+  overflow: visible !important;
+}
+
+[data-active="true"][data-sidebar="menu-button"]::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 60%;
+  background: linear-gradient(to bottom, #9b87f5, #7E69AB);
+  border-radius: 0 4px 4px 0;
+  opacity: 0.9;
+  animation: slideInRight 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translate(-100%, -50%);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(0, -50%);
+    opacity: 0.9;
+  }
+}
+
 /* Mobile styles */
 @media (max-width: 768px) {
   .mobile-header {
