@@ -45,4 +45,3 @@ export const checkImageExists = async (url: string): Promise<boolean> => {
     return false;
   }
 };
-

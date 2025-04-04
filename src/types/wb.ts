@@ -333,5 +333,7 @@ export interface ProductCardData {
   brand: string;
   brandId: number;
   images: string[];
+  subjectName?: string; // Добавляем поле для категории товара
+  subject?: string; // Добавляем альтернативное поле для категории товара
   // другие поля из API карточки товара...
 }
