@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Tabs,
@@ -99,11 +98,12 @@ interface AppOrder extends Order {
   category?: ProductCategory | RussianCategoryName;
 }
 
-interface AppSupply extends Omit<Supply, 'id'> {
+interface AppSupply extends Omit<Supply, 'id' | 'category'> {
   id: string;
   date?: string;
   count?: number;
   orders?: AppOrder[];
+  category: ProductCategory | RussianCategoryName;
 }
 
 // Функция определения категории товара по названию
@@ -228,7 +228,7 @@ const AutoAssembly: React.FC = () => {
         date: supply.createdAt,
         count: supply.ordersCount,
         category: apiTypeToCategory(supply.category)
-      })) as AppSupply[];
+      })) as unknown as AppSupply[];
       setSupplies(processedSupplies);
     } catch (error) {
       console.error("Failed to fetch supplies:", error);
@@ -252,7 +252,7 @@ const AutoAssembly: React.FC = () => {
         count: 1,
         date: order.createdAt,
         category: detectCategory(order.name)
-      })) as AppOrder[];
+      })) as unknown as AppOrder[];
       
       // Обновляем список заказов для поставки
       const updatedSupplies = supplies.map(supply => {
@@ -263,9 +263,9 @@ const AutoAssembly: React.FC = () => {
           };
         }
         return supply;
-      }) as AppSupply[];
+      });
       
-      setSupplies(updatedSupplies);
+      setSupplies(updatedSupplies as AppSupply[]);
       return processedOrders;
     } catch (error) {
       console.error("Failed to fetch supply orders:", error);
@@ -383,9 +383,9 @@ const AutoAssembly: React.FC = () => {
     try {
       const date = new Date().toLocaleDateString('ru-RU');
       
-      const perfumeOrders = orders.filter(order => order.category === "Парфюмерия").map(order => order.id);
-      const clothingOrders = orders.filter(order => order.category === "Одежда").map(order => order.id);
-      const otherOrders = orders.filter(order => order.category === "Мелочёвка").map(order => order.id);
+      const perfumeOrders = orders.filter(order => order.category === "Парфюмерия" as RussianCategoryName).map(order => order.id);
+      const clothingOrders = orders.filter(order => order.category === "Одежда" as RussianCategoryName).map(order => order.id);
+      const otherOrders = orders.filter(order => order.category === "Мелочёвка" as RussianCategoryName).map(order => order.id);
       
       const results = {
         perfume: perfumeOrders.length,

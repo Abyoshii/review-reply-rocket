@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +13,6 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import HeaderAutoResponse from "@/components/HeaderAutoResponse";
 
-// Add these interfaces to fix the prop type errors
 interface FilterFormProps {
   onFilter: () => void;
 }
@@ -29,6 +27,7 @@ interface ReviewsTableProps {
   selectedReviews: any[];
   onSelectReview: (reviewId: number, isSelected: boolean) => void;
   onSelectAll: (ids: number[]) => void;
+  onRefresh: () => void;
 }
 
 interface QuestionsTableProps {
@@ -58,12 +57,9 @@ const Reviews = () => {
     systemPrompt: "Ты помощник по товарам на маркетплейсе Wildberries. Твоя задача - вежливо отвечать на отзывы и вопросы покупателей.",
   });
 
-  // Функция для обновления данных
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Здесь должен быть код для получения данных с API
-      // Для демонстрации используем моковые данные
       setTimeout(() => {
         const mockReviews = [
           { id: 1, productName: "Товар 1", rating: 5, text: "Отличный товар!", status: "new" },
@@ -100,7 +96,6 @@ const Reviews = () => {
     fetchData();
   }, []);
 
-  // Обработчик выбора отзывов
   const handleSelectReview = (reviewId: number, isSelected: boolean) => {
     if (isSelected) {
       setSelectedReviews([...selectedReviews, reviewId]);
@@ -109,12 +104,10 @@ const Reviews = () => {
     }
   };
 
-  // Обработчик множественного выбора отзывов
   const handleSelectAllReviews = (ids: number[]) => {
     setSelectedReviews(ids);
   };
 
-  // Обработчик ответа на отзывы
   const handleReplyToReviews = () => {
     if (selectedReviews.length === 0) {
       toast({
@@ -132,12 +125,10 @@ const Reviews = () => {
     fetchData();
   };
 
-  // Получаем выбранные отзывы
   const getSelectedReviewObjects = () => {
     return reviews.filter(review => selectedReviews.includes(review.id));
   };
 
-  // Обработчик успешного автоответа
   const handleAutoResponseSuccess = () => {
     toast({
       title: "Успешно",
@@ -174,6 +165,7 @@ const Reviews = () => {
                 selectedReviews={selectedReviews}
                 onSelectReview={handleSelectReview}
                 onSelectAll={handleSelectAllReviews}
+                onRefresh={handleRefresh}
               />
               
               {reviews && reviews.length > 0 && (
