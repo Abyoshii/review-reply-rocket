@@ -61,7 +61,8 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     const response = await axios.get<ProductCardResponse>(cardUrl);
     
     // Логируем полный ответ для анализа структуры данных
-    logObjectStructure(response.data, `Ответ API карточки товара для nmId=${nmId}`);
+    console.log(`Ответ API карточки товара для nmId=${nmId}:`, response.data);
+    logObjectStructure(response.data, `Подробная структура ответа API карточки товара для nmId=${nmId}`);
     
     if (response.data && response.data.data && response.data.data.products && response.data.data.products.length > 0) {
       const product = response.data.data.products[0];
@@ -153,6 +154,7 @@ export const AutoAssemblyAPI = {
       });
       
       console.log("New orders response:", response.data);
+      logObjectStructure(response.data, "Полная структура ответа API заказов");
       
       // Проверяем ответ API с учетом новой структуры ответа
       if (response.data && Array.isArray(response.data.orders)) {
@@ -292,6 +294,7 @@ export const AutoAssemblyAPI = {
       }));
     } catch (error) {
       console.error("Error fetching new orders:", error);
+      logObjectStructure(error, "Детальная ошибка при получении заказов");
       toast.error("Ошибка при загрузке новых заказов");
       
       // В случае ошибки возвращаем тестовые данные
@@ -467,11 +470,14 @@ export const AutoAssemblyAPI = {
   // Получение списка поставок
   getSupplies: async (): Promise<Supply[]> => {
     try {
+      console.log("Запрос поставок с заголовками:", addAuthHeaders());
+      
       const response = await axios.get<GetSuppliesResponse>(`${WB_API_BASE_URL}/supplies`, {
         headers: addAuthHeaders()
       });
       
       console.log("Supplies response:", response.data);
+      logObjectStructure(response.data, "Полная структура ответа API поставок");
       
       if (response.data && response.data.data && Array.isArray(response.data.data.supplies)) {
         return response.data.data.supplies;
@@ -514,6 +520,7 @@ export const AutoAssemblyAPI = {
       ];
     } catch (error) {
       console.error("Error fetching supplies:", error);
+      logObjectStructure(error, "Детальная ошибка при получении поставок");
       toast.error("Ошибка при загрузке списка поставок");
       
       // В случае ошибки возвращаем тестовые данные
@@ -566,6 +573,7 @@ export const AutoAssemblyAPI = {
       return null;
     } catch (error) {
       console.error(`Error fetching supply ${supplyId}:`, error);
+      logObjectStructure(error, "Детальная ошибка при получении информации о поставке");
       toast.error(`Ошибка при загрузке информации о поставке ${supplyId}`);
       return null;
     }
@@ -599,6 +607,7 @@ export const AutoAssemblyAPI = {
       return [];
     } catch (error) {
       console.error(`Error fetching orders for supply ${supplyId}:`, error);
+      logObjectStructure(error, "Детальная ошибка при получении заказов для поставки");
       toast.error(`Ошибка при загрузке заказов для поставки ${supplyId}`);
       return [];
     }
@@ -615,6 +624,7 @@ export const AutoAssemblyAPI = {
       return true;
     } catch (error) {
       console.error(`Error deleting supply ${supplyId}:`, error);
+      logObjectStructure(error, "Детальная ошибка при удалении поставки");
       toast.error(`Ошибка при удалении поставки ${supplyId}`);
       return false;
     }
@@ -631,6 +641,7 @@ export const AutoAssemblyAPI = {
       return true;
     } catch (error) {
       console.error(`Error delivering supply ${supplyId}:`, error);
+      logObjectStructure(error, "Детальная ошибка при передаче поставки в доставку");
       toast.error(`Ошибка при передаче поставки ${supplyId} в доставку`);
       return false;
     }
@@ -651,6 +662,7 @@ export const AutoAssemblyAPI = {
       return downloadUrl;
     } catch (error) {
       console.error(`Error getting barcode for supply ${supplyId}:`, error);
+      logObjectStructure(error, "Детальная ошибка при получении QR-кода для поставки");
       toast.error(`Ошибка при получении QR-кода для поставки ${supplyId}`);
       return null;
     }
@@ -732,6 +744,7 @@ export const AutoAssemblyAPI = {
       
     } catch (error) {
       console.error("Error creating categorized supplies:", error);
+      logObjectStructure(error, "Детальная ошибка при создании поставок по категориям");
       toast.error("Ошибка при создании поставок по категориям");
       
       return {

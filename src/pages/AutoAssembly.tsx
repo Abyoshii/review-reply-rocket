@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +60,7 @@ import {
 import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply } from "@/types/wb";
 import { AutoAssemblyAPI, determineProductCategory, formatTimeAgo } from "@/lib/autoAssemblyApi";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { logObjectStructure } from "@/lib/imageUtils";
 
 const AutoAssembly = () => {
   const [activeTab, setActiveTab] = useState("orders");
@@ -365,7 +365,6 @@ const AutoAssembly = () => {
   };
 
   const formatPrice = (price: number): string => {
-    // Делим на 100 согласно требованию в задаче
     return (price / 100).toFixed(2);
   };
 
@@ -455,7 +454,7 @@ const AutoAssembly = () => {
             ) : (
               <>
                 <Package className="mr-2 h-4 w-4" />
-                Автосформировать поставки
+                Автосформировать п��ставки
               </>
             )}
           </Button>
@@ -770,14 +769,26 @@ const AutoAssembly = () => {
                               <div className="flex flex-col">
                                 <TooltipProvider>
                                   <Tooltip>
-                                    <TooltipTrigger className="text-left truncate max-w-[180px] cursor-default">
-                                      {order.productName}
+                                    <TooltipTrigger asChild>
+                                      <div className="text-left font-medium truncate max-w-[180px] cursor-default">
+                                        {order.productInfo?.name || order.productName}
+                                      </div>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-xs">
-                                      <p>{order.productName}</p>
-                                      {order.productInfo?.brand && (
+                                      <p className="font-medium">{order.productInfo?.name || order.productName}</p>
+                                      {order.productInfo?.category && (
                                         <p className="text-xs text-muted-foreground mt-1">
+                                          Категория: {order.productInfo.category}
+                                        </p>
+                                      )}
+                                      {order.productInfo?.brand && (
+                                        <p className="text-xs text-muted-foreground">
                                           Бренд: {order.productInfo.brand}
+                                        </p>
+                                      )}
+                                      {order.supplierArticle && (
+                                        <p className="text-xs text-muted-foreground">
+                                          Артикул: {order.supplierArticle}
                                         </p>
                                       )}
                                     </TooltipContent>
@@ -785,7 +796,7 @@ const AutoAssembly = () => {
                                 </TooltipProvider>
                                 {order.productInfo?.brand && (
                                   <span className="text-xs text-muted-foreground truncate max-w-[180px]">
-                                    Бренд: {order.productInfo.brand}
+                                    {order.productInfo.brand}
                                   </span>
                                 )}
                               </div>
