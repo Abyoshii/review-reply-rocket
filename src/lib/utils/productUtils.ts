@@ -39,19 +39,19 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     // Выводим полный ответ API для анализа
     console.log(`Полный ответ API карточки товара для nmId=${nmId}:`, JSON.stringify(response.data, null, 2));
     
-    // Проверяем наличие карточки в ответе (правильная структура ответа)
+    // Проверяем наличие карточки в ответе (правильная структура - карточки непосредственно в response.data.cards)
     if (response.data && response.data.cards && response.data.cards.length > 0) {
       const product = response.data.cards[0];
       
       // Получаем URL изображения из первой фотографии, если она есть
       let imageUrl = '';
-      if (product.photos && product.photos.length > 0 && product.photos[0].big) {
-        imageUrl = product.photos[0].big;
+      if (product.photos && product.photos.length > 0) {
+        imageUrl = product.photos[0].big || '';
         console.log(`Получен URL изображения: ${imageUrl}`);
       }
       
       // Определяем категорию товара на основе subjectName
-      const category = product.subjectName || "";
+      const category = product.subjectName || "Без категории";
       
       const productInfo = {
         nmId: nmId,
@@ -62,7 +62,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
         productCategory: determineCategoryBySubject(category)
       };
       
-      // Сохраняем в кэш
+      // Сохраняем в кэш только если данные корректно загрузились
       productInfoCache[nmId] = productInfo;
       
       return productInfo;
