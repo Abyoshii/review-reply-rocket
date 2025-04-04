@@ -54,7 +54,7 @@ function App() {
                 
                 {/* Прозрачная кнопка для открытия/закрытия навигации */}
                 <div className="fixed z-50 left-0 top-1/2 transform -translate-y-1/2">
-                  <SidebarTrigger asChild>
+                  <SidebarTrigger>
                     <Button 
                       variant="ghost" 
                       size="icon" 
