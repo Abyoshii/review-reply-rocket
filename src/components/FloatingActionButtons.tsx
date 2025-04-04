@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Reply, Archive, Trash2 } from "lucide-react";
 
 export interface FloatingActionButtonsProps {
-  selectedCount?: number; // Added missing prop
+  selectedCount: number; // Added prop
   onReply?: () => void;
   onArchive?: () => void;
   onDelete?: () => void;

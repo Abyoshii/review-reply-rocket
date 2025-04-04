@@ -44,7 +44,7 @@ const ReviewsTable: React.FC<ReviewsTableProps> = ({
                 <TableCell>{review.productName || "Н/Д"}</TableCell>
                 <TableCell>{review.question || "Н/Д"}</TableCell>
                 <TableCell>
-                  <Button size="sm">Ответить</Button>
+                  <Button size="sm" onClick={onRefresh}>Ответить</Button>
                 </TableCell>
               </TableRow>
             ))}
