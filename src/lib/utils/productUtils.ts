@@ -3,10 +3,12 @@ import axios from "axios";
 import { ProductCardInfo, ProductCategory } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
 import { toast } from "sonner";
-import { getApiToken, addAuthHeaders } from "../securityUtils";
 
 // API URL для получения информации о товаре
 const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards/list";
+
+// Специальный токен для запросов к API карточек товаров
+const PRODUCT_CARD_API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU3NzQ1OCwiaWQiOiIwMTk2MDMyNC1iMjhjLTcwOTctOWJkZS0xN2RiODE4ZTc4YjgiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjYsInNpZCI6ImU2YWM2NjA0LTFkMjEtNDE1Yy05MDVkLTNkYzBjNGE4ZjJiZSIsInQiOmZhbHNlLCJ1aWQiOjUwMTA5MjcwfQ.KjEJlhdLljBMshejw2UUgEiQcq7XIYNFMSzPJb7F7LCSh274rIBmTFd2ozT4CGzlXFaUKCgFgHq0gyebND6qrQ";
 
 // Кэш для хранения информации о товарах
 const productInfoCache: Record<number, ProductCardInfo> = {};
@@ -39,10 +41,16 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     console.log(`URL: ${WB_CARD_API_URL}`);
     console.log(`Тело запроса:`, JSON.stringify(requestBody, null, 2));
     
-    // Формируем заголовки запроса с токеном авторизации, передаем URL для проверки совместимости
-    const headers = addAuthHeaders({}, WB_CARD_API_URL);
+    // Формируем заголовки запроса НАПРЯМУЮ с токеном для API карточек товаров
+    const headers = {
+      'Authorization': `Bearer ${PRODUCT_CARD_API_TOKEN}`,
+      'Content-Type': 'application/json'
+    };
     
-    // Выполняем запрос с заголовками авторизации
+    console.log(`🔑 Используется специальный токен для API карточек товаров`);
+    console.log(`🔑 Заголовок Authorization: Bearer ${PRODUCT_CARD_API_TOKEN.substring(0, 20)}...`);
+    
+    // Выполняем запрос с заданными заголовками авторизации
     const response = await axios.post(WB_CARD_API_URL, requestBody, { headers });
     
     // Вычисляем время выполнения запроса
@@ -124,9 +132,9 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       
       // Специальная обработка для ошибки 401
       if (error.response?.status === 401) {
-        console.error(`❌ Ошибка авторизации (401) при запросе данных товара. Проверьте токен!`);
+        console.error(`❌ Ошибка авторизации (401) при запросе данных товара. Проверьте токен для API карточек товаров!`);
         toast.error(`Ошибка авторизации при получении данных товара ${nmId}`, {
-          description: `Возможно, токен устарел или неверной категории (требуется Контент API)`,
+          description: `Специальный токен для API карточек товаров недействителен или просрочен`,
           important: true
         });
       } else {
