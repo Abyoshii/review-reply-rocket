@@ -1,3 +1,4 @@
+
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -174,4 +175,99 @@ export interface WbQuestionAnswerResponse {
   data: {
     questionId: string;
   };
+}
+
+// Новые типы для работы с Автосборкой
+
+// Тип товара для категоризации
+export enum ProductCategory {
+  PERFUME = "Парфюмерия",
+  CLOTHING = "Одежда",
+  MISC = "Мелочёвка"
+}
+
+// Типы для заказов автосборки
+export interface AssemblyOrder {
+  id: number;
+  orderUid: string;
+  createdAt: string;
+  ddate: string;
+  price: number;
+  salePrice: number;
+  supplierArticle?: string;
+  productName: string;
+  warehouseId: number;
+  cargoType: number;
+  selected?: boolean;
+  category?: ProductCategory;
+  inSupply?: boolean;
+}
+
+// Фильтры
+export interface WarehouseFilter {
+  id: number;
+  name: string;
+}
+
+export interface CargoTypeFilter {
+  id: number;
+  name: string;
+}
+
+// Поставка
+export interface Supply {
+  id: number;
+  name: string;
+  createdAt: string;
+  status: "new" | "in_delivery" | "delivered" | "cancelled";
+  category: ProductCategory;
+  ordersCount: number;
+}
+
+// API запросы для поставок
+export interface CreateSupplyRequest {
+  name?: string;
+}
+
+export interface CreateSupplyResponse {
+  data: {
+    supplyId: number;
+  };
+  error: boolean;
+  errorText: string;
+}
+
+export interface GetSuppliesResponse {
+  data: {
+    supplies: Supply[];
+  };
+  error: boolean;
+  errorText: string;
+}
+
+export interface GetOrdersResponse {
+  data: {
+    orders: AssemblyOrder[];
+  };
+  error: boolean;
+  errorText: string;
+}
+
+export interface AddOrderToSupplyRequest {
+  supplyId: number;
+  orderId: number;
+}
+
+export interface AddOrderToSupplyResponse {
+  error: boolean;
+  errorText: string;
+}
+
+export interface AutoAssemblyResult {
+  perfumeCount: number;
+  clothingCount: number;
+  miscCount: number;
+  perfumeSupplyId?: number;
+  clothingSupplyId?: number;
+  miscSupplyId?: number;
 }
