@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,47 +8,72 @@ import { AutoAssemblyAPI } from "@/lib/autoAssemblyApi";
 import { formatPrice } from "@/lib/utils/formatUtils";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getApiToken, getHeaderName } from "@/lib/securityUtils";
-import { logAuthStatus } from "@/lib/logUtils";
+import { getApiToken, getHeaderName, isTokenValid } from "@/lib/securityUtils";
+import { logAuthStatus, logError } from "@/lib/logUtils";
+import TokenDiagnostics from "@/components/TokenDiagnostics";
 
 // Импорт компонентов
 import OrdersTable from "@/components/autoAssembly/OrdersTable";
-import OrdersFilters from "@/components/autoAssembly/OrdersFilters";
+import SelectedOrdersActions from "@/components/autoAssembly/SelectedOrdersActions";
 import SuppliesContent from "@/components/autoAssembly/SuppliesContent";
 import ResultDialog from "@/components/autoAssembly/ResultDialog";
-import SelectedOrdersActions from "@/components/autoAssembly/SelectedOrdersActions";
-import { getCategoryDisplay, renderCargoTypeBadge } from "@/components/autoAssembly/CategoryUtils";
+import OrdersFilters from "@/components/autoAssembly/OrdersFilters";
+
+interface FilterState {
+  warehouseId: WarehouseFilter | null;
+  productCategory: ProductCategory | null;
+  cargoType: CargoTypeFilter | null;
+  dateFrom: Date | null;
+  dateTo: Date | null;
+}
+
+interface SortConfig {
+  key: keyof AssemblyOrder | null;
+  direction: 'asc' | 'desc' | null;
+}
 
 const AutoAssembly = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("orders");
-  const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<AssemblyOrder[]>([]);
+  const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
   const [supplies, setSupplies] = useState<Supply[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<AssemblyOrder[]>([]);
-  const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set());
-  const [warehouses, setWarehouses] = useState<WarehouseFilter[]>([]);
-  const [cargoTypes, setCargoTypes] = useState<CargoTypeFilter[]>([]);
-  const [filters, setFilters] = useState({
-    warehouse: '',
-    cargoType: '',
-    search: '',
-    sortBy: 'createdAt',
-    sortDirection: 'desc' as 'asc' | 'desc',
-    category: ''
-  });
+  const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isAutoAssembling, setIsAutoAssembling] = useState(false);
   const [showResultDialog, setShowResultDialog] = useState(false);
-  const [autoAssemblyResult, setAutoAssemblyResult] = useState<{
-    success: boolean;
-    perfumeCount: number;
-    clothingCount: number;
-    miscCount: number;
-    perfumeSupplyId?: number;
-    clothingSupplyId?: number;
-    miscSupplyId?: number;
-  } | null>(null);
+  const [autoAssemblyResult, setAutoAssemblyResult] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"orders" | "supplies">("orders");
+
+  // Состояние для диалога диагностики токена
+  const [showTokenDiagnostics, setShowTokenDiagnostics] = useState(false);
+
+  const [filterState, setFilterState] = useState<FilterState>({
+    warehouseId: null,
+    productCategory: null,
+    cargoType: null,
+    dateFrom: null,
+    dateTo: null,
+  });
+
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: null,
+    direction: null,
+  });
+
+  const warehouseOptions: WarehouseFilter[] = [
+    { id: 121842, name: "Коледино" },
+    { id: 117531, name: "Подольск" },
+    { id: 117986, name: "Санкт-Петербург" },
+    { id: 117987, name: "Краснодар" },
+    { id: 117988, name: "Екатеринбург" },
+    { id: 117989, name: "Новосибирск" },
+    { id: 117990, name: "Хабаровск" },
+    { id: 119034, name: "Алматы" },
+  ];
+
+  const cargoTypeOptions: CargoTypeFilter[] = [
+    { id: 1, name: "Короб" },
+    { id: 2, name: "Пакет" },
+  ];
 
   const loadData = async () => {
     setIsLoading(true);
@@ -57,31 +81,47 @@ const AutoAssembly = () => {
       // Диагностика авторизации перед запросом
       const token = getApiToken();
       const headerName = getHeaderName();
-      logAuthStatus(token, headerName);
+      
+      // Проверка токена на валидность
+      if (!isTokenValid(token)) {
+        logError("Проблема с токеном авторизации", "Токен может быть просрочен или неправильного формата");
+        toast.error("Ошибка авторизации API", {
+          description: "Откройте диагностику токена для решения проблемы",
+          action: {
+            label: "Диагностика",
+            onClick: () => setShowTokenDiagnostics(true)
+          }
+        });
+      } else {
+        logAuthStatus(token, headerName);
+      }
       
       const newOrders = await AutoAssemblyAPI.getNewOrders();
       console.log("Loaded orders:", newOrders);
       setOrders(newOrders);
-      setFilteredOrders(newOrders);
-      setWarehouses([
-        { id: 1, name: "Коледино" }, 
-        { id: 2, name: "Электросталь" }, 
-        { id: 3, name: "Санкт-Петербург" }, 
-        { id: 4, name: "Казань" }, 
-        { id: 5, name: "Краснодар" }
-      ]);
-      setCargoTypes([
-        { id: 0, name: "Обычный" }, 
-        { id: 1, name: "Крупногабаритный" }, 
-        { id: 2, name: "Тяжеловесный" }
-      ]);
       
+      // Загрузка поставок
       const suppliesResponse = await AutoAssemblyAPI.getSupplies();
       console.log("Loaded supplies:", suppliesResponse);
-      setSupplies(suppliesResponse || []);
+      setSupplies(suppliesResponse);
+      
     } catch (error) {
-      console.error("Ошибка загрузки данных:", error);
-      toast.error("Не удалось загрузить данные по сборочным заданиям");
+      console.error("Error loading data:", error);
+      
+      // Если ошибка 401, предлагаем открыть диагностику
+      if (error instanceof Error && error.message.includes('401')) {
+        toast.error("Ошибка авторизации API (401)", {
+          description: "Проверьте токен авторизации",
+          action: {
+            label: "Диагностика",
+            onClick: () => setShowTokenDiagnostics(true)
+          }
+        });
+      } else {
+        toast.error("Ошибка загрузки данных", {
+          description: error instanceof Error ? error.message : "Неизвестная ошибка"
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -91,215 +131,160 @@ const AutoAssembly = () => {
     loadData();
   }, []);
 
-  useEffect(() => {
-    let result = [...orders];
-    if (filters.warehouse) {
-      const warehouseId = parseInt(filters.warehouse);
-      result = result.filter(order => order.warehouseId === warehouseId);
-    }
-    if (filters.cargoType) {
-      const cargoType = parseInt(filters.cargoType);
-      result = result.filter(order => order.cargoType === cargoType);
-    }
-    if (filters.category) {
-      result = result.filter(order => order.category === filters.category);
-    }
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      result = result.filter(order => 
-        order.productName.toLowerCase().includes(searchLower) || 
-        order.orderUid.toLowerCase().includes(searchLower) || 
-        order.supplierArticle && order.supplierArticle.toLowerCase().includes(searchLower)
-      );
-    }
-    result.sort((a, b) => {
-      let compareA, compareB;
-      switch (filters.sortBy) {
-        case 'createdAt':
-          compareA = new Date(a.createdAt).getTime();
-          compareB = new Date(b.createdAt).getTime();
-          break;
-        case 'price':
-          compareA = a.salePrice;
-          compareB = b.salePrice;
-          break;
-        case 'ddate':
-          compareA = new Date(a.ddate).getTime();
-          compareB = new Date(b.ddate).getTime();
-          break;
-        case 'name':
-          compareA = a.productName;
-          compareB = b.productName;
-          break;
-        case 'category':
-          compareA = a.category || '';
-          compareB = b.category || '';
-          break;
-        default:
-          compareA = a.id;
-          compareB = b.id;
-      }
-      if (typeof compareA === 'string' && typeof compareB === 'string') {
-        return filters.sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
-      }
-      return filters.sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
-    });
-    setFilteredOrders(result);
-  }, [filters, orders]);
+  const handleRefreshOrders = async () => {
+    loadData();
+  };
 
-  const handleFilterChange = (field: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleAutoAssemble = async () => {
+    setIsLoading(true);
+    try {
+      const result = await AutoAssemblyAPI.autoAssembleOrders(filteredOrders);
+      setAutoAssemblyResult(result);
+      setShowResultDialog(true);
+    } catch (error) {
+      console.error("Error during auto-assembly:", error);
+      toast.error("Ошибка при автоматической сборке", {
+        description: error instanceof Error ? error.message : "Неизвестная ошибка"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleOrderSelection = (orderId: number) => {
-    const newSelectedOrders = new Set(selectedOrders);
-    if (selectedOrders.has(orderId)) {
-      newSelectedOrders.delete(orderId);
-    } else {
-      newSelectedOrders.add(orderId);
-    }
-    setSelectedOrders(newSelectedOrders);
+    setSelectedOrders((prevSelected) =>
+      prevSelected.includes(orderId)
+        ? prevSelected.filter((id) => id !== orderId)
+        : [...prevSelected, orderId]
+    );
   };
 
   const toggleSelectAll = () => {
-    if (selectedOrders.size === filteredOrders.length) {
-      setSelectedOrders(new Set());
+    if (allSelected) {
+      setSelectedOrders([]);
     } else {
-      setSelectedOrders(new Set(filteredOrders.map(order => order.id)));
+      const filteredOrderIds = filteredOrders.map((order) => order.id);
+      setSelectedOrders(filteredOrderIds);
+    }
+  };
+
+  const allSelected = filteredOrders.length > 0 && selectedOrders.length === filteredOrders.length;
+  const selectedOrdersCount = selectedOrders.length;
+
+  const handlePrintStickers = async () => {
+    setIsProcessing(true);
+    try {
+      const result = await AutoAssemblyAPI.printStickers(selectedOrders);
+      console.log("Print stickers result:", result);
+      toast.success("Задания на печать стикеров отправлены", {
+        description: `Выбрано ${selectedOrders.length} заказов`
+      });
+    } catch (error) {
+      console.error("Error printing stickers:", error);
+      toast.error("Ошибка при печати стикеров", {
+        description: error instanceof Error ? error.message : "Неизвестная ошибка"
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleAssembleOrders = async () => {
-    if (selectedOrders.size === 0) {
-      toast.error("Выберите хотя бы одно сборочное задание");
-      return;
-    }
     setIsProcessing(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success(`Создана поставка с ${selectedOrders.size} сборочными заданиями`);
-      const updatedOrders = orders.map(order => {
-        if (selectedOrders.has(order.id)) {
-          return {
-            ...order,
-            inSupply: true
-          };
-        }
-        return order;
+      const result = await AutoAssemblyAPI.assembleOrders(selectedOrders);
+      console.log("Assemble orders result:", result);
+      toast.success("Заказы успешно собраны", {
+        description: `Выбрано ${selectedOrders.length} заказов`
       });
-      setOrders(updatedOrders);
-      setSelectedOrders(new Set());
+      loadData();
+      setSelectedOrders([]);
     } catch (error) {
-      console.error("Ошибка создания поставки:", error);
-      toast.error("Не удалось создать поставку");
+      console.error("Error assembling orders:", error);
+      toast.error("Ошибка при сборке заказов", {
+        description: error instanceof Error ? error.message : "Неизвестная ошибка"
+      });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleAutoAssemble = async () => {
-    const availableOrders = orders.filter(order => !order.inSupply);
-    if (availableOrders.length === 0) {
-      toast.error("Нет доступных заказов для автосборки");
-      return;
+  const handleFilterChange = (newFilterState: Partial<FilterState>) => {
+    setFilterState((prev) => ({ ...prev, ...newFilterState }));
+  };
+
+  const filteredOrders = orders.filter((order) => {
+    if (filterState.warehouseId && order.warehouseId !== filterState.warehouseId.id) {
+      return false;
     }
-    setIsAutoAssembling(true);
-    try {
-      const result = await AutoAssemblyAPI.createCategorizedSupplies(availableOrders);
-      if (result.success) {
-        const updatedOrders = orders.map(order => {
-          const category = order.category;
-          let shouldBeInSupply = false;
-          if (category === ProductCategory.PERFUME && result.perfumeSupplyId) {
-            shouldBeInSupply = true;
-          } else if (category === ProductCategory.CLOTHING && result.clothingSupplyId) {
-            shouldBeInSupply = true;
-          } else if (category === ProductCategory.MISC && result.miscSupplyId) {
-            shouldBeInSupply = true;
-          }
-          if (shouldBeInSupply) {
-            return {
-              ...order,
-              inSupply: true
-            };
-          }
-          return order;
-        });
-        setOrders(updatedOrders);
-        setAutoAssemblyResult(result);
-        setShowResultDialog(true);
-        if (!result.perfumeSupplyId && !result.clothingSupplyId && !result.miscSupplyId) {
-          toast.error("Не удалось создать ни одной поставки");
+    if (filterState.productCategory && order.productCategory !== filterState.productCategory) {
+      return false;
+    }
+    if (filterState.cargoType && order.cargoType !== filterState.cargoType.name) {
+      return false;
+    }
+    if (filterState.dateFrom && new Date(order.orderDate) < filterState.dateFrom) {
+      return false;
+    }
+    if (filterState.dateTo && new Date(order.orderDate) > filterState.dateTo) {
+      return false;
+    }
+    return true;
+  });
+
+  const handleSort = (key: keyof AssemblyOrder) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+
+    setSortConfig({ key, direction });
+  };
+
+  useEffect(() => {
+    if (sortConfig.key) {
+      const sortedOrders = [...filteredOrders].sort((a, b) => {
+        const key = sortConfig.key as keyof AssemblyOrder;
+        const aValue = a[key];
+        const bValue = b[key];
+
+        if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+        } else if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortConfig.direction === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        } else {
+          return 0;
         }
-      } else {
-        toast.error("Ошибка при автоматическом формировании поставок");
-      }
-    } catch (error) {
-      console.error("Ошибка автосборки:", error);
-      toast.error("Произошла ошибка при автоматическом формировании поставок");
-    } finally {
-      setIsAutoAssembling(false);
-    }
-  };
+      });
 
-  const handleRefreshOrders = async () => {
-    await loadData();
-    toast.success("Список заданий обновлен");
-  };
-
-  const handlePrintStickers = async () => {
-    if (selectedOrders.size === 0) {
-      toast.error("Выберите хотя бы одно сборочное задание");
-      return;
+      setOrders(sortedOrders);
+    } else {
+      loadData();
     }
-    setIsProcessing(true);
-    try {
-      const orderIds = Array.from(selectedOrders);
-      const downloadUrl = await AutoAssemblyAPI.printStickers(orderIds);
-      if (downloadUrl) {
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `stickers_${new Date().toISOString().slice(0, 10)}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success(`Стикеры для ${selectedOrders.size} заказов созданы`);
-      } else {
-        toast.error("Не удалось создать стикеры");
-      }
-    } catch (error) {
-      console.error("Ошибка при создании стикеров:", error);
-      toast.error("Произошла ошибка при создании стикеров");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  }, [sortConfig]);
 
+  const handleCheckToken = useCallback(() => {
+    setShowTokenDiagnostics(true);
+  }, []);
+  
   return (
     <div className="container mx-auto py-6 max-w-7xl">
+      {/* Заголовок и кнопки управления */}
       <div className="flex flex-wrap justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Автосборка</h1>
+          <h1 className="text-2xl font-bold">Автоматическая сборка</h1>
           <p className="text-muted-foreground">
-            Управление сборочными заданиями и создание поставок
+            Формирование поставок на основе заказов и производство коробов
           </p>
         </div>
         <div className="flex gap-2">
           <Button 
             variant="outline" 
             className="border-dashed flex items-center gap-1" 
-            onClick={() => {
-              // Диагностическая кнопка для проверки токена
-              const token = getApiToken();
-              const headerName = getHeaderName();
-              logAuthStatus(token, headerName);
-              toast.info("Проверка авторизации", {
-                description: `Заголовок: ${headerName}, Токен: ${token.substring(0, 15)}...`,
-              });
-            }}
+            onClick={handleCheckToken}
           >
             <Shield className="h-4 w-4" />
             Проверить токен
@@ -309,23 +294,14 @@ const AutoAssembly = () => {
             <RefreshCw className="mr-2 h-4 w-4" />
             Обновить задания
           </Button>
-          
-          <Button variant="purple" size="lg" onClick={handleAutoAssemble} disabled={isLoading || isAutoAssembling}>
-            {isAutoAssembling ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Формирование поставок...
-              </>
-            ) : (
-              <>
-                <Package className="mr-2 h-4 w-4" />
-                Автосформировать поставки
-              </>
-            )}
+          <Button onClick={handleAutoAssemble} disabled={isLoading || !filteredOrders.length}>
+            <Package className="mr-2 h-4 w-4" />
+            Автосборка
           </Button>
         </div>
       </div>
       
+      {/* Диалоговые окна */}
       <ResultDialog 
         showResultDialog={showResultDialog} 
         setShowResultDialog={setShowResultDialog} 
@@ -333,49 +309,47 @@ const AutoAssembly = () => {
         setActiveTab={setActiveTab} 
       />
       
+      <TokenDiagnostics 
+        open={showTokenDiagnostics}
+        onOpenChange={setShowTokenDiagnostics}
+      />
+      
       <Tabs defaultValue="orders" value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList>
-          <TabsTrigger value="orders">
-            <Box className="mr-2 h-4 w-4" />
-            Сборочные задания
+          <TabsTrigger value="orders" className="flex items-center">
+            <Package className="mr-2 h-4 w-4" />
+            Заказы ({filteredOrders.length})
           </TabsTrigger>
-          <TabsTrigger value="supplies">
+          <TabsTrigger value="supplies" className="flex items-center">
             <Truck className="mr-2 h-4 w-4" />
-            Поставки
+            Поставки ({supplies.length})
           </TabsTrigger>
         </TabsList>
         
         <TabsContent value="orders" className="space-y-4">
           <OrdersFilters 
-            filters={filters} 
-            warehouses={warehouses} 
-            cargoTypes={cargoTypes} 
-            handleFilterChange={handleFilterChange} 
-            filteredOrdersCount={filteredOrders.length} 
+            filterState={filterState} 
+            onFilterChange={handleFilterChange} 
+            warehouseOptions={warehouseOptions}
+            cargoTypeOptions={cargoTypeOptions}
           />
-          
           <Card>
-            <CardContent className="p-0">
-              <OrdersTable 
-                filteredOrders={filteredOrders}
-                isLoading={isLoading}
-                selectedOrders={selectedOrders}
-                warehouses={warehouses}
-                toggleOrderSelection={toggleOrderSelection}
-                toggleSelectAll={toggleSelectAll}
-                handleRefreshOrders={handleRefreshOrders}
-                formatPrice={formatPrice}
-                getCategoryDisplay={getCategoryDisplay}
-                renderCargoTypeBadge={(cargoType) => renderCargoTypeBadge(cargoType, cargoTypes)}
-              />
-              
-              <SelectedOrdersActions 
-                selectedOrdersCount={selectedOrders.size}
-                isProcessing={isProcessing}
-                handlePrintStickers={handlePrintStickers}
-                handleAssembleOrders={handleAssembleOrders}
-              />
-            </CardContent>
+            <OrdersTable 
+              filteredOrders={filteredOrders}
+              isLoading={isLoading}
+              selectedOrders={selectedOrders}
+              toggleOrderSelection={toggleOrderSelection}
+              toggleSelectAll={toggleSelectAll}
+              allSelected={allSelected}
+              sortConfig={sortConfig}
+              handleSort={handleSort}
+            />
+            <SelectedOrdersActions 
+              selectedOrdersCount={selectedOrdersCount}
+              isProcessing={isProcessing}
+              handlePrintStickers={handlePrintStickers}
+              handleAssembleOrders={handleAssembleOrders}
+            />
           </Card>
         </TabsContent>
         
@@ -385,6 +359,7 @@ const AutoAssembly = () => {
             supplies={supplies}
             loadData={loadData}
             setActiveTab={setActiveTab}
+            navigate={navigate}
           />
         </TabsContent>
       </Tabs>

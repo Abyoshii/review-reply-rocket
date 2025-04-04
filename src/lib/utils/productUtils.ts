@@ -3,7 +3,7 @@ import axios from "axios";
 import { ProductCardInfo, ProductCategory } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
 import { toast } from "sonner";
-import { getApiToken } from "../securityUtils";
+import { getApiToken, addAuthHeaders } from "../securityUtils";
 
 // API URL для получения информации о товаре
 const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards/list";
@@ -34,20 +34,13 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       }
     };
     
-    // Получаем токен для запроса
-    const TOKEN = getApiToken();
-    
     // Выводим детали запроса
     console.log(`🔍 Запрос данных карточки товара через POST API для nmId=${nmId}:`);
     console.log(`URL: ${WB_CARD_API_URL}`);
-    console.log(`Токен: ${TOKEN ? "Присутствует" : "Отсутствует!"}`);
     console.log(`Тело запроса:`, JSON.stringify(requestBody, null, 2));
     
-    // Формируем заголовки запроса с токеном авторизации
-    const headers = {
-      "Authorization": `Bearer ${TOKEN}`,
-      "Content-Type": "application/json"
-    };
+    // Формируем заголовки запроса с токеном авторизации, передаем URL для проверки совместимости
+    const headers = addAuthHeaders({}, WB_CARD_API_URL);
     
     // Выполняем запрос с заголовками авторизации
     const response = await axios.post(WB_CARD_API_URL, requestBody, { headers });
@@ -129,10 +122,19 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       console.error(`Статус ошибки: ${error.response?.status}`);
       console.error(`Данные ошибки:`, error.response?.data);
       
-      // Уведомляем пользователя о проблеме с API
-      toast.error(`Ошибка получения данных товара ${nmId}`, {
-        description: `${error.message} (${error.response?.status || "неизвестный статус"})`
-      });
+      // Специальная обработка для ошибки 401
+      if (error.response?.status === 401) {
+        console.error(`❌ Ошибка авторизации (401) при запросе данных товара. Проверьте токен!`);
+        toast.error(`Ошибка авторизации при получении данных товара ${nmId}`, {
+          description: `Возможно, токен устарел или неверной категории (требуется Контент API)`,
+          important: true
+        });
+      } else {
+        // Уведомляем пользователя о проблеме с API
+        toast.error(`Ошибка получения данных товара ${nmId}`, {
+          description: `${error.message} (${error.response?.status || "неизвестный статус"})`
+        });
+      }
     }
     
     return null;
