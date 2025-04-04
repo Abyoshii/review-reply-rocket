@@ -25,8 +25,8 @@ const deobfuscateToken = (encodedToken: string): string => {
   }
 };
 
-// Используем константу для API токена, чтобы избежать опечаток
-const API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
+// Используем константу для единого API токена для всех API
+const API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU3ODUyNSwiaWQiOiIwMTk2MDMzNC1mYjA2LTc0ZjUtOGIwMC03MjU4YWI4OWM1MzAiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NzkzNCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6ZmFsc2UsInVpZCI6NTAxMDkyNzB9.e8n-W4xKLY9lpMANMRP4_0xZzKHL8gKAUeaXOkcxO6sLSUWHf_vTCGF5IoBceu5o6Dbj3K9Cu7CCbgRC07myPg";
 
 // Функция для декодирования JWT без использования внешних библиотек
 const decodeJWT = (token: string): { header: any, payload: any } | null => {
@@ -314,7 +314,7 @@ const getTokenDetails = (token: string): {
     result.category = payload.ent;
   }
   
-  // Детализация токена
+  // Детализация токена - удаляем пустые данные
   let details = "";
   if (result.expiresAt) {
     details += `Истекает: ${result.expiresAt.toLocaleDateString()} ${result.expiresAt.toLocaleTimeString()}\n`;
@@ -324,6 +324,15 @@ const getTokenDetails = (token: string): {
   }
   if (payload.id) {
     details += `ID: ${payload.id}\n`;
+  }
+  if (payload.oid) {
+    details += `OID: ${payload.oid}\n`;
+  }
+  if (payload.s) {
+    details += `S: ${payload.s}\n`;
+  }
+  if (payload.sid) {
+    details += `SID: ${payload.sid}\n`;
   }
   
   result.details = details.trim();

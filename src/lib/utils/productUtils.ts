@@ -1,13 +1,12 @@
+
 import axios from "axios";
 import { ProductCardInfo, ProductCategory } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
 import { toast } from "sonner";
+import { getApiToken } from "../securityUtils";
 
 // API URL для получения информации о товаре
 const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards/list";
-
-// Специальный токен для запросов к API карточек товаров
-const PRODUCT_CARD_API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU3ODIxNiwiaWQiOiIwMTk2MDMzMC00MzI0LTc2YTQtYTYwOS1iOWIwYjM0ZjQ2MTYiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NDE3OCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6ZmFsc2UsInVpZCI6NTAxMDkyNzB9.gusUFEWP9X0AVMFeurwgV1OctQUbFbag5s_bA1AHPdvlSCLmaye0Fq3pzwDQzwNgJ1Z21eP0vnp-ARHJeDBTwQ";
 
 // Кэш для хранения информации о товарах
 const productInfoCache: Record<number, ProductCardInfo> = {};
@@ -40,14 +39,17 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     console.log(`URL: ${WB_CARD_API_URL}`);
     console.log(`Тело запроса:`, JSON.stringify(requestBody, null, 2));
     
-    // Формируем заголовки запроса НАПРЯМУЮ с токеном для API карточек товаров
+    // Получаем единый токен для всех API
+    const token = getApiToken();
+    
+    // Формируем заголовки запроса с единым токеном
     const headers = {
-      'Authorization': `Bearer ${PRODUCT_CARD_API_TOKEN}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     };
     
-    console.log(`🔑 Используется специальный токен для API карточек товаров`);
-    console.log(`🔑 Заголовок Authorization: Bearer ${PRODUCT_CARD_API_TOKEN.substring(0, 20)}...`);
+    console.log(`🔑 Используется единый токен API`);
+    console.log(`🔑 Заголовок Authorization: Bearer ${token.substring(0, 20)}...`);
     
     // Выполняем запрос с заданными заголовками авторизации
     const response = await axios.post(WB_CARD_API_URL, requestBody, { headers });
@@ -66,7 +68,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       console.warn(`⚠️ [WARN] Не найдены данные товара для nmId=${nmId}. API вернул пустой результат.`);
       // Добавим уведомление пользователю о проблеме
       toast.warning(`Товар ${nmId} не найден в каталоге WB`, {
-        description: "Проверьте правильность номенклатуры или доступность API"
+        description: "Данные не загружены, возможно проблемы с API"
       });
       return null;
     }
@@ -78,7 +80,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     if (!product.title) {
       console.warn(`⚠️ [WARN] У товара nmId=${nmId} отсутствует поле title (наименование).`);
       toast.warning(`Ошибка данных товара ${nmId}`, {
-        description: "Отсутствует название товара"
+        description: "Отсутствует название товара, данные не загружены"
       });
       return null;
     }
@@ -88,7 +90,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     if (!hasImages) {
       console.warn(`⚠️ [WARN] У товара nmId=${nmId} отсутствуют фотографии или URL фотографии.`);
       toast.warning(`Ошибка данных товара ${nmId}`, {
-        description: "Отсутствуют изображения товара"
+        description: "Отсутствуют изображения товара, данные неполные"
       });
       return null;
     }
@@ -100,7 +102,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     if (!product.subjectName) {
       console.warn(`⚠️ [WARN] У товара nmId=${nmId} отсутствует поле subjectName (категория).`);
       toast.warning(`Ошибка данных товара ${nmId}`, {
-        description: "Отсутствует категория товара"
+        description: "Отсутствует категория товара, данные неполные"
       });
       return null;
     }
@@ -109,7 +111,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     const productInfo: ProductCardInfo = {
       nmId: nmId,
       name: product.title,
-      brand: product.brand || "",
+      brand: product.brand || "Бренд не указан",
       image: product.photos[0].big,
       category: product.subjectName,
       productCategory: determineCategoryBySubject(product.subjectName)
@@ -131,15 +133,15 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       
       // Специальная обработка для ошибки 401
       if (error.response?.status === 401) {
-        console.error(`❌ Ошибка авторизации (401) при запросе данных товара. Проверьте токен для API карточек товаров!`);
+        console.error(`❌ Ошибка авторизации (401) при запросе данных товара. Проверьте токен API!`);
         toast.error(`Ошибка авторизации при получении данных товара ${nmId}`, {
-          description: `Специальный токен для API карточек товаров недействителен или просрочен`,
+          description: `Токен API недействителен или просрочен`,
           important: true
         });
       } else {
         // Уведомляем пользователя о проблеме с API
         toast.error(`Ошибка получения данных товара ${nmId}`, {
-          description: `${error.message} (${error.response?.status || "неизвестный статус"})`
+          description: `Данные не загружены: ${error.message} (${error.response?.status || "неизвестный статус"})`
         });
       }
     }

@@ -7,11 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, AlertCircle, CheckCircle, Clock, XCircle, RefreshCw } from "lucide-react";
+import { Shield, AlertCircle, CheckCircle, Clock, XCircle, RefreshCw, Info } from "lucide-react";
 import { getApiToken, getHeaderName, decodeJWT, getTokenDetails, saveApiToken } from "@/lib/securityUtils";
 import { logAuthStatus } from "@/lib/logUtils";
 import { SecuritySettings } from "@/types/openai";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface TokenDiagnosticsProps {
   open: boolean;
@@ -24,12 +25,26 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
   const [headerName, setHeaderName] = useState(() => getHeaderName());
   const [tokenDetails, setTokenDetails] = useState(() => getTokenDetails(currentToken));
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const refreshTokenDetails = () => {
-    const token = getApiToken();
-    setCurrentToken(token);
-    setTokenDetails(getTokenDetails(token));
-    logAuthStatus(token, headerName);
+    setIsLoading(true);
+    try {
+      const token = getApiToken();
+      setCurrentToken(token);
+      setTokenDetails(getTokenDetails(token));
+      logAuthStatus(token, headerName);
+      
+      toast.success("Информация о токене обновлена", {
+        description: "Токен успешно проверен"
+      });
+    } catch (error) {
+      toast.error("Ошибка при обновлении информации о токене", {
+        description: "Не удалось получить данные токена"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleUpdateToken = () => {
@@ -79,66 +94,90 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                {tokenDetails.isValid ? (
-                  tokenDetails.isExpired ? (
-                    <Badge variant="destructive" className="flex items-center gap-1">
-                      <XCircle className="w-4 h-4" /> Просрочен
-                    </Badge>
+                {isLoading ? (
+                  <Skeleton className="h-6 w-24" />
+                ) : (
+                  tokenDetails.isValid ? (
+                    tokenDetails.isExpired ? (
+                      <Badge variant="destructive" className="flex items-center gap-1">
+                        <XCircle className="w-4 h-4" /> Просрочен
+                      </Badge>
+                    ) : (
+                      <Badge variant="default" className="bg-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-4 h-4" /> Действителен
+                      </Badge>
+                    )
                   ) : (
-                    <Badge variant="default" className="bg-green-600 flex items-center gap-1">
-                      <CheckCircle className="w-4 h-4" /> Действителен
+                    <Badge variant="destructive" className="flex items-center gap-1">
+                      <XCircle className="w-4 h-4" /> Недействителен
                     </Badge>
                   )
-                ) : (
-                  <Badge variant="destructive" className="flex items-center gap-1">
-                    <XCircle className="w-4 h-4" /> Недействителен
-                  </Badge>
                 )}
                 <span className="ml-2">Текущий токен</span>
               </CardTitle>
               <CardDescription>
-                Заголовок: {headerName}
+                Заголовок: {headerName || "Не указан"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="bg-secondary/50 p-2 rounded text-xs font-mono break-all">
-                {currentToken || "Токен не установлен"}
-              </div>
-              
-              {tokenDetails.isValid && (
-                <div className="text-sm space-y-1 mt-2">
-                  {tokenDetails.expiresAt && (
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      <span>
-                        {tokenDetails.isExpired ? (
-                          <span className="text-destructive font-semibold">
-                            Истек: {tokenDetails.expiresAt.toLocaleDateString()} {tokenDetails.expiresAt.toLocaleTimeString()}
-                          </span>
-                        ) : (
+              {isLoading ? (
+                <Skeleton className="h-20 w-full" />
+              ) : (
+                <>
+                  <div className="bg-secondary/50 p-2 rounded text-xs font-mono break-all">
+                    {currentToken || "Токен не установлен"}
+                  </div>
+                  
+                  {tokenDetails.isValid ? (
+                    <div className="text-sm space-y-1 mt-2">
+                      {tokenDetails.expiresAt && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
                           <span>
-                            Действителен до: {tokenDetails.expiresAt.toLocaleDateString()} {tokenDetails.expiresAt.toLocaleTimeString()}
+                            {tokenDetails.isExpired ? (
+                              <span className="text-destructive font-semibold">
+                                Истек: {tokenDetails.expiresAt.toLocaleDateString()} {tokenDetails.expiresAt.toLocaleTimeString()}
+                              </span>
+                            ) : (
+                              <span>
+                                Действителен до: {tokenDetails.expiresAt.toLocaleDateString()} {tokenDetails.expiresAt.toLocaleTimeString()}
+                              </span>
+                            )}
                           </span>
-                        )}
-                      </span>
+                        </div>
+                      )}
+                      
+                      {tokenDetails.category !== undefined && (
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4" />
+                          <span>Категория токена: {tokenDetails.category}</span>
+                        </div>
+                      )}
+                      
+                      {tokenDetails.details && (
+                        <>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Info className="w-4 h-4" />
+                            <span className="font-medium">Детальная информация:</span>
+                          </div>
+                          <Textarea 
+                            readOnly 
+                            value={tokenDetails.details} 
+                            className="h-24 text-xs font-mono mt-1" 
+                          />
+                        </>
+                      )}
                     </div>
+                  ) : (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Данные токена не получены</AlertTitle>
+                      <AlertDescription>
+                        Токен отсутствует или имеет неверный формат
+                      </AlertDescription>
+                    </Alert>
                   )}
-                  
-                  {tokenDetails.category !== undefined && (
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      <span>Категория токена: {tokenDetails.category}</span>
-                    </div>
-                  )}
-                  
-                  {tokenDetails.details && (
-                    <Textarea 
-                      readOnly 
-                      value={tokenDetails.details} 
-                      className="h-24 text-xs font-mono mt-2" 
-                    />
-                  )}
-                </div>
+                </>
               )}
             </CardContent>
             <CardFooter>
@@ -147,14 +186,20 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
                 size="sm" 
                 className="w-full" 
                 onClick={refreshTokenDetails}
+                disabled={isLoading}
               >
-                <RefreshCw className="w-4 h-4 mr-2" /> Обновить информацию
+                {isLoading ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Обновить информацию
               </Button>
             </CardFooter>
           </Card>
           
           {/* Предупреждения и рекомендации */}
-          {tokenDetails.isExpired && (
+          {!isLoading && tokenDetails.isExpired && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Токен просрочен!</AlertTitle>
@@ -164,7 +209,7 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
             </Alert>
           )}
           
-          {!tokenDetails.isValid && (
+          {!isLoading && !tokenDetails.isValid && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Недействительный токен</AlertTitle>
@@ -238,7 +283,7 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
                 <li>Скопируйте токен и вставьте в поле выше</li>
               </ol>
               <p className="mt-2 text-amber-500">
-                ⚠️ Для разных API могут потребоваться разные токены. Для работы с контентом необходим токен категории "Контент".
+                ⚠️ Обратите внимание, что мы используем единый токен для всех API Wildberries.
               </p>
             </CardContent>
           </Card>
