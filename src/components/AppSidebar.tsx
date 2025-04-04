@@ -42,7 +42,7 @@ const AppSidebar = () => {
                 <SidebarMenuButton 
                   isActive={isActive("/")} 
                   onClick={() => navigate("/")}
-                  tooltip="Главная"
+                  tooltip="Главная - статистика заказов и продаж"
                   className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-300"
                 >
                   <LayoutDashboard size={18} />
@@ -54,7 +54,7 @@ const AppSidebar = () => {
                 <SidebarMenuButton 
                   isActive={isActive("/reviews")} 
                   onClick={() => navigate("/reviews")}
-                  tooltip="Отзывы"
+                  tooltip="Отзывы и управление отзывами"
                 >
                   <MessageSquare size={18} />
                   <span>Отзывы</span>

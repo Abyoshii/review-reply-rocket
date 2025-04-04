@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
@@ -9,6 +9,46 @@ import { ChevronRight, Package, TrendingUp, Clock, AlertCircle, RefreshCw } from
 const Index = () => {
   const [ordersExpanded, setOrdersExpanded] = useState(true);
   const [salesExpanded, setSalesExpanded] = useState(true);
+  const [lastUpdateTime, setLastUpdateTime] = useState(new Date());
+  
+  // Демо-данные для статистики (в реальном приложении будут приходить с API)
+  const [stats, setStats] = useState({
+    orders: {
+      total: 1287,
+      today: 42,
+      pending: 23,
+      completed: 19
+    },
+    sales: {
+      total: 985,
+      today: 36,
+      amount: 124500,
+      returns: 5
+    }
+  });
+  
+  // Обновление времени последнего обновления каждые 30 секунд для демо
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLastUpdateTime(new Date());
+      
+      // Имитация изменения данных для демонстрации
+      setStats(prev => ({
+        orders: {
+          ...prev.orders,
+          today: prev.orders.today + Math.floor(Math.random() * 3),
+          pending: prev.orders.pending + Math.floor(Math.random() * 2),
+        },
+        sales: {
+          ...prev.sales,
+          today: prev.sales.today + Math.floor(Math.random() * 2),
+          amount: prev.sales.amount + Math.floor(Math.random() * 10000),
+        }
+      }));
+    }, 30000);
+    
+    return () => clearInterval(timer);
+  }, []);
   
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -16,9 +56,73 @@ const Index = () => {
         <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-400">Главная</h1>
       </div>
       
+      {/* Панель статистики */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card className="bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Всего заказов</p>
+                <h3 className="text-3xl font-bold mt-1 text-purple-700 dark:text-purple-400">{stats.orders.total}</h3>
+              </div>
+              <div className="bg-purple-100 dark:bg-purple-900/40 p-2 rounded-full">
+                <Package className="h-6 w-6 text-purple-700 dark:text-purple-400" />
+              </div>
+            </div>
+            <p className="text-sm mt-4 text-green-600 dark:text-green-400">+{stats.orders.today} сегодня</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-800/20 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Ожидают сборки</p>
+                <h3 className="text-3xl font-bold mt-1 text-blue-600 dark:text-blue-400">{stats.orders.pending}</h3>
+              </div>
+              <div className="bg-blue-100 dark:bg-blue-900/40 p-2 rounded-full">
+                <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <p className="text-sm mt-4 text-blue-600 dark:text-blue-400">{stats.orders.completed} собрано сегодня</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-gray-800/20 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Всего продаж</p>
+                <h3 className="text-3xl font-bold mt-1 text-green-600 dark:text-green-400">{stats.sales.total}</h3>
+              </div>
+              <div className="bg-green-100 dark:bg-green-900/40 p-2 rounded-full">
+                <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <p className="text-sm mt-4 text-green-600 dark:text-green-400">+{stats.sales.today} сегодня</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/20 dark:to-gray-800/20 shadow-md">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Сумма продаж</p>
+                <h3 className="text-3xl font-bold mt-1 text-amber-600 dark:text-amber-400">{new Intl.NumberFormat('ru-RU').format(stats.sales.amount)} ₽</h3>
+              </div>
+              <div className="bg-amber-100 dark:bg-amber-900/40 p-2 rounded-full">
+                <RefreshCw className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+            <p className="text-sm mt-4 text-red-500 dark:text-red-400">{stats.sales.returns} возвратов</p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Информация о API */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-purple-100 dark:border-purple-900/40">
-          <Collapsible open={ordersExpanded} onOpenChange={setOrdersExpanded}>
+        <Collapsible open={ordersExpanded} onOpenChange={setOrdersExpanded} className="col-span-1">
+          <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-purple-100 dark:border-purple-900/40">
             <CardHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -110,11 +214,11 @@ const Index = () => {
                 </div>
               </CardContent>
             </CollapsibleContent>
-          </Collapsible>
-        </Card>
+          </Card>
+        </Collapsible>
         
-        <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-purple-100 dark:border-purple-900/40">
-          <Collapsible open={salesExpanded} onOpenChange={setSalesExpanded}>
+        <Collapsible open={salesExpanded} onOpenChange={setSalesExpanded} className="col-span-1">
+          <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-purple-100 dark:border-purple-900/40">
             <CardHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -202,13 +306,13 @@ const Index = () => {
                 </div>
               </CardContent>
             </CollapsibleContent>
-          </Collapsible>
-        </Card>
+          </Card>
+        </Collapsible>
       </div>
 
       <div className="mt-8 text-center">
         <p className="text-gray-500 dark:text-gray-400 text-sm">
-          Данные обновляются каждые 30 минут. Последнее обновление: {new Date().toLocaleTimeString()}
+          Данные обновляются каждые 30 минут. Последнее обновление: {lastUpdateTime.toLocaleTimeString()}
         </p>
       </div>
     </div>

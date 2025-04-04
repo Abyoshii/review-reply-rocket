@@ -5,6 +5,7 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { SidebarProvider } from "./components/ui/sidebar";
 import AppSidebar from "./components/AppSidebar";
 import Index from "./pages/Index";
+import Reviews from "./pages/Reviews";
 import NotFound from "./pages/NotFound";
 import { Toaster } from "./components/ui/toaster";
 import AutoAssembly from "./pages/AutoAssembly";
@@ -35,6 +36,7 @@ function App() {
               <main className="flex-1">
                 <Routes>
                   <Route path="/" element={<Index />} />
+                  <Route path="/reviews" element={<Reviews />} />
                   <Route path="/auto-assembly" element={<AutoAssembly />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
