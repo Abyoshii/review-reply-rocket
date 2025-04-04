@@ -85,6 +85,9 @@ import {
   type StickerSize
 } from "@/lib/autoAssemblyApi";
 
+// String literals for Russian category names
+type RussianCategoryName = "Парфюмерия" | "Одежда" | "Мелочёвка";
+
 // Типы для данных
 interface AppOrder extends Order {
   id: number;
@@ -93,7 +96,7 @@ interface AppOrder extends Order {
   barcode?: string;
   count?: number;
   date?: string;
-  category?: ProductCategory;
+  category?: ProductCategory | RussianCategoryName;
 }
 
 interface AppSupply extends Omit<Supply, 'id'> {
@@ -104,7 +107,7 @@ interface AppSupply extends Omit<Supply, 'id'> {
 }
 
 // Функция определения категории товара по названию
-const detectCategory = (name: string): "Парфюмерия" | "Одежда" | "Мелочёвка" => {
+const detectCategory = (name: string): RussianCategoryName => {
   const perfumeKeywords = ["духи", "туалетная вода", "парфюмерная вода", "аромат", "eau de parfum", "eau de toilette"];
   const clothingKeywords = ["куртка", "брюки", "спортивные", "платье", "футболка", "джинсы", "шорты", "юбка", "бейсболка", "толстовка", "жилет"];
   
@@ -134,7 +137,7 @@ const categoryToApiType = (category: string): ProductCategory => {
 };
 
 // Функция для конвертации API типа в категорию товара
-const apiTypeToCategory = (type: ProductCategory): string => {
+const apiTypeToCategory = (type: ProductCategory): RussianCategoryName => {
   switch (type) {
     case "perfume":
       return "Парфюмерия";
@@ -200,7 +203,7 @@ const AutoAssembly: React.FC = () => {
         barcode: `123${order.id}`,
         count: 1,
         date: order.createdAt,
-        category: detectCategory(order.name) as ProductCategory
+        category: detectCategory(order.name)
       }));
       setOrders(processedOrders);
     } catch (error) {
@@ -224,8 +227,8 @@ const AutoAssembly: React.FC = () => {
         id: supply.id.toString(),
         date: supply.createdAt,
         count: supply.ordersCount,
-        category: supply.category
-      }));
+        category: apiTypeToCategory(supply.category)
+      })) as AppSupply[];
       setSupplies(processedSupplies);
     } catch (error) {
       console.error("Failed to fetch supplies:", error);
@@ -249,7 +252,7 @@ const AutoAssembly: React.FC = () => {
         count: 1,
         date: order.createdAt,
         category: detectCategory(order.name)
-      }));
+      })) as AppOrder[];
       
       // Обновляем список заказов для поставки
       const updatedSupplies = supplies.map(supply => {
@@ -260,7 +263,7 @@ const AutoAssembly: React.FC = () => {
           };
         }
         return supply;
-      });
+      }) as AppSupply[];
       
       setSupplies(updatedSupplies);
       return processedOrders;
@@ -308,7 +311,7 @@ const AutoAssembly: React.FC = () => {
       case "name":
         return a.name.localeCompare(b.name);
       case "category":
-        return (a.category || "").localeCompare(b.category || "");
+        return (a.category || "").toString().localeCompare((b.category || "").toString());
       default:
         return 0;
     }
@@ -472,7 +475,7 @@ const AutoAssembly: React.FC = () => {
     } else {
       // Иначе загружаем заказы этой поставки
       fetchSupplyOrders(supply.id).then(orders => {
-        setCurrentSupplyOrders(orders);
+        setCurrentSupplyOrders(orders as AppOrder[]);
       });
     }
   };

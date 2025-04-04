@@ -33,7 +33,7 @@ const QuestionsTable: React.FC<QuestionsTableProps> = ({ questions, loading, onR
                 <TableCell>{question.productName || "Н/Д"}</TableCell>
                 <TableCell>{question.question || "Н/Д"}</TableCell>
                 <TableCell>
-                  <Button size="sm">Ответить</Button>
+                  <Button size="sm" onClick={onRefresh}>Ответить</Button>
                 </TableCell>
               </TableRow>
             ))}
