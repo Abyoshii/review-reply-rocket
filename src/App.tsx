@@ -10,6 +10,8 @@ import NotFound from "./pages/NotFound";
 import { Toaster } from "./components/ui/toaster";
 import AutoAssembly from "./pages/AutoAssembly";
 import Passes from "./pages/Passes";
+import Supplies from "./pages/Supplies";
+import Boxes from "./pages/Boxes";
 import { useState } from "react";
 
 function App() {
@@ -39,8 +41,9 @@ function App() {
                   <Route path="/" element={<Index />} />
                   <Route path="/reviews" element={<Reviews />} />
                   <Route path="/auto-assembly" element={<AutoAssembly />} />
-                  <Route path="/supplies" element={<NotFound />} />
-                  <Route path="/boxes" element={<NotFound />} />
+                  <Route path="/supplies" element={<Supplies />} />
+                  <Route path="/trbx/:supplyId" element={<Boxes />} />
+                  <Route path="/boxes" element={<Supplies />} />
                   <Route path="/passes" element={<Passes />} />
                   <Route path="/settings" element={<NotFound />} />
                   <Route path="/help" element={<NotFound />} />
