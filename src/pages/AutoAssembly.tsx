@@ -16,6 +16,7 @@ import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Suppl
 import { AutoAssemblyAPI, determineProductCategory, formatTimeAgo } from "@/lib/autoAssemblyApi";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { logObjectStructure } from "@/lib/imageUtils";
+
 const AutoAssembly = () => {
   const [activeTab, setActiveTab] = useState("orders");
   const [isLoading, setIsLoading] = useState(true);
@@ -45,6 +46,7 @@ const AutoAssembly = () => {
     clothingSupplyId?: number;
     miscSupplyId?: number;
   } | null>(null);
+
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -88,9 +90,11 @@ const AutoAssembly = () => {
       setIsLoading(false);
     }
   };
+
   useEffect(() => {
     loadData();
   }, []);
+
   useEffect(() => {
     let result = [...orders];
     if (filters.warehouse) {
@@ -142,12 +146,14 @@ const AutoAssembly = () => {
     });
     setFilteredOrders(result);
   }, [filters, orders]);
+
   const handleFilterChange = (field: string, value: string) => {
     setFilters(prev => ({
       ...prev,
       [field]: value
     }));
   };
+
   const toggleOrderSelection = (orderId: number) => {
     const newSelectedOrders = new Set(selectedOrders);
     if (selectedOrders.has(orderId)) {
@@ -157,6 +163,7 @@ const AutoAssembly = () => {
     }
     setSelectedOrders(newSelectedOrders);
   };
+
   const toggleSelectAll = () => {
     if (selectedOrders.size === filteredOrders.length) {
       setSelectedOrders(new Set());
@@ -164,6 +171,7 @@ const AutoAssembly = () => {
       setSelectedOrders(new Set(filteredOrders.map(order => order.id)));
     }
   };
+
   const handleAssembleOrders = async () => {
     if (selectedOrders.size === 0) {
       toast.error("Выберите хотя бы одно сборочное задание");
@@ -191,6 +199,7 @@ const AutoAssembly = () => {
       setIsProcessing(false);
     }
   };
+
   const handleAutoAssemble = async () => {
     const availableOrders = orders.filter(order => !order.inSupply);
     if (availableOrders.length === 0) {
@@ -235,10 +244,12 @@ const AutoAssembly = () => {
       setIsAutoAssembling(false);
     }
   };
+
   const handleRefreshOrders = async () => {
     await loadData();
     toast.success("Список заданий обновлен");
   };
+
   const handleCancelOrder = async (orderId: number) => {
     try {
       const success = await AutoAssemblyAPI.cancelOrder(orderId);
@@ -252,6 +263,7 @@ const AutoAssembly = () => {
       toast.error(`Не удалось отменить заказ ${orderId}`);
     }
   };
+
   const handlePrintStickers = async () => {
     if (selectedOrders.size === 0) {
       toast.error("Выберите хотя бы одно сборочное задание");
@@ -279,6 +291,7 @@ const AutoAssembly = () => {
       setIsProcessing(false);
     }
   };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ru-RU', {
       year: 'numeric',
@@ -288,9 +301,11 @@ const AutoAssembly = () => {
       minute: '2-digit'
     });
   };
+
   const formatPrice = (price: number): string => {
     return (price / 100).toFixed(2);
   };
+
   const getCategoryDisplay = (category?: ProductCategory) => {
     switch (category) {
       case ProductCategory.PERFUME:
@@ -317,6 +332,7 @@ const AutoAssembly = () => {
         };
     }
   };
+
   const renderCargoTypeBadge = (cargoType: number) => {
     const type = cargoTypes.find(t => t.id === cargoType);
     switch (cargoType) {
@@ -336,9 +352,11 @@ const AutoAssembly = () => {
         return <Badge variant="outline">Неизвестно</Badge>;
     }
   };
+
   const filteredSupplies = useMemo(() => {
     return supplies;
   }, [supplies]);
+
   return <div className="container mx-auto py-6 max-w-7xl">
       <div className="flex flex-wrap justify-between gap-4 mb-6">
         <div>
@@ -591,7 +609,10 @@ const AutoAssembly = () => {
                         </TableCell>
                       </TableRow> : filteredOrders.map(order => <TableRow key={order.id} className="cursor-pointer">
                           <TableCell>
-                            <Checkbox checked={selectedOrders.has(order.id)} onCheckedChange={() => toggleOrderSelection(order.id)} />
+                            <Checkbox 
+                              checked={selectedOrders.has(order.id)} 
+                              onCheckedChange={() => toggleOrderSelection(order.id)} 
+                            />
                           </TableCell>
                           <TableCell>{order.id}</TableCell>
                           <TableCell>{order.supplierArticle || "-"}</TableCell>
@@ -603,31 +624,39 @@ const AutoAssembly = () => {
                                   <Image className="h-4 w-4 text-muted-foreground" />
                                 </AvatarFallback>
                               </Avatar>
-                              <div className="flex flex-col">
+                              <div className="flex flex-col w-full">
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <div className="text-left font-medium truncate max-w-[180px] cursor-default">
+                                      <div className="text-left font-medium text-sm truncate w-full cursor-default">
                                         {order.productInfo?.name || order.productName}
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent className="max-w-xs">
                                       <p className="font-medium">{order.productInfo?.name || order.productName}</p>
-                                      {order.productInfo?.category && <p className="text-xs text-muted-foreground mt-1">
+                                      {order.productInfo?.category && (
+                                        <p className="text-xs text-muted-foreground mt-1">
                                           Категория: {order.productInfo.category}
-                                        </p>}
-                                      {order.productInfo?.brand && <p className="text-xs text-muted-foreground">
+                                        </p>
+                                      )}
+                                      {order.productInfo?.brand && (
+                                        <p className="text-xs text-muted-foreground">
                                           Бренд: {order.productInfo.brand}
-                                        </p>}
-                                      {order.supplierArticle && <p className="text-xs text-muted-foreground">
+                                        </p>
+                                      )}
+                                      {order.supplierArticle && (
+                                        <p className="text-xs text-muted-foreground">
                                           Артикул: {order.supplierArticle}
-                                        </p>}
+                                        </p>
+                                      )}
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
-                                {order.productInfo?.brand && <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                                {order.productInfo?.brand && (
+                                  <span className="text-xs text-muted-foreground truncate w-full">
                                     {order.productInfo.brand}
-                                  </span>}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </TableCell>
@@ -776,4 +805,5 @@ const AutoAssembly = () => {
       </Tabs>
     </div>;
 };
+
 export default AutoAssembly;
