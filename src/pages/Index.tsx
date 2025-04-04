@@ -1,638 +1,223 @@
-import { useState, useEffect } from "react";
-import Header from "@/components/Header";
-import FilterForm from "@/components/FilterForm";
-import ReviewsTable from "@/components/ReviewsTable";
-import QuestionsTable from "@/components/QuestionsTable";
-import QuestionsFilterForm from "@/components/QuestionsFilterForm";
-import AutoResponder from "@/components/AutoResponder";
-import { WbAPI } from "@/lib/api";
-import { WbReview, ReviewListParams, QuestionListParams, WbQuestion } from "@/types/wb";
-import { toast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Text, MessageCircle, Bot } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ThemeProvider } from "@/components/ThemeProvider";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
+
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { ChevronRight, Package, TrendingUp, Clock, AlertCircle, RefreshCw } from "lucide-react";
 
 const Index = () => {
-  // Main data states
-  const [unansweredReviews, setUnansweredReviews] = useState<WbReview[]>([]);
-  const [answeredReviews, setAnsweredReviews] = useState<WbReview[]>([]);
-  const [processingReviews, setProcessingReviews] = useState<WbReview[]>([]);
+  const [ordersExpanded, setOrdersExpanded] = useState(true);
+  const [salesExpanded, setSalesExpanded] = useState(true);
   
-  // Counts
-  const [unansweredCount, setUnansweredCount] = useState<number>(0);
-  const [answeredCount, setAnsweredCount] = useState<number>(0);
-  
-  // Track review processing state by ID
-  const [processingReviewIds, setProcessingReviewIds] = useState<Set<string>>(new Set());
-  
-  // Loading states
-  const [loadingUnanswered, setLoadingUnanswered] = useState<boolean>(false);
-  const [loadingAnswered, setLoadingAnswered] = useState<boolean>(false);
-  
-  // Filters
-  const [unansweredFilters, setUnansweredFilters] = useState<ReviewListParams>({
-    isAnswered: false,
-    take: 100,
-    skip: 0,
-    order: "dateDesc"
-  });
-  const [answeredFilters, setAnsweredFilters] = useState<ReviewListParams>({
-    isAnswered: true,
-    take: 100,
-    skip: 0,
-    order: "dateDesc"
-  });
-  
-  // Questions data
-  const [unansweredQuestions, setUnansweredQuestions] = useState<WbQuestion[]>([]);
-  const [answeredQuestions, setAnsweredQuestions] = useState<WbQuestion[]>([]);
-  const [unansweredQuestionsCount, setUnansweredQuestionsCount] = useState<number>(0);
-  const [loadingUnansweredQuestions, setLoadingUnansweredQuestions] = useState<boolean>(false);
-  const [loadingAnsweredQuestions, setLoadingAnsweredQuestions] = useState<boolean>(false);
-  const [unansweredQuestionsFilters, setUnansweredQuestionsFilters] = useState<QuestionListParams>({
-    isAnswered: false,
-    take: 100,
-    skip: 0,
-    order: "dateDesc"
-  });
-  const [answeredQuestionsFilters, setAnsweredQuestionsFilters] = useState<QuestionListParams>({
-    isAnswered: true,
-    take: 100,
-    skip: 0,
-    order: "dateDesc"
-  });
-  
-  // UI states
-  const [activeTab, setActiveTab] = useState<string>("reviews");
-  const [activeReviewsTab, setActiveReviewsTab] = useState<string>("unanswered");
-  const [autoResponderOpen, setAutoResponderOpen] = useState(false);
-
-  // Initial data loading
-  useEffect(() => {
-    fetchUnansweredReviews();
-    fetchUnansweredCount();
-    fetchAnsweredCount();
-    fetchUnansweredQuestionsCount();
-  }, []);
-
-  // Filter-dependent data loading
-  useEffect(() => {
-    fetchUnansweredReviews();
-  }, [unansweredFilters]);
-
-  useEffect(() => {
-    fetchAnsweredReviews();
-  }, [answeredFilters]);
-
-  useEffect(() => {
-    if (activeTab === "questions") {
-      fetchUnansweredQuestions();
-    }
-  }, [unansweredQuestionsFilters, activeTab]);
-
-  useEffect(() => {
-    if (activeTab === "questions") {
-      fetchAnsweredQuestions();
-    }
-  }, [answeredQuestionsFilters, activeTab]);
-
-  // Handle review state changes
-  const handleReviewStateChange = (reviewId: string, newState: "sending" | "error" | "answered" | "unanswered") => {
-    console.log(`Review ${reviewId} changing state to: ${newState}`);
-    
-    if (newState === "sending") {
-      // Find the review in the unanswered list
-      const reviewToMove = unansweredReviews.find(r => r.id === reviewId);
-      if (reviewToMove) {
-        // Add to processing list
-        setProcessingReviews(prev => [...prev, reviewToMove]);
-        // Add to processing IDs set
-        setProcessingReviewIds(prev => {
-          const newSet = new Set(prev);
-          newSet.add(reviewId);
-          return newSet;
-        });
-        // Remove from unanswered list (visual effect only)
-        setUnansweredReviews(prev => prev.filter(r => r.id !== reviewId));
-      }
-    } 
-    else if (newState === "answered") {
-      // Remove from processing
-      setProcessingReviews(prev => prev.filter(r => r.id !== reviewId));
-      setProcessingReviewIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(reviewId);
-        return newSet;
-      });
-      
-      // Update counts via API instead of manually decrementing
-      fetchUnansweredCount();
-      fetchAnsweredCount();
-    } 
-    else if (newState === "error" || newState === "unanswered") {
-      // For error state, prepare to return to original state
-      // (actual return happens with another state change after a delay)
-      if (newState === "unanswered") {
-        // Find the review in the processing list
-        const reviewToReturn = processingReviews.find(r => r.id === reviewId);
-        if (reviewToReturn) {
-          // Remove from processing
-          setProcessingReviews(prev => prev.filter(r => r.id !== reviewId));
-          setProcessingReviewIds(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(reviewId);
-            return newSet;
-          });
-          
-          // Add back to unanswered
-          setUnansweredReviews(prev => [reviewToReturn, ...prev]);
-        }
-      }
-    }
-  };
-
-  // Handle bulk reviews move to processing
-  const handleBulkReviewsToProcessing = (reviewIds: string[]) => {
-    // Find all reviews in the current selection
-    const reviewsToMove = unansweredReviews.filter(r => reviewIds.includes(r.id));
-    
-    if (reviewsToMove.length > 0) {
-      // Add to processing list
-      setProcessingReviews(prev => [...prev, ...reviewsToMove]);
-      
-      // Add to processing IDs set
-      setProcessingReviewIds(prev => {
-        const newSet = new Set(prev);
-        reviewIds.forEach(id => newSet.add(id));
-        return newSet;
-      });
-      
-      // Remove from unanswered list
-      setUnansweredReviews(prev => prev.filter(r => !reviewIds.includes(r.id)));
-    }
-  };
-
-  const fetchUnansweredReviews = async () => {
-    setLoadingUnanswered(true);
-    try {
-      const filters = { ...unansweredFilters, isAnswered: false };
-      console.log("Загружаем неотвеченные отзывы с параметрами:", filters);
-      
-      const response = await WbAPI.getReviews(filters);
-      
-      if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
-        let filteredReviews = response.data.feedbacks;
-        
-        if (filters.ratingFilter) {
-          filteredReviews = applyRatingFilter(filteredReviews, filters.ratingFilter);
-        }
-        
-        // Filter out any reviews that are currently being processed
-        filteredReviews = filteredReviews.filter(review => !processingReviewIds.has(review.id));
-        
-        setUnansweredReviews(filteredReviews);
-        
-        // Update the count
-        if (response.data.countUnanswered !== undefined) {
-          setUnansweredCount(response.data.countUnanswered);
-        }
-      } else {
-        console.error("Некорректная структура ответа API для неотвеченных отзывов:", response);
-        toast({
-          title: "Ошибка загрузки",
-          description: "Получены некорректные данные от API",
-          variant: "destructive",
-          important: true
-        });
-        setUnansweredReviews([]);
-      }
-    } catch (error) {
-      console.error("Ошибка при загрузке неотвеченных отзывов:", error);
-      toast({
-        title: "Ошибка загрузки",
-        description: "Не удалось загрузить неотвеченные отзывы. Пожалуйста, попробуйте позже.",
-        variant: "destructive",
-        important: true
-      });
-      setUnansweredReviews([]);
-    } finally {
-      setLoadingUnanswered(false);
-    }
-  };
-
-  const fetchAnsweredReviews = async () => {
-    setLoadingAnswered(true);
-    try {
-      const filters = { ...answeredFilters, isAnswered: true };
-      console.log("Загружаем отвеченные отзывы с параметрами:", filters);
-      
-      const response = await WbAPI.getReviews(filters);
-      
-      if (response.data && response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
-        let filteredReviews = response.data.feedbacks.filter(review => 
-          review.answer && review.answer.text && review.answer.text.trim().length > 0
-        );
-        
-        if (filters.ratingFilter) {
-          filteredReviews = applyRatingFilter(filteredReviews, filters.ratingFilter);
-        }
-        
-        setAnsweredReviews(filteredReviews);
-        
-        // Update the count of answered reviews
-        if (response.data.countArchive !== undefined) {
-          setAnsweredCount(response.data.countArchive);
-        }
-      } else {
-        console.error("Некорректная структура ответа API для отвеченных отзывов:", response);
-        toast({
-          title: "Ошибка загрузки",
-          description: "Получены некорректные данные от API",
-          variant: "destructive",
-          important: true
-        });
-        setAnsweredReviews([]);
-      }
-    } catch (error) {
-      console.error("Ошибка при загрузке отвеченных отзывов:", error);
-      toast({
-        title: "Ошибка загрузки",
-        description: "Не удалось загрузить отвеченные отзывы. Пожалуйста, попробуйте позже.",
-        variant: "destructive",
-        important: true
-      });
-      setAnsweredReviews([]);
-    } finally {
-      setLoadingAnswered(false);
-    }
-  };
-
-  const applyRatingFilter = (reviews: WbReview[], ratingFilter: string): WbReview[] => {
-    if (ratingFilter === 'all') return reviews;
-    
-    return reviews.filter(review => {
-      const rating = review.productValuation || review.rating || 0;
-      
-      if (ratingFilter === 'positive') return rating >= 4;
-      if (ratingFilter === 'negative') return rating <= 2;
-      return rating === parseInt(ratingFilter);
-    });
-  };
-
-  const fetchUnansweredCount = async () => {
-    try {
-      const count = await WbAPI.getUnansweredCount();
-      setUnansweredCount(count);
-    } catch (error) {
-      console.error("Ошибка при загрузке количества неотвеченных отзывов:", error);
-    }
-  };
-
-  const fetchAnsweredCount = async () => {
-    try {
-      const response = await WbAPI.getReviews({...answeredFilters, take: 1, skip: 0});
-      if (response.data && response.data.countArchive !== undefined) {
-        setAnsweredCount(response.data.countArchive);
-      }
-    } catch (error) {
-      console.error("Ошибка при загрузке количества отвеченных отзывов:", error);
-    }
-  };
-
-  const fetchUnansweredQuestions = async () => {
-    setLoadingUnansweredQuestions(true);
-    try {
-      console.log("Загружаем неотвеченные вопросы с параметрами:", unansweredQuestionsFilters);
-      const response = await WbAPI.getQuestions(unansweredQuestionsFilters);
-      
-      if (response.data && response.data.questions && Array.isArray(response.data.questions)) {
-        setUnansweredQuestions(response.data.questions);
-      } else {
-        console.error("Некорректная структура ответа API для неотвеченных вопросов:", response);
-        toast({
-          title: "Ошибка загрузки",
-          description: "Получены некорректные данные от API",
-          variant: "destructive",
-          important: true
-        });
-        setUnansweredQuestions([]);
-      }
-    } catch (error) {
-      console.error("Ошибка при загрузке неотвеченных вопросов:", error);
-      toast({
-        title: "Ошибка загрузки",
-        description: "Не удалось загрузить неотвеченные вопросы. Пожалуйста, попробуйте позже.",
-        variant: "destructive",
-        important: true
-      });
-      setUnansweredQuestions([]);
-    } finally {
-      setLoadingUnansweredQuestions(false);
-    }
-  };
-
-  const fetchAnsweredQuestions = async () => {
-    setLoadingAnsweredQuestions(true);
-    try {
-      console.log("Загружаем отвеченные вопросы с параметрами:", answeredQuestionsFilters);
-      const response = await WbAPI.getQuestions(answeredQuestionsFilters);
-      
-      if (response.data && response.data.questions && Array.isArray(response.data.questions)) {
-        setAnsweredQuestions(response.data.questions);
-      } else {
-        console.error("Некорректная структура ответа API для отвеченных вопросов:", response);
-        toast({
-          title: "Ошибка загрузки",
-          description: "Получены некорректные данные от API",
-          variant: "destructive",
-          important: true
-        });
-        setAnsweredQuestions([]);
-      }
-    } catch (error) {
-      console.error("Ошибка при загрузке отвеченных вопросов:", error);
-      toast({
-        title: "Ошибка загрузки",
-        description: "Не удалось загрузить отвеченные вопросы. Пожалуйста, попробуйте позже.",
-        variant: "destructive",
-        important: true
-      });
-      setAnsweredQuestions([]);
-    } finally {
-      setLoadingAnsweredQuestions(false);
-    }
-  };
-
-  const fetchUnansweredQuestionsCount = async () => {
-    try {
-      const count = await WbAPI.getUnansweredQuestionsCount();
-      setUnansweredQuestionsCount(count);
-    } catch (error) {
-      console.error("Ошибка при загрузке количества неотвеченных вопросов:", error);
-    }
-  };
-
-  const handleRefresh = () => {
-    if (activeTab === "reviews") {
-      if (activeReviewsTab === "unanswered") {
-        fetchUnansweredReviews();
-      } else if (activeReviewsTab === "answered") {
-        fetchAnsweredReviews();
-      } else if (activeReviewsTab === "processing") {
-        // Processing tab doesn't need to refresh from API
-        // as it's managed in local state
-      }
-      fetchUnansweredCount();
-      fetchAnsweredCount();
-    } else if (activeTab === "questions") {
-      fetchUnansweredQuestions();
-      fetchAnsweredQuestions();
-      fetchUnansweredQuestionsCount();
-    }
-    
-    toast({
-      title: "Данные обновлены",
-      description: "Информация успешно обновлена",
-      important: false
-    });
-  };
-
-  const handleUnansweredFilterChange = (newFilters: ReviewListParams) => {
-    setUnansweredFilters({ ...newFilters, isAnswered: false });
-  };
-
-  const handleAnsweredFilterChange = (newFilters: ReviewListParams) => {
-    setAnsweredFilters({ ...newFilters, isAnswered: true });
-  };
-
-  const handleUnansweredQuestionsFilterChange = (newFilters: QuestionListParams) => {
-    setUnansweredQuestionsFilters({...newFilters, isAnswered: false});
-  };
-
-  const handleAnsweredQuestionsFilterChange = (newFilters: QuestionListParams) => {
-    setAnsweredQuestionsFilters({...newFilters, isAnswered: true});
-  };
-
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    
-    if (tab === "questions" && unansweredQuestions.length === 0) {
-      fetchUnansweredQuestions();
-      fetchAnsweredQuestions();
-    }
-  };
-
-  const handleReviewsTabChange = (tab: string) => {
-    setActiveReviewsTab(tab);
-    
-    if (tab === "unanswered" && unansweredReviews.length === 0) {
-      fetchUnansweredReviews();
-    } else if (tab === "answered" && answeredReviews.length === 0) {
-      fetchAnsweredReviews();
-    }
-    // No data loading for processing tab as it's managed locally
-  };
-
-  const handleAutoResponderSuccess = () => {
-    handleRefresh();
-    setAutoResponderOpen(false);
-  };
-
-  const getSelectedReviews = () => {
-    if (activeReviewsTab === "unanswered") {
-      return unansweredReviews;
-    } else if (activeReviewsTab === "answered") {
-      return answeredReviews;
-    } else if (activeReviewsTab === "processing") {
-      return processingReviews;
-    }
-    return [];
-  };
-
   return (
-    <ThemeProvider defaultTheme="system">
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex justify-between items-center mb-6">
-            <Header 
-              unansweredCount={processingReviewIds.size}
-              unansweredQuestionsCount={unansweredQuestionsCount}
-              onRefresh={handleRefresh} 
-            />
-          </div>
-          
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-            <TabsList className="mb-4 grid grid-cols-2 mx-auto max-w-md">
-              <TabsTrigger 
-                value="reviews" 
-                className="flex items-center gap-1 transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
-              >
-                <Text size={16} /> Отзывы
-              </TabsTrigger>
-              <TabsTrigger 
-                value="questions" 
-                className="flex items-center gap-1 transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
-              >
-                <MessageCircle size={16} /> Вопросы клиентов
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="reviews" className="space-y-6">
-              <Tabs value={activeReviewsTab} onValueChange={handleReviewsTabChange} className="space-y-4">
-                <TabsList className="mb-4 grid grid-cols-3 mx-auto max-w-md">
-                  <TabsTrigger 
-                    value="unanswered"
-                    className="transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
-                  >
-                    Ждут ответа
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="processing"
-                    className="transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
-                  >
-                    В обработке {processingReviewIds.size > 0 && `(${processingReviewIds.size})`}
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="answered"
-                    className="transition-all duration-300 hover:bg-gray-100 data-[state=active]:scale-105 dark:hover:bg-gray-700"
-                  >
-                    Есть ответы
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="unanswered">
-                  <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
-                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                      <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm mr-3">ЖДУТ ОТВЕТА</span>
-                      Неотвеченные отзывы {unansweredCount > 0 && `(${unansweredCount})`}
-                    </h2>
-                    
-                    <FilterForm 
-                      onFilterChange={handleUnansweredFilterChange} 
-                      loading={loadingUnanswered} 
-                    />
-                    
-                    <ReviewsTable 
-                      reviews={unansweredReviews} 
-                      loading={loadingUnanswered} 
-                      onRefresh={handleRefresh} 
-                      isAnswered={false}
-                      onReviewStateChange={handleReviewStateChange}
-                      processingReviewIds={processingReviewIds}
-                    />
-                  </section>
-                </TabsContent>
-                
-                <TabsContent value="processing">
-                  <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
-                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                      <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm mr-3">В ОБРАБОТКЕ</span>
-                      Отзывы в процессе обработки {processingReviewIds.size > 0 && `(${processingReviewIds.size})`}
-                    </h2>
-                    
-                    {processingReviews.length === 0 ? (
-                      <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">
-                        <MessageCircle size={24} className="mx-auto mb-2 opacity-50" />
-                        Нет отзывов в процессе обработки
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <ReviewsTable 
-                          reviews={processingReviews} 
-                          loading={false} 
-                          onRefresh={handleRefresh} 
-                          isAnswered={false}
-                        />
-                      </div>
-                    )}
-                  </section>
-                </TabsContent>
-                
-                <TabsContent value="answered">
-                  <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
-                    <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                      <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm mr-3">ЕСТЬ ОТВЕТЫ</span>
-                      Отвеченные отзывы {answeredCount > 0 && `(${answeredCount})`}
-                    </h2>
-                    
-                    <FilterForm 
-                      onFilterChange={handleAnsweredFilterChange} 
-                      loading={loadingAnswered} 
-                    />
-                    
-                    <ReviewsTable 
-                      reviews={answeredReviews} 
-                      loading={loadingAnswered} 
-                      onRefresh={handleRefresh} 
-                      isAnswered={true}
-                    />
-                  </section>
-                </TabsContent>
-              </Tabs>
-            </TabsContent>
-            
-            <TabsContent value="questions" className="space-y-6">
-              <div className="space-y-8">
-                <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
-                  <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                    <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm mr-3">ЖДУТ ОТВЕТА</span>
-                    Неотвеченные вопросы
-                  </h2>
-                  
-                  <QuestionsFilterForm 
-                    onFilterChange={handleUnansweredQuestionsFilterChange} 
-                    loading={loadingUnansweredQuestions} 
-                  />
-                  
-                  <QuestionsTable 
-                    questions={unansweredQuestions} 
-                    loading={loadingUnansweredQuestions} 
-                    onRefresh={handleRefresh} 
-                  />
-                </section>
-                
-                <section className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-colors duration-300">
-                  <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white transition-colors duration-300 flex items-center">
-                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm mr-3">ОТВЕЧЕННЫЕ</span>
-                    Отвеченные вопросы
-                  </h2>
-                  
-                  <QuestionsFilterForm 
-                    onFilterChange={handleAnsweredQuestionsFilterChange} 
-                    loading={loadingAnsweredQuestions} 
-                  />
-                  
-                  <QuestionsTable 
-                    questions={answeredQuestions} 
-                    loading={loadingAnsweredQuestions} 
-                    onRefresh={handleRefresh} 
-                  />
-                </section>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <div className="text-center py-4 mt-8 text-sm text-gray-500 dark:text-gray-400 opacity-70 transition-colors duration-300">
-            @Таабалдыев Нургазы
-          </div>
-        </div>
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="flex items-center mb-6">
+        <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-400">Главная</h1>
       </div>
       
-      <Dialog open={autoResponderOpen} onOpenChange={setAutoResponderOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <AutoResponder 
-            selectedReviews={getSelectedReviews()} 
-            onSuccess={handleAutoResponderSuccess}
-            onMoveToProcessing={handleBulkReviewsToProcessing}
-          />
-        </DialogContent>
-      </Dialog>
-    </ThemeProvider>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-purple-100 dark:border-purple-900/40">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="bg-purple-100 dark:bg-purple-900/40 p-2 rounded-full">
+                  <Package className="h-6 w-6 text-purple-700 dark:text-purple-400" />
+                </div>
+                <CardTitle>Заказы</CardTitle>
+              </div>
+              <CollapsibleTrigger 
+                onClick={() => setOrdersExpanded(!ordersExpanded)}
+                className="hover:bg-purple-100 dark:hover:bg-purple-900/20 p-1 rounded-full transition-all duration-200"
+              >
+                <ChevronRight className={`h-5 w-5 text-purple-700 dark:text-purple-400 transition-transform duration-300 ${ordersExpanded ? 'rotate-90' : ''}`} />
+              </CollapsibleTrigger>
+            </div>
+            <CardDescription>
+              Метод предоставляет информацию обо всех заказах. Данные обновляются каждые 30 минут.
+            </CardDescription>
+          </CardHeader>
+          
+          <Collapsible open={ordersExpanded} onOpenChange={setOrdersExpanded}>
+            <CollapsibleContent className="animate-accordion-down">
+              <CardContent className="pt-4 space-y-4">
+                <div className="bg-purple-50 dark:bg-purple-900/10 p-3 rounded-lg text-sm">
+                  <span className="font-mono text-sm text-purple-800 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded">
+                    GET https://statistics-api.wildberries.ru/api/v1/supplier/orders
+                  </span>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800">
+                      <Clock className="h-3 w-3 mr-1" /> Обновление: 30 минут
+                    </Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800">
+                      <AlertCircle className="h-3 w-3 mr-1" /> Лимит: 1 запрос/мин
+                    </Badge>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">
+                      <RefreshCw className="h-3 w-3 mr-1" /> Хранение: 90 дней
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">Основные принципы:</h3>
+                    <ul className="list-disc list-inside text-sm space-y-1 text-gray-700 dark:text-gray-300">
+                      <li>1 строка = 1 заказ = 1 сборочное задание = 1 товар</li>
+                      <li>Для идентификации заказа используется <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">srid</span></li>
+                      <li>Информация хранится <strong>90 дней</strong></li>
+                      <li>Максимум <strong>1 запрос в минуту</strong></li>
+                    </ul>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold">Параметры запроса:</h3>
+                    <div className="bg-white dark:bg-gray-800 border rounded-lg p-3 space-y-3 shadow-sm">
+                      <div>
+                        <span className="font-mono text-xs bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-300 px-1.5 py-0.5 rounded mr-2">
+                          dateFrom
+                        </span>
+                        <span className="text-xs text-red-500 dark:text-red-400">[обязательный]</span>
+                        <p className="text-sm mt-1 ml-1 text-gray-700 dark:text-gray-300">
+                          Дата/время в формате RFC3339 (<code>2019-06-20T00:00:00</code>)
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <span className="font-mono text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-1.5 py-0.5 rounded mr-2">
+                          flag
+                        </span>
+                        <span className="text-xs text-gray-500">[по умолчанию 0]</span>
+                        <ul className="text-sm mt-1 ml-5 list-disc text-gray-700 dark:text-gray-300">
+                          <li><code>flag=0</code> — выгружаются заказы, обновлённые с момента <code>dateFrom</code></li>
+                          <li><code>flag=1</code> — выгружаются <strong>все заказы на дату</strong> <code>dateFrom</code> (время игнорируется)</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg">
+                    <h3 className="text-amber-800 dark:text-amber-300 font-medium flex items-center gap-1 text-sm">
+                      <AlertCircle className="h-4 w-4" /> Ограничение ответа
+                    </h3>
+                    <p className="text-sm text-amber-700 dark:text-amber-200 mt-1">
+                      В ответе — максимум ~80 000 строк. Чтобы получить больше — повторно вызываем API, 
+                      передавая в <code>dateFrom</code> значение поля <code>lastChangeDate</code> из последней строки ответа.
+                    </p>
+                    <p className="text-sm text-amber-700 dark:text-amber-200 mt-1">
+                      Если в ответе массив <code>[]</code>, значит всё уже выгружено.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+        
+        <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-purple-100 dark:border-purple-900/40">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="bg-purple-100 dark:bg-purple-900/40 p-2 rounded-full">
+                  <TrendingUp className="h-6 w-6 text-purple-700 dark:text-purple-400" />
+                </div>
+                <CardTitle>Продажи</CardTitle>
+              </div>
+              <CollapsibleTrigger 
+                onClick={() => setSalesExpanded(!salesExpanded)}
+                className="hover:bg-purple-100 dark:hover:bg-purple-900/20 p-1 rounded-full transition-all duration-200"
+              >
+                <ChevronRight className={`h-5 w-5 text-purple-700 dark:text-purple-400 transition-transform duration-300 ${salesExpanded ? 'rotate-90' : ''}`} />
+              </CollapsibleTrigger>
+            </div>
+            <CardDescription>
+              Метод предоставляет данные о продажах и возвратах товаров. Обновление данных — раз в 30 минут.
+            </CardDescription>
+          </CardHeader>
+          
+          <Collapsible open={salesExpanded} onOpenChange={setSalesExpanded}>
+            <CollapsibleContent className="animate-accordion-down">
+              <CardContent className="pt-4 space-y-4">
+                <div className="bg-purple-50 dark:bg-purple-900/10 p-3 rounded-lg text-sm">
+                  <span className="font-mono text-sm text-purple-800 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded">
+                    GET https://statistics-api.wildberries.ru/api/v1/supplier/sales
+                  </span>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800">
+                      <Clock className="h-3 w-3 mr-1" /> Обновление: 30 минут
+                    </Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800">
+                      <AlertCircle className="h-3 w-3 mr-1" /> Лимит: 1 запрос/мин
+                    </Badge>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800">
+                      <RefreshCw className="h-3 w-3 mr-1" /> Хранение: 90 дней
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">Основные принципы:</h3>
+                    <ul className="list-disc list-inside text-sm space-y-1 text-gray-700 dark:text-gray-300">
+                      <li>1 строка = 1 продажа = 1 товар</li>
+                      <li>Используется <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded">srid</span> для идентификации</li>
+                      <li>Данные хранятся <strong>90 дней</strong></li>
+                      <li>Лимит — <strong>1 запрос в минуту</strong></li>
+                    </ul>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold">Параметры запроса:</h3>
+                    <div className="bg-white dark:bg-gray-800 border rounded-lg p-3 space-y-3 shadow-sm">
+                      <div>
+                        <span className="font-mono text-xs bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-300 px-1.5 py-0.5 rounded mr-2">
+                          dateFrom
+                        </span>
+                        <span className="text-xs text-red-500 dark:text-red-400">[обязательный]</span>
+                        <p className="text-sm mt-1 ml-1 text-gray-700 dark:text-gray-300">
+                          Дата/время в формате RFC3339 (<code>2019-06-20T00:00:00</code>)
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <span className="font-mono text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-1.5 py-0.5 rounded mr-2">
+                          flag
+                        </span>
+                        <span className="text-xs text-gray-500">[по умолчанию 0]</span>
+                        <ul className="text-sm mt-1 ml-5 list-disc text-gray-700 dark:text-gray-300">
+                          <li><code>flag=0</code> — только новые обновления с момента <code>dateFrom</code></li>
+                          <li><code>flag=1</code> — всё, что было в день <code>dateFrom</code></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-amber-50 dark:bg-amber-900/10 p-3 rounded-lg">
+                    <h3 className="text-amber-800 dark:text-amber-300 font-medium flex items-center gap-1 text-sm">
+                      <AlertCircle className="h-4 w-4" /> Ограничение ответа
+                    </h3>
+                    <p className="text-sm text-amber-700 dark:text-amber-200 mt-1">
+                      Максимум ~80 000 строк в одном ответе. Далее — новый запрос с <code>lastChangeDate</code>.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
+      </div>
+
+      <div className="mt-8 text-center">
+        <p className="text-gray-500 dark:text-gray-400 text-sm">
+          Данные обновляются каждые 30 минут. Последнее обновление: {new Date().toLocaleTimeString()}
+        </p>
+      </div>
+    </div>
   );
 };
 

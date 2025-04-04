@@ -12,7 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem
 } from "@/components/ui/sidebar";
-import { Package, MessageSquare, Home, Box } from "lucide-react";
+import { Package, MessageSquare, Box, LayoutDashboard } from "lucide-react";
 
 const AppSidebar = () => {
   const navigate = useNavigate();
@@ -43,8 +43,9 @@ const AppSidebar = () => {
                   isActive={isActive("/")} 
                   onClick={() => navigate("/")}
                   tooltip="Главная"
+                  className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-300"
                 >
-                  <Home size={18} />
+                  <LayoutDashboard size={18} />
                   <span>Главная</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
