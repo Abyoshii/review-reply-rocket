@@ -32,10 +32,10 @@ const AppSidebar = () => {
       <SidebarHeader className="flex items-center justify-between py-2 px-2">
         <div 
           onClick={toggleSidebar}
-          className={`text-xl font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2 transition-all duration-200 cursor-pointer hover:opacity-80 select-none ${state === 'collapsed' ? 'opacity-0' : 'opacity-100'}`}
+          className="text-xl font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2 transition-all duration-200 cursor-pointer hover:opacity-80 select-none"
         >
           <Box className="h-6 w-6" />
-          <span>Asterion</span>
+          <span className={`bg-gradient-to-r from-purple-400 via-purple-500 to-violet-500 bg-clip-text text-transparent animate-gradient-x bg-size-200 transition-opacity duration-200 ${state === 'collapsed' ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>Asterion</span>
         </div>
       </SidebarHeader>
       
