@@ -125,32 +125,44 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="text-left font-medium text-sm truncate w-full cursor-default">
-                              {order.productInfo?.name || order.productName || "Неизвестный товар"}
+                              {order.productInfo?.name || (
+                                <span className="italic text-muted-foreground">Данные недоступны</span>
+                              )}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent className="max-w-xs">
-                            <p className="font-medium">{order.productInfo?.name || order.productName || "Неизвестный товар"}</p>
-                            {order.productInfo?.category && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Категория: {order.productInfo.category}
-                              </p>
-                            )}
-                            {order.productInfo?.brand && (
-                              <p className="text-xs text-muted-foreground">
-                                Бренд: {order.productInfo.brand}
-                              </p>
-                            )}
-                            {order.supplierArticle && (
-                              <p className="text-xs text-muted-foreground">
-                                Артикул: {order.supplierArticle}
-                              </p>
+                            {order.productInfo ? (
+                              <>
+                                <p className="font-medium">{order.productInfo.name}</p>
+                                {order.productInfo.category && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Категория: {order.productInfo.category}
+                                  </p>
+                                )}
+                                {order.productInfo.brand && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Бренд: {order.productInfo.brand}
+                                  </p>
+                                )}
+                                {order.supplierArticle && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Артикул: {order.supplierArticle}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p>Информация о товаре не найдена</p>
                             )}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      {order.productInfo?.brand && (
+                      {order.productInfo?.brand ? (
                         <span className="text-xs text-muted-foreground truncate w-full">
                           {order.productInfo.brand}
+                        </span>
+                      ) : (
+                        <span className="text-xs italic text-muted-foreground">
+                          Нет данных о бренде
                         </span>
                       )}
                     </div>
@@ -168,21 +180,25 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                   </TableCell>
                 )}
                 <TableCell className="hidden md:table-cell">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        {getCategoryDisplay(order.category).badge}
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="text-xs">
-                          <p>Автоматически определено по названию</p>
-                          {order.productInfo?.category && (
-                            <p className="mt-1">Категория в WB: {order.productInfo.category}</p>
-                          )}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  {order.category ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          {getCategoryDisplay(order.category).badge}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="text-xs">
+                            <p>Автоматически определено по названию</p>
+                            {order.productInfo?.category && (
+                              <p className="mt-1">Категория в WB: {order.productInfo.category}</p>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <Badge variant="outline">Нет категории</Badge>
+                  )}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
                   {renderCargoTypeBadge(order.cargoType)}

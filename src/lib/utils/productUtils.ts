@@ -3,27 +3,25 @@ import axios from "axios";
 import { ProductCardResponse, ProductCardInfo } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
 
-// Новый API URL для получения информации о товаре
+// API URL для получения информации о товаре
 const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards/list";
 
-// Простой кэш для хранения информации о товарах
+// Кэш для хранения информации о товарах
 const productInfoCache: Record<number, ProductCardInfo> = {};
 
-// Функция для получения информации о товаре по nmId
+// Функция для получения информации о товаре по nmId без использования "заглушек"
 export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo | null> => {
   try {
-    // Проверяем, есть ли товар в кэше
+    // 1. Проверяем кэш
     if (productInfoCache[nmId]) {
       console.log(`Информация о товаре nmId=${nmId} взята из кэша`);
       return productInfoCache[nmId];
     }
 
-    // Формируем тело запроса согласно новому API
+    // 2. Формируем запрос к API
     const requestBody = {
       settings: {
-        cursor: {
-          limit: 1
-        },
+        cursor: { limit: 1 },
         filter: {
           textSearch: String(nmId),
           withPhoto: -1
@@ -32,44 +30,52 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     };
     
     console.log(`🔍 Запрос данных карточки товара через POST API для nmId=${nmId}`);
-    
-    // Отправляем POST запрос на новый API
     const response = await axios.post(WB_CARD_API_URL, requestBody);
     
-    // Выводим полный ответ API для анализа
-    console.log(`Полный ответ API карточки товара для nmId=${nmId}:`, JSON.stringify(response.data, null, 2));
+    // 3. Проверяем наличие данных в ответе
+    if (!response.data?.cards?.length) {
+      console.warn(`Не найдена карточка товара для nmId=${nmId} в ответе API`);
+      return null;
+    }
+
+    const product = response.data.cards[0];
     
-    // Проверяем наличие карточки в ответе (правильная структура - карточки непосредственно в response.data.cards)
-    if (response.data && response.data.cards && response.data.cards.length > 0) {
-      const product = response.data.cards[0];
-      
-      // Получаем URL изображения из первой фотографии, если она есть
-      let imageUrl = '';
-      if (product.photos && product.photos.length > 0) {
-        imageUrl = product.photos[0].big || '';
-        console.log(`Получен URL изображения: ${imageUrl}`);
-      }
-      
-      // Определяем категорию товара на основе subjectName
-      const category = product.subjectName || "Без категории";
-      
-      const productInfo = {
-        nmId: nmId,
-        name: product.title || `Товар ${nmId}`,
-        brand: product.brand || "",
-        image: imageUrl,
-        category: category,
-        productCategory: determineCategoryBySubject(category)
-      };
-      
-      // Сохраняем в кэш только если данные корректно загрузились
-      productInfoCache[nmId] = productInfo;
-      
-      return productInfo;
+    // 4. Проверяем обязательные поля
+    if (!product.title) {
+      console.warn(`У товара nmId=${nmId} отсутствует поле title (название)`);
+      return null;
     }
     
-    console.log(`Не найдены данные товара для nmId=${nmId}`);
-    return null;
+    // 5. Проверяем наличие изображения
+    let imageUrl = '';
+    if (product.photos?.length && product.photos[0]?.big) {
+      imageUrl = product.photos[0].big;
+      console.log(`Получен URL изображения для nmId=${nmId}: ${imageUrl}`);
+    } else {
+      console.warn(`У товара nmId=${nmId} отсутствуют фотографии`);
+      return null;
+    }
+    
+    // 6. Проверяем категорию
+    if (!product.subjectName) {
+      console.warn(`У товара nmId=${nmId} отсутствует subjectName (категория)`);
+      return null;
+    }
+    
+    // 7. Формируем результат без использования заглушек
+    const productInfo: ProductCardInfo = {
+      nmId: nmId,
+      name: product.title,
+      brand: product.brand || "",
+      image: imageUrl,
+      category: product.subjectName,
+      productCategory: determineCategoryBySubject(product.subjectName)
+    };
+    
+    // 8. Сохраняем в кэш только корректные данные
+    productInfoCache[nmId] = productInfo;
+    
+    return productInfo;
   } catch (error) {
     console.error(`Ошибка при получении данных карточки товара для nmId=${nmId}:`, error);
     return null;
