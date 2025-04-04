@@ -2,7 +2,7 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
-import { Package, MessageSquare, Box, LayoutDashboard, ChevronLeft, ChevronRight, Truck, Settings, HelpCircle, PackageCheck } from "lucide-react";
+import { Package, MessageSquare, Box, LayoutDashboard, ChevronLeft, ChevronRight, Settings, HelpCircle, PackageCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 const AppSidebar = () => {
@@ -82,20 +82,6 @@ const AppSidebar = () => {
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
                       Автосборка заданий
-                    </TooltipContent>
-                  </Tooltip>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <SidebarMenuButton isActive={isActive("/supplies")} onClick={() => navigate("/supplies")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
-                        <Truck size={18} />
-                        <span>Поставки</span>
-                      </SidebarMenuButton>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Управление поставками
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>

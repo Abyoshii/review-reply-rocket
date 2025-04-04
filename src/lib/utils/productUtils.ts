@@ -3,7 +3,8 @@ import axios from "axios";
 import { ProductCardResponse, ProductCardInfo } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
 
-const WB_CARD_API_URL = "https://card.wb.ru/cards/detail";
+// Новый API URL для получения информации о товаре
+const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards/list";
 
 // Простой кэш для хранения информации о товарах
 const productInfoCache: Record<number, ProductCardInfo> = {};
@@ -17,32 +18,44 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       return productInfoCache[nmId];
     }
 
-    const cardUrl = `${WB_CARD_API_URL}?appType=1&curr=rub&dest=12345&nm=${nmId}`;
-    console.log(`🔍 Запрос данных карточки товара: ${cardUrl}`);
+    // Формируем тело запроса согласно новому API
+    const requestBody = {
+      settings: {
+        cursor: {
+          limit: 1
+        },
+        filter: {
+          textSearch: String(nmId)
+        }
+      }
+    };
     
-    const response = await axios.get<ProductCardResponse>(cardUrl);
+    console.log(`🔍 Запрос данных карточки товара через POST API для nmId=${nmId}`);
+    
+    // Отправляем POST запрос на новый API
+    const response = await axios.post(WB_CARD_API_URL, requestBody);
     
     // Выводим полный ответ API для анализа
     console.log(`Полный ответ API карточки товара для nmId=${nmId}:`, JSON.stringify(response.data, null, 2));
     
-    if (response.data && response.data.data && response.data.data.products && response.data.data.products.length > 0) {
-      const product = response.data.data.products[0];
+    if (response.data && response.data.data && response.data.data.cards && response.data.data.cards.length > 0) {
+      const product = response.data.data.cards[0];
       
-      // Формируем URL изображения
-      const vol = Math.floor(product.id / 100000);
-      const part = Math.floor(product.id / 1000);
-      const imageBaseUrl = `https://basket-01.wb.ru/vol${vol}/part${part}/${product.id}/images/c246x328/1.jpg`;
-      
-      console.log(`Сформирован URL изображения: ${imageBaseUrl}`);
+      // Получаем URL изображения из первой фотографии, если она есть
+      let imageUrl = '';
+      if (product.photos && product.photos.length > 0 && product.photos[0].big) {
+        imageUrl = product.photos[0].big;
+        console.log(`Получен URL изображения: ${imageUrl}`);
+      }
       
       // Определяем категорию товара на основе subjectName
-      const category = product.subjectName || product.subject || "";
+      const category = product.subjectName || "";
       
       const productInfo = {
-        nmId: product.id,
-        name: product.name,
+        nmId: nmId,
+        name: product.title || `Товар ${nmId}`,
         brand: product.brand || "",
-        image: imageBaseUrl,
+        image: imageUrl,
         category: category,
         productCategory: determineCategoryBySubject(category)
       };
