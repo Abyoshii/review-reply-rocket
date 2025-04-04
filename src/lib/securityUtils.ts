@@ -42,7 +42,7 @@ const saveApiToken = (token: string, securitySettings: SecuritySettings): void =
 
 // Функция для получения токена из localStorage с деобфускацией при необходимости
 const getApiToken = (): string => {
-  const token = localStorage.getItem('wb_api_token') || 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU0NzU2NSwiaWQiOiIwMTk2MDE1Yy04ZGU1LTcyMDktYTFhOS05YTQ2YTA3NGM0YzEiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6MzgzOCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6ZmFsc2UsInVpZCI6NTAxMDkyNzB9.OlnT2BIJfj4oPFPXLx3L4lYnft0GdRx45QGVK9WbsCRO_IWm5xmUb3GT_-V08jy0DgNs1fCLUGsyAeghxVVbSA';
+  const token = localStorage.getItem('wb_api_token') || 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTUzODU0NywiaWQiOiIwMTk2MDBkMi1mM2E3LTdjNWYtYTUzNy0wMzFmYTMxMGE4NzIiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6MCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6dHJ1ZSwidWlkIjo1MDEwOTI3MH0.45FDTki-lZHE1XW9YcTTtZzw96TLmfnpGaTGJu9mmZDrjBqwngKugGMAQ04esP_Km_T1cJr2pDvT_S8XeHpKRw';
   const isObfuscated = localStorage.getItem('wb_token_obfuscated') === 'true';
   
   if (!token) return '';
