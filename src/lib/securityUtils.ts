@@ -23,7 +23,7 @@ const deobfuscateToken = (encodedToken: string): string => {
   }
 };
 
-const API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU0NzU2NSwiaWQiOiIwMTk2MDE1Yy04ZGU1LTcyMDktYTFhOS05YTQ2YTA3NGM0YzEiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6MzgzOCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6ZmFsc2UsInVpZCI6NTAxMDkyNzB9.OlnT2BIJfj4oPFPXLx3L4lYnft0GdRx45QGVK9WbsCRO_IWm5xmUb3GT_-V08jy0DgNs1fCLUGsyAeghxVVbSA";
+const API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
 
 // Функция для сохранения токена в localStorage с обфускацией
 const saveApiToken = (token: string, securitySettings: SecuritySettings): void => {
@@ -37,6 +37,8 @@ const saveApiToken = (token: string, securitySettings: SecuritySettings): void =
     localStorage.setItem('wb_api_token', tokenToSave);
     localStorage.setItem('wb_token_obfuscated', String(securitySettings.obfuscateTokens));
     localStorage.setItem('wb_header_name', securitySettings.headerName);
+    
+    console.log("API токен успешно сохранен");
   } catch (error) {
     console.error("Ошибка при сохранении токена:", error);
   }
@@ -47,9 +49,14 @@ const getApiToken = (): string => {
   const token = localStorage.getItem('wb_api_token') || API_TOKEN;
   const isObfuscated = localStorage.getItem('wb_token_obfuscated') === 'true';
   
-  if (!token) return '';
+  if (!token) {
+    console.warn("⚠️ API токен отсутствует!");
+    return '';
+  }
   
-  return isObfuscated ? deobfuscateToken(token) : token;
+  const resultToken = isObfuscated ? deobfuscateToken(token) : token;
+  console.log(`ℹ️ API токен получен (${resultToken.length} символов, ${resultToken.substring(0, 10)}...)`);
+  return resultToken;
 };
 
 // Функция для получения имени заголовка авторизации
@@ -63,12 +70,14 @@ const addAuthHeaders = (headers: Record<string, string> = {}): Record<string, st
   const headerName = getHeaderName();
   
   if (token) {
+    console.log(`Добавление заголовка ${headerName} к запросу`);
     return {
       ...headers,
       [headerName]: `Bearer ${token}`
     };
   }
   
+  console.warn("⚠️ Невозможно добавить заголовок авторизации - токен отсутствует!");
   return headers;
 };
 

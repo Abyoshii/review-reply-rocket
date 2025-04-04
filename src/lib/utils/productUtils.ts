@@ -3,6 +3,7 @@ import axios from "axios";
 import { ProductCardInfo, ProductCategory } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
 import { toast } from "sonner";
+import { getApiToken } from "../securityUtils";
 
 // API URL для получения информации о товаре
 const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards/list";
@@ -33,13 +34,23 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       }
     };
     
+    // Получаем токен для запроса
+    const TOKEN = getApiToken();
+    
     // Выводим детали запроса
     console.log(`🔍 Запрос данных карточки товара через POST API для nmId=${nmId}:`);
     console.log(`URL: ${WB_CARD_API_URL}`);
+    console.log(`Токен: ${TOKEN ? "Присутствует" : "Отсутствует!"}`);
     console.log(`Тело запроса:`, JSON.stringify(requestBody, null, 2));
     
-    // Выполняем запрос
-    const response = await axios.post(WB_CARD_API_URL, requestBody);
+    // Формируем заголовки запроса с токеном авторизации
+    const headers = {
+      "Authorization": `Bearer ${TOKEN}`,
+      "Content-Type": "application/json"
+    };
+    
+    // Выполняем запрос с заголовками авторизации
+    const response = await axios.post(WB_CARD_API_URL, requestBody, { headers });
     
     // Вычисляем время выполнения запроса
     const requestTime = Math.round(performance.now() - startTime);
@@ -55,8 +66,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       console.warn(`⚠️ [WARN] Не найдены данные товара для nmId=${nmId}. API вернул пустой результат.`);
       // Добавим уведомление пользователю о проблеме
       toast.warning(`Товар ${nmId} не найден в каталоге WB`, {
-        description: "Проверьте правильность номенклатуры или доступность API",
-        important: true
+        description: "Проверьте правильность номенклатуры или доступность API"
       });
       return null;
     }
@@ -121,8 +131,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       
       // Уведомляем пользователя о проблеме с API
       toast.error(`Ошибка получения данных товара ${nmId}`, {
-        description: `${error.message} (${error.response?.status || "неизвестный статус"})`,
-        important: true
+        description: `${error.message} (${error.response?.status || "неизвестный статус"})`
       });
     }
     

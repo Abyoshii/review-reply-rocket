@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { 
   AssemblyOrder, 
@@ -193,11 +194,15 @@ export const AutoAssemblyAPI = {
   
   createSupply: async (name: string): Promise<number | null> => {
     try {
+      console.log(`Создание поставки с именем "${name}" с заголовками:`, addAuthHeaders());
+      
       const response = await axios.post<CreateSupplyResponse>(`${WB_API_BASE_URL}/supplies`, {
         name
       }, {
         headers: addAuthHeaders()
       });
+      
+      console.log("Ответ API при создании поставки:", response.data);
       
       if (response.data && response.data.data && response.data.data.supplyId) {
         toast.success(`Поставка "${name}" создана`);
@@ -207,6 +212,7 @@ export const AutoAssemblyAPI = {
       }
     } catch (error) {
       console.error("Error creating supply:", error);
+      logObjectStructure(error, "Детальная ошибка при создании поставки");
       toast.error("Ошибка при создании поставки");
       return null;
     }

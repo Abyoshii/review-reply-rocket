@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -156,7 +155,7 @@ const ConsoleViewer = () => {
                 </Badge>
               )}
               {warnCount > 0 && (
-                <Badge variant="warning" className="text-xs bg-yellow-500">
+                <Badge variant="destructive" className="text-xs bg-yellow-500">
                   {warnCount}
                 </Badge>
               )}
