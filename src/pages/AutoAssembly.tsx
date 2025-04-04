@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -241,7 +240,7 @@ const AutoAssembly = () => {
       
       toast.success(`Создана поставка с ${selectedOrders.size} сборочными заданиями`);
       
-      // Обновляем список, исключая добавленные в поставку заказы
+      // Обновляем список, исключая добавленны�� в поставку заказы
       const updatedOrders = orders.map(order => {
         if (selectedOrders.has(order.id)) {
           return { ...order, inSupply: true };
@@ -515,7 +514,7 @@ const AutoAssembly = () => {
                       <SelectValue placeholder="Все склады" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Все склады</SelectItem>
+                      <SelectItem value="all">Все склады</SelectItem>
                       {warehouses.map(warehouse => (
                         <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
                           {warehouse.name}
@@ -535,7 +534,7 @@ const AutoAssembly = () => {
                       <SelectValue placeholder="Все типы" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Все типы</SelectItem>
+                      <SelectItem value="all">Все типы</SelectItem>
                       {cargoTypes.map(cargoType => (
                         <SelectItem key={cargoType.id} value={cargoType.id.toString()}>
                           {cargoType.name}
@@ -555,7 +554,7 @@ const AutoAssembly = () => {
                       <SelectValue placeholder="Все категории" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Все категории</SelectItem>
+                      <SelectItem value="all">Все категории</SelectItem>
                       <SelectItem value={ProductCategory.PERFUME}>
                         <div className="flex items-center gap-2">
                           <Droplets className="h-4 w-4" />
