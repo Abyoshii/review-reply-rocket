@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Tabs,
@@ -43,17 +42,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/use-toast";
 import { Package, Search, RefreshCw, Droplets, ShirtIcon, Paperclip, ChevronDown, PenLine, Truck, Ticket, Trash } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { autoAssemblyApi } from "@/lib/autoAssemblyApi";
+import { autoAssemblyApi, type Order, type Supply, type ProductCategory } from "@/lib/autoAssemblyApi";
 
 // Типы для данных
-interface Order {
+interface AppOrder extends Omit<Order, 'id'> {
   id: string;
   orderId: string;
-  article: string;
-  name: string;
   barcode: string;
   count: number;
   date: string;
@@ -62,13 +59,13 @@ interface Order {
   category?: "Парфюмерия" | "Одежда" | "Мелочёвка";
 }
 
-interface Supply {
+interface AppSupply {
   id: string;
   name: string;
   count: number;
   date: string;
   category: string;
-  orders: Order[];
+  orders: AppOrder[];
 }
 
 // Функция определения категории товара по названию
@@ -93,8 +90,8 @@ const detectCategory = (name: string): "Парфюмерия" | "Одежда" |
 const AutoAssembly = () => {
   // Состояния
   const [activeTab, setActiveTab] = useState("orders");
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [supplies, setSupplies] = useState<Supply[]>([]);
+  const [orders, setOrders] = useState<AppOrder[]>([]);
+  const [supplies, setSupplies] = useState<AppSupply[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState("all");
   const [selectedCargoType, setSelectedCargoType] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -104,7 +101,7 @@ const AutoAssembly = () => {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [showCreateSupplyModal, setShowCreateSupplyModal] = useState(false);
   const [newSupplyName, setNewSupplyName] = useState("");
-  const [currentSupply, setCurrentSupply] = useState<Supply | null>(null);
+  const [currentSupply, setCurrentSupply] = useState<AppSupply | null>(null);
   const [showSupplyDetailsModal, setShowSupplyDetailsModal] = useState(false);
   const [showAutoCreateDialog, setShowAutoCreateDialog] = useState(false);
   const [autoCreateResult, setAutoCreateResult] = useState<{
@@ -128,9 +125,16 @@ const AutoAssembly = () => {
     setIsLoading(true);
     try {
       const data = await autoAssemblyApi.getOrders();
-      // Добавляем категорию к каждому заказу
       const processedOrders = data.map((order: Order) => ({
-        ...order,
+        id: order.id.toString(),
+        orderId: `WB-${order.id}`,
+        article: order.article,
+        name: order.name,
+        barcode: `123${order.id}`,
+        count: 1,
+        date: order.createdAt,
+        warehouse: order.warehouse,
+        cargoType: order.cargoType,
         category: detectCategory(order.name)
       }));
       setOrders(processedOrders);
@@ -150,7 +154,16 @@ const AutoAssembly = () => {
   const fetchSupplies = async () => {
     try {
       const data = await autoAssemblyApi.getSupplies();
-      setSupplies(data);
+      const processedSupplies = data.map((supply) => ({
+        id: supply.id.toString(),
+        name: supply.name,
+        count: supply.ordersCount,
+        date: supply.createdAt,
+        category: supply.category === 'perfume' ? 'Парфюмерия' : 
+                 supply.category === 'clothing' ? 'Одежда' : 'Мелочёвка',
+        orders: []
+      }));
+      setSupplies(processedSupplies);
     } catch (error) {
       console.error("Failed to fetch supplies:", error);
       toast({
@@ -163,22 +176,18 @@ const AutoAssembly = () => {
   
   // Фильтрация заказов
   const filteredOrders = orders.filter(order => {
-    // Фильтр по складу
     if (selectedWarehouse !== "all" && order.warehouse !== selectedWarehouse) {
       return false;
     }
     
-    // Фильтр по типу груза
     if (selectedCargoType !== "all" && order.cargoType !== selectedCargoType) {
       return false;
     }
     
-    // Фильтр по категории
     if (selectedCategory !== "all" && order.category !== selectedCategory) {
       return false;
     }
     
-    // Поиск по ID или артикулу
     if (searchQuery && 
         !order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) && 
         !order.article.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -214,11 +223,32 @@ const AutoAssembly = () => {
     }
     
     try {
-      const supply = await autoAssemblyApi.createSupply({ name: newSupplyName });
+      const categoryCounts = {
+        perfume: 0,
+        clothing: 0,
+        misc: 0
+      };
       
-      // Добавление выбранных заказов в поставку
+      selectedOrders.forEach(orderId => {
+        const order = orders.find(o => o.id === orderId);
+        if (order) {
+          if (order.category === "Парфюмерия") categoryCounts.perfume++;
+          else if (order.category === "Одежда") categoryCounts.clothing++;
+          else categoryCounts.misc++;
+        }
+      });
+      
+      let category: ProductCategory = 'misc';
+      if (categoryCounts.perfume > categoryCounts.clothing && categoryCounts.perfume > categoryCounts.misc) {
+        category = 'perfume';
+      } else if (categoryCounts.clothing > categoryCounts.perfume && categoryCounts.clothing > categoryCounts.misc) {
+        category = 'clothing';
+      }
+      
+      const supply = await autoAssemblyApi.createSupply(newSupplyName, category);
+      
       await Promise.all(selectedOrders.map(orderId => 
-        autoAssemblyApi.addOrderToSupply(supply.id, orderId)
+        autoAssemblyApi.addOrderToSupply(supply.id, parseInt(orderId))
       ));
       
       toast({
@@ -226,11 +256,9 @@ const AutoAssembly = () => {
         description: `Поставка "${newSupplyName}" успешно создана с ${selectedOrders.length} товарами`
       });
       
-      // Обновляем списки
       fetchOrders();
       fetchSupplies();
       
-      // Сбрасываем состояние
       setSelectedOrders([]);
       setNewSupplyName("");
       setShowCreateSupplyModal(false);
@@ -249,10 +277,9 @@ const AutoAssembly = () => {
     try {
       const date = new Date().toLocaleDateString('ru-RU');
       
-      // Группируем заказы по категориям
-      const perfumeOrders = orders.filter(order => order.category === "Парфюмерия").map(order => order.id);
-      const clothingOrders = orders.filter(order => order.category === "Одежда").map(order => order.id);
-      const otherOrders = orders.filter(order => order.category === "Мелочёвка").map(order => order.id);
+      const perfumeOrders = orders.filter(order => order.category === "Парфюмерия").map(order => parseInt(order.id));
+      const clothingOrders = orders.filter(order => order.category === "Одежда").map(order => parseInt(order.id));
+      const otherOrders = orders.filter(order => order.category === "Мелочёвка").map(order => parseInt(order.id));
       
       const results = {
         perfume: perfumeOrders.length,
@@ -260,11 +287,11 @@ const AutoAssembly = () => {
         other: otherOrders.length
       };
       
-      // Создаем поставки для каждой категории
       if (perfumeOrders.length > 0) {
-        const perfumeSupply = await autoAssemblyApi.createSupply({ 
-          name: `Поставка: Парфюмерия – ${date}` 
-        });
+        const perfumeSupply = await autoAssemblyApi.createSupply(
+          `Поставка: Парфюмерия – ${date}`,
+          'perfume'
+        );
         
         await Promise.all(perfumeOrders.map(orderId => 
           autoAssemblyApi.addOrderToSupply(perfumeSupply.id, orderId)
@@ -272,9 +299,10 @@ const AutoAssembly = () => {
       }
       
       if (clothingOrders.length > 0) {
-        const clothingSupply = await autoAssemblyApi.createSupply({ 
-          name: `Поставка: Одежда – ${date}` 
-        });
+        const clothingSupply = await autoAssemblyApi.createSupply(
+          `Поставка: Одежда – ${date}`,
+          'clothing'
+        );
         
         await Promise.all(clothingOrders.map(orderId => 
           autoAssemblyApi.addOrderToSupply(clothingSupply.id, orderId)
@@ -282,16 +310,16 @@ const AutoAssembly = () => {
       }
       
       if (otherOrders.length > 0) {
-        const otherSupply = await autoAssemblyApi.createSupply({ 
-          name: `Поставка: Мелочёвка – ${date}` 
-        });
+        const otherSupply = await autoAssemblyApi.createSupply(
+          `Поставка: Мелочёвка – ${date}`,
+          'misc'
+        );
         
         await Promise.all(otherOrders.map(orderId => 
           autoAssemblyApi.addOrderToSupply(otherSupply.id, orderId)
         ));
       }
       
-      // Обновляем данные и показываем результат
       fetchOrders();
       fetchSupplies();
       setAutoCreateResult(results);
@@ -331,7 +359,7 @@ const AutoAssembly = () => {
   };
   
   // Просмотр деталей поставки
-  const viewSupplyDetails = (supply: Supply) => {
+  const viewSupplyDetails = (supply: AppSupply) => {
     setCurrentSupply(supply);
     setShowSupplyDetailsModal(true);
   };
@@ -346,7 +374,7 @@ const AutoAssembly = () => {
     if (!editSupplyId || !editSupplyName.trim()) return;
     
     try {
-      await autoAssemblyApi.updateSupply(editSupplyId, { name: editSupplyName });
+      await autoAssemblyApi.updateSupplyName(parseInt(editSupplyId), editSupplyName);
       toast({
         title: "Название обновлено",
         description: "Название поставки успешно обновлено"
@@ -373,13 +401,13 @@ const AutoAssembly = () => {
     if (!supplyToDelete) return;
     
     try {
-      await autoAssemblyApi.deleteSupply(supplyToDelete);
+      await autoAssemblyApi.deleteSupply(parseInt(supplyToDelete));
       toast({
         title: "Поставка удалена",
         description: "Поставка успешно удалена"
       });
       fetchSupplies();
-      fetchOrders(); // Обновляем и заказы, так как они могут быть освобождены
+      fetchOrders();
       setShowDeleteConfirm(false);
       setSupplyToDelete(null);
     } catch (error) {
@@ -410,9 +438,9 @@ const AutoAssembly = () => {
   const getCategoryBadgeVariant = (category: string): "default" | "destructive" | "secondary" | "outline" => {
     switch (category) {
       case "Парфюмерия":
-        return "secondary"; // фиолетовый цвет заменен на secondary
+        return "secondary";
       case "Одежда":
-        return "secondary"; // зеленый цвет заменен на secondary
+        return "secondary";
       case "Мелочёвка":
       default:
         return "outline";
@@ -435,9 +463,7 @@ const AutoAssembly = () => {
           </TabsTrigger>
         </TabsList>
         
-        {/* Вкладка со сборочными заданиями */}
         <TabsContent value="orders" className="space-y-4">
-          {/* Фильтры */}
           <div className="flex flex-col md:flex-row gap-2 mb-4 flex-wrap">
             <div className="w-full md:w-auto">
               <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
@@ -524,7 +550,6 @@ const AutoAssembly = () => {
             </Button>
           </div>
           
-          {/* Таблица заданий */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Сборочные задания</CardTitle>
@@ -606,7 +631,6 @@ const AutoAssembly = () => {
           </Card>
         </TabsContent>
         
-        {/* Вкладка с поставками */}
         <TabsContent value="supplies" className="space-y-4">
           <Button 
             variant="outline"
@@ -710,7 +734,6 @@ const AutoAssembly = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Модальное окно для создания поставки вручную */}
       <Dialog open={showCreateSupplyModal} onOpenChange={setShowCreateSupplyModal}>
         <DialogContent>
           <DialogHeader>
@@ -741,7 +764,6 @@ const AutoAssembly = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Модальное окно для просмотра деталей поставки */}
       <Dialog open={showSupplyDetailsModal} onOpenChange={setShowSupplyDetailsModal}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -793,7 +815,6 @@ const AutoAssembly = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Диалог для автоматического создания поставок */}
       <AlertDialog open={showAutoCreateDialog} onOpenChange={setShowAutoCreateDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -811,7 +832,6 @@ const AutoAssembly = () => {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Диалог для подтверждения удаления */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -829,7 +849,6 @@ const AutoAssembly = () => {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Результат автоматического создания */}
       {autoCreateResult && (
         <Dialog open={!!autoCreateResult} onOpenChange={() => setAutoCreateResult(null)}>
           <DialogContent>
@@ -867,7 +886,7 @@ const AutoAssembly = () => {
             <DialogFooter>
               <Button onClick={() => {
                 setAutoCreateResult(null);
-                setActiveTab("supplies"); // Переключение на вкладку с поставками
+                setActiveTab("supplies");
               }}>
                 Перейти к поставкам
               </Button>
