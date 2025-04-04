@@ -307,7 +307,6 @@ const AutoAssembly = () => {
   };
 
   const formatPrice = (price: number): string => {
-    // Округляем цену до 2 знаков после запятой
     return (price / 100).toFixed(2);
   };
 
@@ -381,7 +380,8 @@ const AutoAssembly = () => {
     }
   };
 
-  return <div className="container mx-auto py-6 max-w-7xl">
+  return (
+    <div className="container mx-auto py-6 max-w-7xl">
       <div className="flex flex-wrap justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Автосборка</h1>
@@ -396,13 +396,17 @@ const AutoAssembly = () => {
           </Button>
           
           <Button variant="purple" size="lg" onClick={handleAutoAssemble} disabled={isLoading || isAutoAssembling}>
-            {isAutoAssembling ? <>
+            {isAutoAssembling ? (
+              <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Формирование поставок...
-              </> : <>
+              </>
+            ) : (
+              <>
                 <Package className="mr-2 h-4 w-4" />
                 Автосформировать поставки
-              </>}
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -416,7 +420,8 @@ const AutoAssembly = () => {
             </DialogDescription>
           </DialogHeader>
           
-          {autoAssemblyResult && <div className="py-4 space-y-4">
+          {autoAssemblyResult && (
+            <div className="py-4 space-y-4">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center">
                   <Droplets className="text-purple-500 h-5 w-5 mr-2" />
@@ -443,14 +448,18 @@ const AutoAssembly = () => {
               <p className="text-sm text-muted-foreground">
                 Поставки созданы и готовы к дальнейшей обработке. Вы можете просмотреть их на вкладке "Поставки".
               </p>
-            </div>}
+            </div>
+          )}
           
           <DialogFooter>
             <Button onClick={() => setShowResultDialog(false)}>Закрыть</Button>
-            <Button onClick={() => {
-            setShowResultDialog(false);
-            setActiveTab("supplies");
-          }} variant="outline">
+            <Button 
+              onClick={() => {
+                setShowResultDialog(false);
+                setActiveTab("supplies");
+              }} 
+              variant="outline"
+            >
               Перейти к поставкам
             </Button>
           </DialogFooter>
@@ -484,9 +493,11 @@ const AutoAssembly = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Все склады</SelectItem>
-                      {warehouses.map(warehouse => <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                      {warehouses.map(warehouse => (
+                        <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
                           {warehouse.name}
-                        </SelectItem>)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -499,9 +510,11 @@ const AutoAssembly = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Все типы</SelectItem>
-                      {cargoTypes.map(cargoType => <SelectItem key={cargoType.id} value={cargoType.id.toString()}>
+                      {cargoTypes.map(cargoType => (
+                        <SelectItem key={cargoType.id} value={cargoType.id.toString()}>
                           {cargoType.name}
-                        </SelectItem>)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -563,14 +576,18 @@ const AutoAssembly = () => {
               
               <div className="flex items-center justify-between mt-4">
                 <div className="flex items-center space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => setFilters({
-                  warehouse: '',
-                  cargoType: '',
-                  search: '',
-                  sortBy: 'createdAt',
-                  sortDirection: 'desc',
-                  category: ''
-                })}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setFilters({
+                      warehouse: '',
+                      cargoType: '',
+                      search: '',
+                      sortBy: 'createdAt',
+                      sortDirection: 'desc',
+                      category: ''
+                    })}
+                  >
                     Сбросить фильтры
                   </Button>
                   <span className="text-sm text-muted-foreground">
@@ -591,10 +608,16 @@ const AutoAssembly = () => {
               <div className="relative overflow-x-auto">
                 <Table>
                   <TableCaption>
-                    {isLoading ? <div className="flex items-center justify-center py-4">
+                    {isLoading ? (
+                      <div className="flex items-center justify-center py-4">
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Загрузка сборочных заданий...
-                      </div> : filteredOrders.length === 0 ? "Нет доступных сборочных заданий" : `Всего сборочных заданий: ${filteredOrders.length}`}
+                      </div>
+                    ) : filteredOrders.length === 0 ? (
+                      "Нет доступных сборочных заданий"
+                    ) : (
+                      `Всего сборочных заданий: ${filteredOrders.length}`
+                    )}
                   </TableCaption>
                   <TableHeader>
                     <TableRow>
@@ -603,7 +626,7 @@ const AutoAssembly = () => {
                       </TableHead>
                       <TableHead>Задание</TableHead>
                       <TableHead>Артикул</TableHead>
-                      <TableHead className="w-[250px] ">Наименование</TableHead>
+                      <TableHead className="w-[250px]">Наименование</TableHead>
                       <TableHead className="hidden lg:table-cell">Создан</TableHead>
                       <TableHead className="hidden md:table-cell">Доставка до</TableHead>
                       {/* Скрываем склад, если warehouseId отсутствует */}
@@ -616,14 +639,17 @@ const AutoAssembly = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? <TableRow>
+                    {isLoading ? (
+                      <TableRow>
                         <TableCell colSpan={10} className="h-24 text-center">
                           <div className="flex items-center justify-center">
                             <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                             Загрузка сборочных заданий...
                           </div>
                         </TableCell>
-                      </TableRow> : filteredOrders.length === 0 ? <TableRow>
+                      </TableRow>
+                    ) : filteredOrders.length === 0 ? (
+                      <TableRow>
                         <TableCell colSpan={10} className="h-24 text-center">
                           <div className="flex flex-col items-center justify-center space-y-3">
                             <Box className="h-12 w-12 text-muted-foreground/50" />
@@ -634,7 +660,10 @@ const AutoAssembly = () => {
                             </Button>
                           </div>
                         </TableCell>
-                      </TableRow> : filteredOrders.map(order => <TableRow key={order.id} className="cursor-pointer">
+                      </TableRow>
+                    ) : (
+                      filteredOrders.map(order => (
+                        <TableRow key={order.id} className="cursor-pointer">
                           <TableCell>
                             <Checkbox 
                               checked={selectedOrders.has(order.id)} 
@@ -719,40 +748,54 @@ const AutoAssembly = () => {
                           <TableCell>
                             <div className="flex flex-col">
                               <span className="font-medium">{formatPrice(order.salePrice)} ₽</span>
-                              {order.price !== order.salePrice && <span className="text-sm text-muted-foreground line-through">
+                              {order.price !== order.salePrice && (
+                                <span className="text-sm text-muted-foreground line-through">
                                   {formatPrice(order.price)} ₽
-                                </span>}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
-                        </TableRow>)}
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
               
-              {selectedOrders.size > 0 && <div className="p-4 flex flex-wrap items-center justify-between bg-muted/50 gap-2">
+              {selectedOrders.size > 0 && (
+                <div className="p-4 flex flex-wrap items-center justify-between bg-muted/50 gap-2">
                   <span>Выбрано заказов: <strong>{selectedOrders.size}</strong></span>
                   <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" onClick={handlePrintStickers} disabled={isProcessing}>
-                      {isProcessing ? <>
+                      {isProcessing ? (
+                        <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Подготовка стикеров...
-                        </> : <>
+                        </>
+                      ) : (
+                        <>
                           <Download className="mr-2 h-4 w-4" />
                           Распечатать стикеры
-                        </>}
+                        </>
+                      )}
                     </Button>
                     
                     <Button onClick={handleAssembleOrders} disabled={isProcessing}>
-                      {isProcessing ? <>
+                      {isProcessing ? (
+                        <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Создание поставки...
-                        </> : <>
+                        </>
+                      ) : (
+                        <>
                           <CheckCheck className="mr-2 h-4 w-4" />
                           Создать поставку из выбранных
-                        </>}
+                        </>
+                      )}
                     </Button>
                   </div>
-                </div>}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -767,10 +810,13 @@ const AutoAssembly = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              {isLoading ? <div className="flex items-center justify-center py-8">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Загрузка поставок...
-                </div> : supplies.length === 0 ? <div className="text-center py-12">
+                </div>
+              ) : supplies.length === 0 ? (
+                <div className="text-center py-12">
                   <div className="flex justify-center">
                     <Truck className="h-12 w-12 text-muted-foreground/50" />
                   </div>
@@ -779,4 +825,20 @@ const AutoAssembly = () => {
                     Создайте поставки вручную или используйте автоматическое формирование
                   </p>
                   <Button className="mt-4" onClick={() => setActiveTab("orders")}>
-                    Перейти к с
+                    Перейти к сборочным заданиям
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  {/* Supply list implementation */}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default AutoAssembly;
