@@ -8,8 +8,18 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { Toaster } from "./components/ui/toaster";
 import AutoAssembly from "./pages/AutoAssembly";
+import { useState } from "react";
 
 function App() {
+  const [unansweredCount, setUnansweredCount] = useState(0);
+  const [unansweredQuestionsCount, setUnansweredQuestionsCount] = useState(0);
+
+  const handleRefresh = () => {
+    // This is a placeholder function for the onRefresh prop
+    // The actual refresh logic is handled in the Index component
+    console.log("Refresh requested from App level");
+  };
+
   return (
     <ThemeProvider defaultTheme="system" storageKey="ui-theme">
       <Router>
@@ -17,7 +27,11 @@ function App() {
           <div className="min-h-screen flex w-full">
             <AppSidebar />
             <div className="flex-1 flex flex-col">
-              <Header />
+              <Header 
+                unansweredCount={unansweredCount}
+                unansweredQuestionsCount={unansweredQuestionsCount}
+                onRefresh={handleRefresh}
+              />
               <main className="flex-1">
                 <Routes>
                   <Route path="/" element={<Index />} />
