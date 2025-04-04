@@ -34,7 +34,7 @@ interface ReviewsTableProps {
 }
 
 const ReviewsTable = ({ 
-  reviews, 
+  reviews = [], 
   loading, 
   onRefresh, 
   isAnswered, 
@@ -420,9 +420,9 @@ const ReviewsTable = ({
     return Array.isArray(photoLinks) && photoLinks.length > 0 && photoLinks[0]?.miniSize;
   };
 
-  const filteredReviews = reviews.filter(review => 
+  const filteredReviews = reviews?.filter(review => 
     !processingReviewIds || !processingReviewIds.has(review.id)
-  );
+  ) || [];
 
   const renderRating = (rating: number) => {
     return <RatingStars rating={rating} showBadge={true} />;
@@ -485,7 +485,7 @@ const ReviewsTable = ({
 
       <FloatingActionButtons 
         selectedReviews={selectedReviews}
-        reviews={filteredReviews || []}
+        reviews={filteredReviews}
         onGenerateAnswers={generateSelectedAnswers}
         onSendAnswers={sendSelectedAnswers}
         onRefresh={onRefresh}
@@ -500,14 +500,14 @@ const ReviewsTable = ({
           <Loader2 size={24} className="animate-spin mx-auto mb-2" />
           Загрузка отзывов...
         </div>
-      ) : !Array.isArray(filteredReviews) || filteredReviews.length === 0 ? (
+      ) : !filteredReviews.length ? (
         <div className="text-center py-8 dark:text-gray-300 transition-colors duration-300">
           <MessageSquare size={24} className="mx-auto mb-2 opacity-50" />
           Нет отзывов для отображения
         </div>
       ) : (
         <div className="space-y-4">
-          {Array.isArray(filteredReviews) && filteredReviews.map((review) => (
+          {filteredReviews.map((review) => (
             <Card 
               key={review.id} 
               className={`p-4 shadow-sm dark:bg-gray-700 dark:text-white transition-colors duration-300 

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import ReviewsTable from "@/components/ReviewsTable";
@@ -13,13 +13,42 @@ import AutoResponder from "@/components/AutoResponder";
 import AutoResponseSettings from "@/components/AutoResponseSettings";
 import AutoResponseService from "@/components/AutoResponseService";
 import FloatingActionButtons from "@/components/FloatingActionButtons";
+import { WbAPI } from "@/lib/api";
+import { WbReview } from "@/types/wb";
+import { AutoResponderSettings as AutoResponderSettingsType } from "@/types/openai";
 
 const Reviews = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("reviews");
   const [autoResponseExpanded, setAutoResponseExpanded] = useState(false);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [questionsLoading, setQuestionsLoading] = useState(true);
+  const [archiveLoading, setArchiveLoading] = useState(true);
+  const [reviews, setReviews] = useState<WbReview[]>([]);
+  const [questions, setQuestions] = useState<WbReview[]>([]);
+  const [archiveReviews, setArchiveReviews] = useState<WbReview[]>([]);
+  const [isAutoResponseActive, setIsAutoResponseActive] = useState(false);
+  const [autoResponseSettings, setAutoResponseSettings] = useState<AutoResponderSettingsType>({
+    maxReviewsPerRequest: 10,
+    positiveTemplate: "Спасибо за ваш отзыв! Мы рады, что вам понравился товар.",
+    negativeTemplate: "Спасибо за ваш отзыв. Мы сожалеем о вашем опыте и постараемся исправить ситуацию.",
+    neutralTemplate: "Благодарим за обратную связь. Ваше мнение важно для нас.",
+    useAI: true
+  });
+  const [autoResponseStatus, setAutoResponseStatus] = useState({
+    isRunning: false,
+    lastCheck: null as Date | null,
+    processedCount: 0,
+    successCount: 0,
+    failedCount: 0
+  });
+  const [autoResponseInterval, setAutoResponseInterval] = useState(30); // minutes
   
   const handleRefresh = () => {
+    fetchReviews();
+    fetchQuestions();
+    fetchArchive();
+    
     toast({
       title: "Обновление данных",
       description: "Данные успешно обновлены",
@@ -29,14 +58,151 @@ const Reviews = () => {
   const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
+  
+  const fetchReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const response = await WbAPI.getReviews({
+        isAnswered: false,
+        take: 50,
+        skip: 0
+      });
+      if (response.data && response.data.feedbacks) {
+        setReviews(response.data.feedbacks);
+      }
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить отзывы",
+        variant: "destructive"
+      });
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+  
+  const fetchQuestions = async () => {
+    setQuestionsLoading(true);
+    try {
+      const response = await WbAPI.getQuestions({
+        isAnswered: false,
+        take: 50,
+        skip: 0
+      });
+      if (response.data && response.data.questions) {
+        setQuestions(response.data.questions);
+      }
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить вопросы",
+        variant: "destructive"
+      });
+    } finally {
+      setQuestionsLoading(false);
+    }
+  };
+  
+  const fetchArchive = async () => {
+    setArchiveLoading(true);
+    try {
+      const response = await WbAPI.getReviews({
+        isAnswered: true,
+        take: 50,
+        skip: 0
+      });
+      if (response.data && response.data.feedbacks) {
+        setArchiveReviews(response.data.feedbacks);
+      }
+    } catch (error) {
+      console.error("Error fetching archive:", error);
+      toast({
+        title: "Ошибка",
+        description: "Не удалось загрузить архив",
+        variant: "destructive"
+      });
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+  
+  const handleFilterChange = async (filters: any) => {
+    setReviewsLoading(true);
+    try {
+      const response = await WbAPI.getReviews({
+        ...filters,
+        isAnswered: false
+      });
+      if (response.data && response.data.feedbacks) {
+        setReviews(response.data.feedbacks);
+      }
+    } catch (error) {
+      console.error("Error filtering reviews:", error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+  
+  const handleQuestionsFilterChange = async (filters: any) => {
+    setQuestionsLoading(true);
+    try {
+      const response = await WbAPI.getQuestions({
+        ...filters,
+        isAnswered: false
+      });
+      if (response.data && response.data.questions) {
+        setQuestions(response.data.questions);
+      }
+    } catch (error) {
+      console.error("Error filtering questions:", error);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  };
+  
+  const handleStartAutoResponse = (settings: AutoResponderSettingsType, interval: number) => {
+    setAutoResponseSettings(settings);
+    setAutoResponseInterval(interval);
+    setIsAutoResponseActive(true);
+    toast({
+      title: "Автоответчик активирован",
+      description: `Будет проверять новые отзывы каждые ${interval} минут`,
+    });
+  };
+  
+  const handleStopAutoResponse = () => {
+    setIsAutoResponseActive(false);
+    toast({
+      title: "Автоответчик деактивирован",
+      description: "Автоматические ответы остановлены",
+    });
+  };
+  
+  const handleStatusUpdate = (status: {
+    isRunning: boolean;
+    lastCheck: Date | null;
+    processedCount: number;
+    successCount: number;
+    failedCount: number;
+  }) => {
+    setAutoResponseStatus(status);
+  };
+
+  useEffect(() => {
+    fetchReviews();
+    fetchQuestions();
+    fetchArchive();
+  }, []);
 
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-purple-700 dark:text-purple-400">Отзывы</h1>
         <HeaderAutoResponse 
-          autoResponseExpanded={autoResponseExpanded}
-          setAutoResponseExpanded={setAutoResponseExpanded}
+          onToggleAutoResponse={() => setAutoResponseExpanded(!autoResponseExpanded)}
+          isActive={isAutoResponseActive}
         />
       </div>
 
@@ -56,10 +222,22 @@ const Reviews = () => {
                 <TabsTrigger value="responder">Тестировщик</TabsTrigger>
               </TabsList>
               <TabsContent value="settings">
-                <AutoResponseSettings />
+                <AutoResponseSettings 
+                  open={autoResponseExpanded}
+                  onOpenChange={setAutoResponseExpanded}
+                  onStartAutoResponse={handleStartAutoResponse}
+                  onStopAutoResponse={handleStopAutoResponse}
+                  isAutoResponseActive={isAutoResponseActive}
+                />
               </TabsContent>
               <TabsContent value="service">
-                <AutoResponseService />
+                <AutoResponseService 
+                  isActive={isAutoResponseActive}
+                  settings={autoResponseSettings}
+                  interval={autoResponseInterval}
+                  onStatusUpdate={handleStatusUpdate}
+                  onDeactivate={handleStopAutoResponse}
+                />
               </TabsContent>
               <TabsContent value="responder">
                 <AutoResponder />
@@ -82,7 +260,10 @@ const Reviews = () => {
               <CardTitle>Фильтры</CardTitle>
             </CardHeader>
             <CardContent>
-              <FilterForm />
+              <FilterForm 
+                onFilterChange={handleFilterChange}
+                loading={reviewsLoading}
+              />
             </CardContent>
           </Card>
           
@@ -94,7 +275,12 @@ const Reviews = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ReviewsTable />
+              <ReviewsTable 
+                reviews={reviews}
+                loading={reviewsLoading}
+                onRefresh={fetchReviews}
+                isAnswered={false}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -105,7 +291,10 @@ const Reviews = () => {
               <CardTitle>Фильтры</CardTitle>
             </CardHeader>
             <CardContent>
-              <QuestionsFilterForm />
+              <QuestionsFilterForm 
+                onFilterChange={handleQuestionsFilterChange}
+                loading={questionsLoading}
+              />
             </CardContent>
           </Card>
           
@@ -117,7 +306,11 @@ const Reviews = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <QuestionsTable />
+              <QuestionsTable 
+                questions={questions}
+                loading={questionsLoading}
+                onRefresh={fetchQuestions}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -131,13 +324,26 @@ const Reviews = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ArchiveReviewsTable />
+              <ArchiveReviewsTable 
+                reviews={archiveReviews}
+                loading={archiveLoading}
+              />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
       
-      <FloatingActionButtons onRefresh={handleRefresh} />
+      {activeTab === "reviews" && (
+        <FloatingActionButtons 
+          onRefresh={handleRefresh}
+          selectedReviews={new Set()}
+          reviews={reviews}
+          onGenerateAnswers={() => {}}
+          onSendAnswers={() => {}}
+          onClearSelection={() => {}}
+          hasAnswers={false}
+        />
+      )}
     </div>
   );
 };

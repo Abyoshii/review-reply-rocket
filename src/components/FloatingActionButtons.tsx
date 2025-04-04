@@ -18,13 +18,13 @@ interface FloatingActionButtonsProps {
 }
 
 const FloatingActionButtons = ({ 
-  selectedReviews, 
-  reviews, 
+  selectedReviews = new Set(), 
+  reviews = [], 
   onGenerateAnswers, 
   onSendAnswers, 
   onRefresh, 
   onClearSelection,
-  hasAnswers,
+  hasAnswers = false,
   generationProgress,
   sendingProgress
 }: FloatingActionButtonsProps) => {
@@ -66,7 +66,7 @@ const FloatingActionButtons = ({
     }
   }, [sendingProgress, onClearSelection]);
 
-  if (selectedReviews.size === 0) {
+  if (!selectedReviews || selectedReviews.size === 0) {
     return null;
   }
 
