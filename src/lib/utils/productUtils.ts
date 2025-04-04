@@ -25,7 +25,8 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
           limit: 1
         },
         filter: {
-          textSearch: String(nmId)
+          textSearch: String(nmId),
+          withPhoto: -1
         }
       }
     };
@@ -38,8 +39,9 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     // Выводим полный ответ API для анализа
     console.log(`Полный ответ API карточки товара для nmId=${nmId}:`, JSON.stringify(response.data, null, 2));
     
-    if (response.data && response.data.data && response.data.data.cards && response.data.data.cards.length > 0) {
-      const product = response.data.data.cards[0];
+    // Проверяем наличие карточки в ответе (corrected response structure)
+    if (response.data && response.data.cards && response.data.cards.length > 0) {
+      const product = response.data.cards[0];
       
       // Получаем URL изображения из первой фотографии, если она есть
       let imageUrl = '';
