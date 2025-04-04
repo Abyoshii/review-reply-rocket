@@ -174,7 +174,12 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                         {getCategoryDisplay(order.category).badge}
                       </TooltipTrigger>
                       <TooltipContent>
-                        Автоматически определено по названию
+                        <div className="text-xs">
+                          <p>Автоматически определено по названию</p>
+                          {order.productInfo?.category && (
+                            <p className="mt-1">Категория в WB: {order.productInfo.category}</p>
+                          )}
+                        </div>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
