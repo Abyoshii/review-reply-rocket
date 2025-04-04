@@ -93,7 +93,7 @@ interface AppOrder extends Order {
   barcode?: string;
   count?: number;
   date?: string;
-  category?: string;
+  category?: ProductCategory;
 }
 
 interface AppSupply extends Omit<Supply, 'id'> {
@@ -200,7 +200,7 @@ const AutoAssembly: React.FC = () => {
         barcode: `123${order.id}`,
         count: 1,
         date: order.createdAt,
-        category: detectCategory(order.name)
+        category: detectCategory(order.name) as ProductCategory
       }));
       setOrders(processedOrders);
     } catch (error) {
@@ -224,7 +224,7 @@ const AutoAssembly: React.FC = () => {
         id: supply.id.toString(),
         date: supply.createdAt,
         count: supply.ordersCount,
-        category: apiTypeToCategory(supply.category)
+        category: supply.category
       }));
       setSupplies(processedSupplies);
     } catch (error) {

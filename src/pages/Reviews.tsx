@@ -14,6 +14,36 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import HeaderAutoResponse from "@/components/HeaderAutoResponse";
 
+// Add these interfaces to fix the prop type errors
+interface FilterFormProps {
+  onFilter: () => void;
+}
+
+interface QuestionsFilterFormProps {
+  onFilter: () => void;
+}
+
+interface ReviewsTableProps {
+  reviews: any[];
+  loading: boolean;
+  selectedReviews: any[];
+  onSelectReview: (reviewId: number, isSelected: boolean) => void;
+  onSelectAll: (ids: number[]) => void;
+}
+
+interface QuestionsTableProps {
+  questions: any[];
+  loading: boolean;
+  onRefresh: () => void;
+}
+
+interface FloatingActionButtonsProps {
+  selectedCount: number;
+  onReply: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+}
+
 const Reviews = () => {
   const [activeTab, setActiveTab] = useState("new");
   const [reviews, setReviews] = useState([]);
@@ -162,7 +192,11 @@ const Reviews = () => {
           <Card>
             <CardContent className="p-4">
               <QuestionsFilterForm onFilter={() => console.log("Фильтр вопросов применен")} />
-              <QuestionsTable questions={questions || []} loading={loading} />
+              <QuestionsTable 
+                questions={questions || []} 
+                loading={loading} 
+                onRefresh={handleRefresh}
+              />
             </CardContent>
           </Card>
         </TabsContent>
