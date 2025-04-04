@@ -1,3 +1,4 @@
+
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -46,8 +47,8 @@ export interface WbReview {
     supplierName: string;
     brandName: string;
     size: string;
-    image?: string; // Add this field for product image
-    category?: string; // Add this field for product category
+    image?: string; 
+    category?: string; 
   };
   wasViewed?: boolean;
   userName?: string;
@@ -333,7 +334,8 @@ export interface ProductCardData {
   brand: string;
   brandId: number;
   images: string[];
-  subjectName?: string; // Добавляем поле для категории товара
-  subject?: string; // Добавляем альтернативное поле для категории товара
+  subjectName?: string; // Категория товара
+  subject?: string; // Альтернативное поле для категории товара
+  category?: string; // Дополнительное поле для категории
   // другие поля из API карточки товара...
 }

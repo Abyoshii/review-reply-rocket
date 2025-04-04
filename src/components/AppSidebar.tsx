@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
@@ -90,7 +91,7 @@ const AppSidebar = () => {
                     <TooltipTrigger asChild>
                       <SidebarMenuButton isActive={isActive("/supplies")} onClick={() => navigate("/supplies")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <Truck size={18} />
-                        <span className="\u0443\u0434\u0430\u043B\u0438">Поставки</span>
+                        <span>Поставки</span>
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>

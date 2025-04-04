@@ -16,8 +16,11 @@ import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Suppl
 import { AutoAssemblyAPI, determineProductCategory, formatTimeAgo } from "@/lib/autoAssemblyApi";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { logObjectStructure } from "@/lib/imageUtils";
+import { SuppliesAPI } from "@/lib/suppliesApi";
+import { useNavigate } from "react-router-dom";
 
 const AutoAssembly = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("orders");
   const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<AssemblyOrder[]>([]);
@@ -80,9 +83,10 @@ const AutoAssembly = () => {
         id: 2,
         name: "Тяжеловесный"
       }]);
-      const suppliesList = await AutoAssemblyAPI.getSupplies();
+      
+      const suppliesList = await SuppliesAPI.getSupplies();
       console.log("Loaded supplies:", suppliesList);
-      setSupplies(suppliesList);
+      setSupplies(suppliesList.supplies || []);
     } catch (error) {
       console.error("Ошибка загрузки данных:", error);
       toast.error("Не удалось загрузить данные по сборочным заданиям");
@@ -357,6 +361,27 @@ const AutoAssembly = () => {
     return supplies;
   }, [supplies]);
 
+  const deliverSupply = async (supplyId: number) => {
+    const success = await SuppliesAPI.deliverSupply(supplyId);
+    if (success) {
+      await loadData();
+    }
+  };
+
+  const getSupplyBarcode = async (supplyId: number) => {
+    const url = await SuppliesAPI.getSupplyBarcode(supplyId);
+    if (url) {
+      // setQrCodeUrl(url);
+      // setShowQrDialog(true);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `qrcode_${supplyId}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return <div className="container mx-auto py-6 max-w-7xl">
       <div className="flex flex-wrap justify-between gap-4 mb-6">
         <div>
@@ -377,7 +402,7 @@ const AutoAssembly = () => {
                 Формирование поставок...
               </> : <>
                 <Package className="mr-2 h-4 w-4" />
-                Автосформировать п��ставки
+                Автосформировать поставки
               </>}
           </Button>
         </div>
@@ -619,10 +644,13 @@ const AutoAssembly = () => {
                           <TableCell className="max-w-[250px]">
                             <div className="flex items-center gap-2">
                               <Avatar className="h-8 w-8 rounded-md">
-                                <AvatarImage src={order.productInfo?.image} alt={order.productName} className="object-contain" />
-                                <AvatarFallback className="rounded-md bg-muted">
-                                  <Image className="h-4 w-4 text-muted-foreground" />
-                                </AvatarFallback>
+                                {order.productInfo?.image ? (
+                                  <AvatarImage src={order.productInfo.image} alt={order.productInfo.name} className="object-contain" />
+                                ) : (
+                                  <AvatarFallback className="rounded-md bg-muted">
+                                    <Image className="h-4 w-4 text-muted-foreground" />
+                                  </AvatarFallback>
+                                )}
                               </Avatar>
                               <div className="flex flex-col w-full">
                                 <TooltipProvider>
@@ -738,7 +766,7 @@ const AutoAssembly = () => {
               {isLoading ? <div className="flex items-center justify-center py-8">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Загрузка поставок...
-                </div> : filteredSupplies.length === 0 ? <div className="text-center py-12">
+                </div> : supplies.length === 0 ? <div className="text-center py-12">
                   <div className="flex justify-center">
                     <Truck className="h-12 w-12 text-muted-foreground/50" />
                   </div>
@@ -750,60 +778,6 @@ const AutoAssembly = () => {
                     Перейти к сборочным заданиям
                   </Button>
                 </div> : <div className="space-y-4">
-                  {filteredSupplies.map(supply => <Card key={supply.id} className="overflow-hidden">
+                  {supplies.map(supply => <Card key={supply.id} className="overflow-hidden">
                       <div className="bg-muted/30 p-4 flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-5 w-5 text-primary" />
-                            <span className="text-lg font-medium">{supply.name}</span>
-                            {supply.category && <Badge variant="outline" className="ml-2">
-                                {supply.category}
-                              </Badge>}
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            Создана: {formatDate(supply.createdAt)}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Badge variant={supply.done ? "outline" : "secondary"} className={supply.done ? "bg-green-50 text-green-700 border-green-300" : ""}>
-                            {supply.done ? "Завершена" : "В процессе"}
-                          </Badge>
-                          <Badge variant="outline">
-                            {supply.ordersCount} заказов
-                          </Badge>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <CardContent className="p-4 pt-4">
-                        <div className="flex flex-wrap gap-2 items-center justify-between">
-                          <div>
-                            <span className="text-sm font-medium">ID поставки: </span>
-                            <span className="text-sm text-muted-foreground">{supply.supplyId}</span>
-                          </div>
-                          
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
-                              <Download className="mr-2 h-4 w-4" />
-                              Скачать документы
-                            </Button>
-                            <Button size="sm">
-                              <Send className="mr-2 h-4 w-4" />
-                              Отправить в доставку
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>)}
-                </div>}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>;
-};
-
-export default AutoAssembly;
+                        <div
