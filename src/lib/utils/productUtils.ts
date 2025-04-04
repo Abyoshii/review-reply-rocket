@@ -39,7 +39,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     // Выводим полный ответ API для анализа
     console.log(`Полный ответ API карточки товара для nmId=${nmId}:`, JSON.stringify(response.data, null, 2));
     
-    // Проверяем наличие карточки в ответе (corrected response structure)
+    // Проверяем наличие карточки в ответе (правильная структура ответа)
     if (response.data && response.data.cards && response.data.cards.length > 0) {
       const product = response.data.cards[0];
       
