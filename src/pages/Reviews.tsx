@@ -13,6 +13,7 @@ import FloatingActionButtons from "@/components/FloatingActionButtons";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import HeaderAutoResponse from "@/components/HeaderAutoResponse";
+import { ReviewListParams } from "@/types/wb";
 
 const Reviews = () => {
   const [activeTab, setActiveTab] = useState("new");
@@ -107,6 +108,42 @@ const Reviews = () => {
     fetchData();
   };
 
+  // Обработчик изменения фильтров для отзывов
+  const handleFilterChange = (filters: ReviewListParams) => {
+    console.log("Применяем фильтры:", filters);
+    // Здесь должен быть код для фильтрации отзывов
+    // Для демонстрации просто сбрасываем загрузку
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+    }, 500);
+  };
+
+  // Обработчик изменения фильтров для вопросов
+  const handleQuestionsFilterChange = (filters: any) => {
+    console.log("Применяем фильтры для вопросов:", filters);
+    // Здесь должен быть код для фильтрации вопросов
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+    }, 500);
+  };
+
+  // Обработчик для генерации ответов на отзывы с использованием FloatingActionButtons
+  const handleGenerateAnswers = () => {
+    console.log("Генерируем ответы для", selectedReviews.length, "отзывов");
+  };
+
+  // Обработчик для отправки ответов на отзывы с использованием FloatingActionButtons
+  const handleSendAnswers = () => {
+    console.log("Отправляем ответы для", selectedReviews.length, "отзывов");
+  };
+
+  // Обработчик для очистки выбранных отзывов
+  const handleClearSelection = () => {
+    setSelectedReviews([]);
+  };
+
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -126,17 +163,26 @@ const Reviews = () => {
         <TabsContent value="new">
           <Card>
             <CardContent className="p-4">
-              <FilterForm />
+              <FilterForm 
+                onFilterChange={handleFilterChange} 
+                loading={loading} 
+              />
               <ReviewsTable 
                 reviews={reviews || []}
                 loading={loading}
+                onRefresh={handleRefresh}
+                isAnswered={false}
               />
               
               {reviews && reviews.length > 0 && (
                 <FloatingActionButtons 
-                  onReply={handleReplyToReviews}
-                  onArchive={() => console.log("Архивация")}
-                  onDelete={() => console.log("Удаление")}
+                  selectedReviews={new Set(selectedReviews.map(id => id.toString()))}
+                  reviews={reviews}
+                  onGenerateAnswers={handleGenerateAnswers}
+                  onSendAnswers={handleSendAnswers}
+                  onRefresh={handleRefresh}
+                  onClearSelection={handleClearSelection}
+                  hasAnswers={false}
                 />
               )}
             </CardContent>
@@ -146,7 +192,10 @@ const Reviews = () => {
         <TabsContent value="questions">
           <Card>
             <CardContent className="p-4">
-              <QuestionsFilterForm />
+              <QuestionsFilterForm 
+                onFilterChange={handleQuestionsFilterChange}
+                loading={loading}
+              />
               <QuestionsTable 
                 questions={questions || []} 
                 loading={loading} 
@@ -159,7 +208,10 @@ const Reviews = () => {
         <TabsContent value="archive">
           <Card>
             <CardContent className="p-4">
-              <FilterForm />
+              <FilterForm 
+                onFilterChange={handleFilterChange}
+                loading={loading}
+              />
               <ArchiveReviewsTable reviews={archiveReviews || []} loading={loading} />
             </CardContent>
           </Card>
