@@ -1,8 +1,7 @@
-
 import axios from "axios";
 import { toast } from "sonner";
 import { addAuthHeaders } from "./securityUtils";
-import { Supply, SupplyOrder, TrbxBox } from "@/types/wb";
+import { Supply, SupplyOrder, TrbxBox, ProductCategory } from "@/types/wb";
 
 // API базовый URL для Marketplace API
 const WB_MARKETPLACE_API_BASE_URL = "https://marketplace-api.wildberries.ru/api/v3";
@@ -46,7 +45,7 @@ export const SuppliesAPI = {
       });
       
       // Пока API не работает корректно, вернем моковые данные
-      const mockSupplies = [
+      const mockSupplies: Supply[] = [
         {
           id: 1001,
           name: "Поставка: Парфюмерия – 04.04.2025",
@@ -55,7 +54,7 @@ export const SuppliesAPI = {
           status: "new",
           supplyId: "WB-GI-10001",
           ordersCount: 5,
-          category: "Парфюмерия"
+          category: ProductCategory.PERFUME
         },
         {
           id: 1002,
@@ -65,7 +64,7 @@ export const SuppliesAPI = {
           status: "new",
           supplyId: "WB-GI-10002",
           ordersCount: 8,
-          category: "Одежда"
+          category: ProductCategory.CLOTHING
         },
         {
           id: 1003,
@@ -75,7 +74,7 @@ export const SuppliesAPI = {
           status: "in_delivery",
           supplyId: "WB-GI-10003",
           ordersCount: 12,
-          category: "Мелочёвка"
+          category: ProductCategory.MISC
         }
       ];
       
