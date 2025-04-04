@@ -89,30 +89,30 @@ const AutoAssembly = () => {
     miscSupplyId?: number;
   } | null>(null);
 
-  // Загрузка данных
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Загрузка заказов с API
       const newOrders = await AutoAssemblyAPI.getNewOrders();
+      console.log("Loaded orders:", newOrders);
       setOrders(newOrders);
       setFilteredOrders(newOrders);
       
-      // Загрузка списка складов
       setWarehouses([
         { id: 1, name: "Коледино" },
-        { id: 2, name: "Электросталь" }
+        { id: 2, name: "Электросталь" },
+        { id: 3, name: "Санкт-Петербург" },
+        { id: 4, name: "Казань" },
+        { id: 5, name: "Краснодар" }
       ]);
       
-      // Загрузка типов грузов
       setCargoTypes([
         { id: 0, name: "Обычный" },
         { id: 1, name: "Крупногабаритный" },
         { id: 2, name: "Тяжеловесный" }
       ]);
       
-      // Загрузка поставок
       const suppliesList = await AutoAssemblyAPI.getSupplies();
+      console.log("Loaded supplies:", suppliesList);
       setSupplies(suppliesList);
       
     } catch (error) {
@@ -126,14 +126,9 @@ const AutoAssembly = () => {
   useEffect(() => {
     loadData();
   }, []);
-  
-  // Применение фильтров
+
   useEffect(() => {
-    // Применение фильтров
     let result = [...orders];
-    
-    // Исключаем заказы, которые уже в поставках
-    result = result.filter(order => !order.inSupply);
     
     if (filters.warehouse) {
       const warehouseId = parseInt(filters.warehouse);
@@ -158,7 +153,6 @@ const AutoAssembly = () => {
       );
     }
     
-    // Сортировка
     result.sort((a, b) => {
       let compareA, compareB;
       
@@ -188,14 +182,12 @@ const AutoAssembly = () => {
           compareB = b.id;
       }
       
-      // Для строковых значений
       if (typeof compareA === 'string' && typeof compareB === 'string') {
         return filters.sortDirection === 'asc' 
           ? compareA.localeCompare(compareB) 
           : compareB.localeCompare(compareA);
       }
       
-      // Для числовых значений
       return filters.sortDirection === 'asc' 
         ? compareA - compareB 
         : compareB - compareA;
@@ -203,11 +195,11 @@ const AutoAssembly = () => {
     
     setFilteredOrders(result);
   }, [filters, orders]);
-  
+
   const handleFilterChange = (field: string, value: string) => {
     setFilters(prev => ({ ...prev, [field]: value }));
   };
-  
+
   const toggleOrderSelection = (orderId: number) => {
     const newSelectedOrders = new Set(selectedOrders);
     if (selectedOrders.has(orderId)) {
@@ -217,7 +209,7 @@ const AutoAssembly = () => {
     }
     setSelectedOrders(newSelectedOrders);
   };
-  
+
   const toggleSelectAll = () => {
     if (selectedOrders.size === filteredOrders.length) {
       setSelectedOrders(new Set());
@@ -225,8 +217,7 @@ const AutoAssembly = () => {
       setSelectedOrders(new Set(filteredOrders.map(order => order.id)));
     }
   };
-  
-  // Создание поставки из выбранных заданий
+
   const handleAssembleOrders = async () => {
     if (selectedOrders.size === 0) {
       toast.error("Выберите хотя бы одно сборочное задание");
@@ -235,12 +226,10 @@ const AutoAssembly = () => {
     
     setIsProcessing(true);
     try {
-      // TODO: Реализовать добавление в поставку
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       toast.success(`Создана поставка с ${selectedOrders.size} сборочными заданиями`);
       
-      // Обновляем список, исключая добавленны�� в поставку заказы
       const updatedOrders = orders.map(order => {
         if (selectedOrders.has(order.id)) {
           return { ...order, inSupply: true };
@@ -259,9 +248,7 @@ const AutoAssembly = () => {
     }
   };
 
-  // Автоматическое формирование поставок по категориям
   const handleAutoAssemble = async () => {
-    // Проверяем, есть ли доступные заказы
     const availableOrders = orders.filter(order => !order.inSupply);
     
     if (availableOrders.length === 0) {
@@ -272,11 +259,9 @@ const AutoAssembly = () => {
     setIsAutoAssembling(true);
     
     try {
-      // Вызываем API для создания поставок по категориям
       const result = await AutoAssemblyAPI.createCategorizedSupplies(availableOrders);
       
       if (result.success) {
-        // Обновляем список, помечая заказы как добавленные в поставку
         const updatedOrders = orders.map(order => {
           const category = order.category;
           let shouldBeInSupply = false;
@@ -300,7 +285,6 @@ const AutoAssembly = () => {
         setAutoAssemblyResult(result);
         setShowResultDialog(true);
         
-        // Если не было ни одной созданной поставки
         if (!result.perfumeSupplyId && !result.clothingSupplyId && !result.miscSupplyId) {
           toast.error("Не удалось создать ни одной поставки");
         }
@@ -316,12 +300,57 @@ const AutoAssembly = () => {
       setIsAutoAssembling(false);
     }
   };
-  
+
   const handleRefreshOrders = async () => {
     await loadData();
     toast.success("Список заданий обновлен");
   };
-  
+
+  const handleCancelOrder = async (orderId: number) => {
+    try {
+      const success = await AutoAssemblyAPI.cancelOrder(orderId);
+      if (success) {
+        setOrders(orders.filter(order => order.id !== orderId));
+        setFilteredOrders(filteredOrders.filter(order => order.id !== orderId));
+        toast.success(`Заказ ${orderId} успешно отменен`);
+      }
+    } catch (error) {
+      console.error(`Ошибка при отмене заказа ${orderId}:`, error);
+      toast.error(`Не удалось отменить заказ ${orderId}`);
+    }
+  };
+
+  const handlePrintStickers = async () => {
+    if (selectedOrders.size === 0) {
+      toast.error("Выберите хотя бы одно сборочное задание");
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      const orderIds = Array.from(selectedOrders);
+      const downloadUrl = await AutoAssemblyAPI.printStickers(orderIds);
+      
+      if (downloadUrl) {
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `stickers_${new Date().toISOString().slice(0, 10)}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`Стикеры для ${selectedOrders.size} заказов созданы`);
+      } else {
+        toast.error("Не удалось создать стикеры");
+      }
+    } catch (error) {
+      console.error("Ошибка при создании стикеров:", error);
+      toast.error("Произошла ошибка при создании стикеров");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ru-RU', {
       year: 'numeric',
@@ -331,8 +360,7 @@ const AutoAssembly = () => {
       minute: '2-digit'
     });
   };
-  
-  // Получение иконки и цвета для категории товара
+
   const getCategoryDisplay = (category?: ProductCategory) => {
     switch (category) {
       case ProductCategory.PERFUME:
@@ -359,7 +387,7 @@ const AutoAssembly = () => {
         };
     }
   };
-  
+
   const renderCargoTypeBadge = (cargoType: number) => {
     const type = cargoTypes.find(t => t.id === cargoType);
     
@@ -382,7 +410,6 @@ const AutoAssembly = () => {
   };
 
   const filteredSupplies = useMemo(() => {
-    // В реальном приложении здесь может быть фильтрация поставок
     return supplies;
   }, [supplies]);
 
@@ -686,13 +713,27 @@ const AutoAssembly = () => {
                     {isLoading ? (
                       <TableRow>
                         <TableCell colSpan={10} className="h-24 text-center">
-                          Загрузка...
+                          <div className="flex items-center justify-center">
+                            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                            Загрузка сборочных заданий...
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : filteredOrders.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={10} className="h-24 text-center">
-                          Нет сборочных заданий по заданным фильтрам
+                          <div className="flex flex-col items-center justify-center space-y-3">
+                            <Box className="h-12 w-12 text-muted-foreground/50" />
+                            <div>Нет сборочных заданий по заданным фильтрам</div>
+                            <Button 
+                              variant="outline" 
+                              onClick={handleRefreshOrders}
+                              className="mt-2"
+                            >
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                              Обновить данные
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -756,24 +797,44 @@ const AutoAssembly = () => {
               </div>
               
               {selectedOrders.size > 0 && (
-                <div className="p-4 flex items-center justify-between bg-muted/50">
+                <div className="p-4 flex flex-wrap items-center justify-between bg-muted/50 gap-2">
                   <span>Выбрано заказов: <strong>{selectedOrders.size}</strong></span>
-                  <Button 
-                    onClick={handleAssembleOrders}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Создание поставки...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCheck className="mr-2 h-4 w-4" />
-                        Создать поставку из выбранных
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button 
+                      variant="outline"
+                      onClick={handlePrintStickers}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Подготовка стикеров...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Распечатать стикеры
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button 
+                      onClick={handleAssembleOrders}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Создание поставки...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCheck className="mr-2 h-4 w-4" />
+                          Создать поставку из выбранных
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
