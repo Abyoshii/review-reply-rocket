@@ -1,169 +1,170 @@
 
-import axios from "axios";
-import { AssemblyOrder, ProductCategory, Supply } from "@/types/wb";
+// Fake API service for Auto Assembly functionality
+// This simulates the API calls to the backend
 
-// Define API functions
-export const AutoAssemblyAPI = {
-  getNewOrders: async (): Promise<AssemblyOrder[]> => {
-    try {
-      // Fake API call for now
-      // In production, this would be a real API call
-      // const response = await axios.get('/api/v3/orders/new');
-      
-      // For demo, generate random orders
-      const orders = Array.from({ length: 20 }, (_, i) => {
-        const name = productNames[Math.floor(Math.random() * productNames.length)];
-        const category = determineProductCategory(name);
-        
-        return {
-          id: 100000 + i,
-          orderUid: `WB-${1000000 + i}`,
-          createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-          ddate: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-          productName: name,
-          supplierArticle: `ART-${10000 + i}`,
-          warehouseId: Math.random() > 0.5 ? 1 : 2,
-          cargoType: Math.floor(Math.random() * 3),
-          price: Math.round(Math.random() * 10000) / 100 + 500,
-          salePrice: Math.round(Math.random() * 10000) / 100 + 100,
-          category,
-          inSupply: Math.random() > 0.8
-        };
-      });
-      
-      return orders;
-    } catch (error) {
-      console.error("Error fetching new orders:", error);
-      throw error;
-    }
-  },
-  
-  getSupplies: async (): Promise<Supply[]> => {
-    try {
-      // Fake API call
-      // In production, we'd use: const response = await axios.get('/api/v3/supplies');
-      
-      // Generate random supplies for demo
-      const supplies = Array.from({ length: 5 }, (_, i) => {
-        const type = i % 3;
-        let category: ProductCategory;
-        
-        switch (type) {
-          case 0:
-            category = ProductCategory.PERFUME;
-            break;
-          case 1:
-            category = ProductCategory.CLOTHING;
-            break;
-          default:
-            category = ProductCategory.MISC;
-        }
-        
-        return {
-          id: 20000 + i,
-          name: `Поставка: ${category} - ${new Date().toLocaleDateString('ru-RU')}`,
-          category,
-          createdAt: new Date(Date.now() - Math.random() * 10 * 24 * 60 * 60 * 1000).toISOString(),
-          ordersCount: Math.floor(Math.random() * 10) + 1,
-          status: i === 0 ? 'in_delivery' : (i === 4 ? 'delivered' : 'new')
-        };
-      });
-      
-      return supplies;
-    } catch (error) {
-      console.error("Error fetching supplies:", error);
-      throw error;
-    }
-  },
-  
-  createCategorizedSupplies: async (orders: AssemblyOrder[]) => {
-    try {
-      // In a real app, this would make actual API calls to create supplies
-      // For demo purposes, we'll simulate this
-      
-      // Group orders by category
-      const perfumeOrders = orders.filter(o => o.category === ProductCategory.PERFUME && !o.inSupply);
-      const clothingOrders = orders.filter(o => o.category === ProductCategory.CLOTHING && !o.inSupply);
-      const miscOrders = orders.filter(o => o.category === ProductCategory.MISC && !o.inSupply);
-      
-      // Create supply for each group that has orders
-      const result = {
-        success: true,
-        perfumeCount: perfumeOrders.length,
-        clothingCount: clothingOrders.length,
-        miscCount: miscOrders.length,
-        perfumeSupplyId: perfumeOrders.length > 0 ? 30001 : undefined,
-        clothingSupplyId: clothingOrders.length > 0 ? 30002 : undefined,
-        miscSupplyId: miscOrders.length > 0 ? 30003 : undefined
-      };
-      
-      // Wait for "API call" to complete
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      return result;
-    } catch (error) {
-      console.error("Error creating categorized supplies:", error);
-      throw error;
-    }
-  }
-};
+import { toast } from '@/components/ui/use-toast';
 
-export const determineProductCategory = (productName: string): ProductCategory => {
-  const nameLower = productName.toLowerCase();
-  
-  // Check for perfume keywords
-  if (
-    nameLower.includes("духи") || 
-    nameLower.includes("туалетная вода") || 
-    nameLower.includes("парфюмерная вода") || 
-    nameLower.includes("аромат") || 
-    nameLower.includes("eau de parfum") || 
-    nameLower.includes("eau de toilette")
-  ) {
-    return ProductCategory.PERFUME;
-  }
-  
-  // Check for clothing keywords
-  if (
-    nameLower.includes("куртка") || 
-    nameLower.includes("брюки") || 
-    nameLower.includes("спортивные") || 
-    nameLower.includes("платье") || 
-    nameLower.includes("футболка") || 
-    nameLower.includes("джинсы") || 
-    nameLower.includes("шорты") || 
-    nameLower.includes("юбка") || 
-    nameLower.includes("бейсболка") || 
-    nameLower.includes("толстовка") || 
-    nameLower.includes("жилет")
-  ) {
-    return ProductCategory.CLOTHING;
-  }
-  
-  // Default to miscellaneous
-  return ProductCategory.MISC;
-};
+// Types
+export type ProductCategory = 'perfume' | 'clothing' | 'misc';
 
-// Sample product names for demo
-const productNames = [
-  "Мужская футболка с коротким рукавом",
-  "Духи женские 50мл Chanel №5",
-  "Беспроводные наушники TWS Pro",
-  "Джинсы зауженные синие",
-  "Парфюмерная вода Blue De Chanel 100ml",
-  "Смартфон Samsung Galaxy S21",
-  "Кроссовки Nike Air Max",
-  "Eau De Toilette Dior Sauvage 100ml",
-  "Зарядное устройство Type-C",
-  "Куртка зимняя с капюшоном",
-  "Аромат Le Male Jean Paul Gaultier",
-  "Фитнес браслет Mi Band 6",
-  "Толстовка с капюшоном черная",
-  "Платье коктейльное",
-  "Туалетная вода Hugo Boss",
-  "Чехол для iPhone 13 Pro",
-  "Спортивные брюки Adidas",
-  "Бейсболка New Era",
-  "Аромат Versace Eros 100ml",
-  "Наручные часы Casio"
+export interface Order {
+  id: number;
+  article: string;
+  name: string;
+  warehouse: string;
+  cargoType: string;
+  createdAt: string;
+  inSupply?: boolean;
+  supplyId?: number;
+}
+
+export interface Supply {
+  id: number;
+  name: string;
+  category: ProductCategory;
+  createdAt: string;
+  ordersCount: number;
+  status: 'new' | 'in_delivery' | 'delivered' | 'cancelled';
+}
+
+// Mock data
+let orders: Order[] = [
+  { id: 1001, article: 'WB-12345', name: 'Духи Chanel No.5', warehouse: 'moscow', cargoType: 'regular', createdAt: '2025-04-01T12:30:00Z' },
+  { id: 1002, article: 'WB-23456', name: 'Туалетная вода Hugo Boss', warehouse: 'moscow', cargoType: 'regular', createdAt: '2025-04-01T14:20:00Z' },
+  { id: 1003, article: 'WB-34567', name: 'Куртка зимняя Columbia', warehouse: 'saint-petersburg', cargoType: 'regular', createdAt: '2025-04-02T09:10:00Z' },
+  { id: 1004, article: 'WB-45678', name: 'Джинсы Levis 501', warehouse: 'moscow', cargoType: 'regular', createdAt: '2025-04-02T10:15:00Z' },
+  { id: 1005, article: 'WB-56789', name: 'Футболка Nike', warehouse: 'novosibirsk', cargoType: 'regular', createdAt: '2025-04-02T11:45:00Z' },
+  { id: 1006, article: 'WB-67890', name: 'Кофемашина Delonghi', warehouse: 'moscow', cargoType: 'oversized', createdAt: '2025-04-03T08:30:00Z' },
+  { id: 1007, article: 'WB-78901', name: 'Кухонный комбайн Moulinex', warehouse: 'saint-petersburg', cargoType: 'heavy', createdAt: '2025-04-03T09:20:00Z' },
+  { id: 1008, article: 'WB-89012', name: 'Наушники Sony', warehouse: 'moscow', cargoType: 'regular', createdAt: '2025-04-03T14:10:00Z' },
+  { id: 1009, article: 'WB-90123', name: 'Парфюмерная вода Dior', warehouse: 'novosibirsk', cargoType: 'regular', createdAt: '2025-04-04T10:05:00Z' },
+  { id: 1010, article: 'WB-01234', name: 'Толстовка Adidas', warehouse: 'moscow', cargoType: 'regular', createdAt: '2025-04-04T11:25:00Z' },
 ];
+
+let supplies: Supply[] = [];
+let nextSupplyId = 5001;
+
+// API functions
+export const getOrders = async (): Promise<Order[]> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Return only orders that are not in a supply
+  return orders.filter(order => !order.inSupply);
+};
+
+export const getSupplies = async (): Promise<Supply[]> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  return supplies;
+};
+
+export const createSupply = async (name: string, category: ProductCategory): Promise<Supply> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 600));
+  
+  const newSupply: Supply = {
+    id: nextSupplyId++,
+    name,
+    category,
+    createdAt: new Date().toISOString(),
+    ordersCount: 0,
+    status: 'new'
+  };
+  
+  supplies = [...supplies, newSupply];
+  
+  return newSupply;
+};
+
+export const addOrderToSupply = async (supplyId: number, orderId: number): Promise<void> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Find the supply
+  const supplyIndex = supplies.findIndex(s => s.id === supplyId);
+  if (supplyIndex === -1) {
+    throw new Error(`Supply with ID ${supplyId} not found`);
+  }
+  
+  // Find the order
+  const orderIndex = orders.findIndex(o => o.id === orderId);
+  if (orderIndex === -1) {
+    throw new Error(`Order with ID ${orderId} not found`);
+  }
+  
+  // Update order to mark it as in a supply
+  orders[orderIndex] = {
+    ...orders[orderIndex],
+    inSupply: true,
+    supplyId
+  };
+  
+  // Update supply order count
+  supplies[supplyIndex] = {
+    ...supplies[supplyIndex],
+    ordersCount: supplies[supplyIndex].ordersCount + 1
+  };
+};
+
+export const updateSupplyStatus = async (supplyId: number, status: Supply['status']): Promise<Supply> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 400));
+  
+  // Find the supply
+  const supplyIndex = supplies.findIndex(s => s.id === supplyId);
+  if (supplyIndex === -1) {
+    throw new Error(`Supply with ID ${supplyId} not found`);
+  }
+  
+  // Update supply status
+  supplies[supplyIndex] = {
+    ...supplies[supplyIndex],
+    status
+  };
+  
+  return supplies[supplyIndex];
+};
+
+export const updateSupplyName = async (supplyId: number, name: string): Promise<Supply> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Find the supply
+  const supplyIndex = supplies.findIndex(s => s.id === supplyId);
+  if (supplyIndex === -1) {
+    throw new Error(`Supply with ID ${supplyId} not found`);
+  }
+  
+  // Update supply name
+  supplies[supplyIndex] = {
+    ...supplies[supplyIndex],
+    name
+  };
+  
+  return supplies[supplyIndex];
+};
+
+export const deleteSupply = async (supplyId: number): Promise<void> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // Find the supply
+  const supplyIndex = supplies.findIndex(s => s.id === supplyId);
+  if (supplyIndex === -1) {
+    throw new Error(`Supply with ID ${supplyId} not found`);
+  }
+  
+  // Release all orders from this supply
+  orders = orders.map(order => {
+    if (order.supplyId === supplyId) {
+      const { inSupply, supplyId, ...rest } = order;
+      return rest;
+    }
+    return order;
+  });
+  
+  // Remove the supply
+  supplies = supplies.filter(s => s.id !== supplyId);
+};
