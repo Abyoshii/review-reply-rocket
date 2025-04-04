@@ -18,27 +18,24 @@ const Index = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-purple-100 dark:border-purple-900/40">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 rounded-t-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="bg-purple-100 dark:bg-purple-900/40 p-2 rounded-full">
-                  <Package className="h-6 w-6 text-purple-700 dark:text-purple-400" />
-                </div>
-                <CardTitle>Заказы</CardTitle>
-              </div>
-              <CollapsibleTrigger 
-                onClick={() => setOrdersExpanded(!ordersExpanded)}
-                className="hover:bg-purple-100 dark:hover:bg-purple-900/20 p-1 rounded-full transition-all duration-200"
-              >
-                <ChevronRight className={`h-5 w-5 text-purple-700 dark:text-purple-400 transition-transform duration-300 ${ordersExpanded ? 'rotate-90' : ''}`} />
-              </CollapsibleTrigger>
-            </div>
-            <CardDescription>
-              Метод предоставляет информацию обо всех заказах. Данные обновляются каждые 30 минут.
-            </CardDescription>
-          </CardHeader>
-          
           <Collapsible open={ordersExpanded} onOpenChange={setOrdersExpanded}>
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="bg-purple-100 dark:bg-purple-900/40 p-2 rounded-full">
+                    <Package className="h-6 w-6 text-purple-700 dark:text-purple-400" />
+                  </div>
+                  <CardTitle>Заказы</CardTitle>
+                </div>
+                <CollapsibleTrigger className="hover:bg-purple-100 dark:hover:bg-purple-900/20 p-1 rounded-full transition-all duration-200">
+                  <ChevronRight className={`h-5 w-5 text-purple-700 dark:text-purple-400 transition-transform duration-300 ${ordersExpanded ? 'rotate-90' : ''}`} />
+                </CollapsibleTrigger>
+              </div>
+              <CardDescription>
+                Метод предоставляет информацию обо всех заказах. Данные обновляются каждые 30 минут.
+              </CardDescription>
+            </CardHeader>
+            
             <CollapsibleContent className="animate-accordion-down">
               <CardContent className="pt-4 space-y-4">
                 <div className="bg-purple-50 dark:bg-purple-900/10 p-3 rounded-lg text-sm">
@@ -117,27 +114,24 @@ const Index = () => {
         </Card>
         
         <Card className="shadow-md hover:shadow-lg transition-all duration-300 border-purple-100 dark:border-purple-900/40">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 rounded-t-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="bg-purple-100 dark:bg-purple-900/40 p-2 rounded-full">
-                  <TrendingUp className="h-6 w-6 text-purple-700 dark:text-purple-400" />
-                </div>
-                <CardTitle>Продажи</CardTitle>
-              </div>
-              <CollapsibleTrigger 
-                onClick={() => setSalesExpanded(!salesExpanded)}
-                className="hover:bg-purple-100 dark:hover:bg-purple-900/20 p-1 rounded-full transition-all duration-200"
-              >
-                <ChevronRight className={`h-5 w-5 text-purple-700 dark:text-purple-400 transition-transform duration-300 ${salesExpanded ? 'rotate-90' : ''}`} />
-              </CollapsibleTrigger>
-            </div>
-            <CardDescription>
-              Метод предоставляет данные о продажах и возвратах товаров. Обновление данных — раз в 30 минут.
-            </CardDescription>
-          </CardHeader>
-          
           <Collapsible open={salesExpanded} onOpenChange={setSalesExpanded}>
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800/20 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="bg-purple-100 dark:bg-purple-900/40 p-2 rounded-full">
+                    <TrendingUp className="h-6 w-6 text-purple-700 dark:text-purple-400" />
+                  </div>
+                  <CardTitle>Продажи</CardTitle>
+                </div>
+                <CollapsibleTrigger className="hover:bg-purple-100 dark:hover:bg-purple-900/20 p-1 rounded-full transition-all duration-200">
+                  <ChevronRight className={`h-5 w-5 text-purple-700 dark:text-purple-400 transition-transform duration-300 ${salesExpanded ? 'rotate-90' : ''}`} />
+                </CollapsibleTrigger>
+              </div>
+              <CardDescription>
+                Метод предоставляет данные о продажах и возвратах товаров. Обновление данных — раз в 30 минут.
+              </CardDescription>
+            </CardHeader>
+            
             <CollapsibleContent className="animate-accordion-down">
               <CardContent className="pt-4 space-y-4">
                 <div className="bg-purple-50 dark:bg-purple-900/10 p-3 rounded-lg text-sm">
