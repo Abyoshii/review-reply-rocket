@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +44,7 @@ const OrdersFilters: React.FC<OrdersFiltersProps> = ({
                 <SelectValue placeholder="Все склады" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Все склады</SelectItem>
+                <SelectItem value="all">Все склады</SelectItem>
                 {warehouses.map(warehouse => (
                   <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
                     {warehouse.name}
@@ -60,7 +61,7 @@ const OrdersFilters: React.FC<OrdersFiltersProps> = ({
                 <SelectValue placeholder="Все типы" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Все типы</SelectItem>
+                <SelectItem value="all">Все типы</SelectItem>
                 {cargoTypes.map(cargoType => (
                   <SelectItem key={cargoType.id} value={cargoType.id.toString()}>
                     {cargoType.name}
@@ -77,7 +78,7 @@ const OrdersFilters: React.FC<OrdersFiltersProps> = ({
                 <SelectValue placeholder="Все категории" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Все категории</SelectItem>
+                <SelectItem value="all">Все категории</SelectItem>
                 <SelectItem value={ProductCategory.PERFUME}>
                   <div className="flex items-center gap-2">
                     <Droplets className="h-4 w-4" />
@@ -137,12 +138,12 @@ const OrdersFilters: React.FC<OrdersFiltersProps> = ({
               variant="outline" 
               size="sm" 
               onClick={() => {
-                handleFilterChange('warehouse', '');
-                handleFilterChange('cargoType', '');
+                handleFilterChange('warehouse', 'all');
+                handleFilterChange('cargoType', 'all');
                 handleFilterChange('search', '');
                 handleFilterChange('sortBy', 'createdAt');
                 handleFilterChange('sortDirection', 'desc');
-                handleFilterChange('category', '');
+                handleFilterChange('category', 'all');
               }}
             >
               Сбросить фильтры
