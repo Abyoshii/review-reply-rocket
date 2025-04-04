@@ -7,11 +7,13 @@ import {
   GetSuppliesResponse,
   GetOrdersResponse,
   AddOrderToSupplyResponse,
-  ProductCategory
+  ProductCategory,
+  Supply
 } from "@/types/wb";
 import { addAuthHeaders } from "./securityUtils";
 import { toast } from "sonner";
 
+// API базовый URL для FBS API
 const WB_API_BASE_URL = "https://feedbacks-api.wildberries.ru/api/v3";
 
 // Ключевые слова для определения категории товара
@@ -57,8 +59,27 @@ export const AutoAssemblyAPI = {
       
       console.log("New orders response:", response.data);
       
-      // В реальном приложении здесь будут данные с API
-      // Для демонстрации используем тестовые данные
+      // Проверяем ответ API
+      if (response.data && Array.isArray(response.data)) {
+        // Преобразуем данные API в наш формат
+        return response.data.map((order: any) => ({
+          id: order.id,
+          orderUid: order.orderUid || `WB-${Math.random().toString(36).substr(2, 9)}`,
+          createdAt: order.createdAt || new Date().toISOString(),
+          ddate: order.ddate || new Date(Date.now() + 86400000 * 3).toISOString(),
+          price: order.price || 0,
+          salePrice: order.salePrice || 0,
+          supplierArticle: order.supplierArticle || "",
+          productName: order.productName || "Неизвестный товар",
+          warehouseId: order.warehouseId || 1,
+          cargoType: order.cargoType || 0,
+          inSupply: order.inSupply || false,
+          category: determineProductCategory(order.productName)
+        }));
+      }
+      
+      // Если API не вернуло данные, используем тестовые данные
+      // В реальном приложении здесь будет обработка ошибки
       const mockOrders: AssemblyOrder[] = [
         {
           id: 5632423,
@@ -152,16 +173,63 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Отмена заказа
+  cancelOrder: async (orderId: number): Promise<boolean> => {
+    try {
+      await axios.patch(`${WB_API_BASE_URL}/orders/${orderId}/cancel`, {}, {
+        headers: addAuthHeaders()
+      });
+      
+      toast.success(`Заказ ${orderId} отменён`);
+      return true;
+    } catch (error) {
+      console.error(`Error canceling order ${orderId}:`, error);
+      toast.error(`Ошибка при отмене заказа ${orderId}`);
+      return false;
+    }
+  },
+  
+  // Печать стикеров для заказов
+  printStickers: async (orderIds: number[]): Promise<string | null> => {
+    try {
+      const response = await axios.post(`${WB_API_BASE_URL}/orders/stickers`, {
+        orderIds,
+        type: "png",  // или pdf
+        width: 58,    // ширина в мм
+        height: 40    // высота в мм
+      }, {
+        headers: addAuthHeaders(),
+        responseType: 'blob'
+      });
+      
+      // Создаем URL для скачивания
+      const blob = new Blob([response.data], { type: 'image/png' });
+      const downloadUrl = URL.createObjectURL(blob);
+      
+      toast.success(`Стикеры для ${orderIds.length} заказов готовы`);
+      return downloadUrl;
+    } catch (error) {
+      console.error("Error generating stickers:", error);
+      toast.error("Ошибка при создании стикеров");
+      return null;
+    }
+  },
+  
   // Создание новой поставки
   createSupply: async (name: string): Promise<number | null> => {
     try {
-      console.log(`Creating supply with name: ${name}`);
+      const response = await axios.post<CreateSupplyResponse>(`${WB_API_BASE_URL}/supplies`, {
+        name
+      }, {
+        headers: addAuthHeaders()
+      });
       
-      // В реальном приложении здесь будет API-запрос
-      // Для демонстрации возвращаем случайный ID
-      const supplyId = Math.floor(Math.random() * 1000000);
-      
-      return supplyId;
+      if (response.data && response.data.data && response.data.data.supplyId) {
+        toast.success(`Поставка "${name}" создана`);
+        return response.data.data.supplyId;
+      } else {
+        throw new Error("API не вернуло ID поставки");
+      }
     } catch (error) {
       console.error("Error creating supply:", error);
       toast.error("Ошибка при создании поставки");
@@ -172,13 +240,15 @@ export const AutoAssemblyAPI = {
   // Добавление заказа в поставку
   addOrderToSupply: async (supplyId: number, orderId: number): Promise<boolean> => {
     try {
-      console.log(`Adding order ${orderId} to supply ${supplyId}`);
+      await axios.patch(`${WB_API_BASE_URL}/supplies/${supplyId}/orders/${orderId}`, {}, {
+        headers: addAuthHeaders()
+      });
       
-      // В реальном приложении здесь будет API-запрос
-      // Для демонстрации просто возвращаем успех
+      toast.success(`Заказ ${orderId} добавлен в поставку ${supplyId}`);
       return true;
     } catch (error) {
       console.error(`Error adding order ${orderId} to supply ${supplyId}:`, error);
+      toast.error(`Ошибка при добавлении заказа ${orderId} в поставку`);
       return false;
     }
   },
@@ -186,13 +256,124 @@ export const AutoAssemblyAPI = {
   // Получение списка поставок
   getSupplies: async (): Promise<Supply[]> => {
     try {
-      // В реальном приложении здесь будет API-запрос
-      // Для демонстрации используем тестовые данные
+      const response = await axios.get<GetSuppliesResponse>(`${WB_API_BASE_URL}/supplies`, {
+        headers: addAuthHeaders()
+      });
+      
+      if (response.data && response.data.data && Array.isArray(response.data.data.supplies)) {
+        return response.data.data.supplies;
+      }
+      
+      // Если API не вернуло данные, возвращаем пустой массив
       return [];
     } catch (error) {
       console.error("Error fetching supplies:", error);
       toast.error("Ошибка при загрузке списка поставок");
       return [];
+    }
+  },
+  
+  // Получение информации о конкретной поставке
+  getSupplyDetails: async (supplyId: number): Promise<Supply | null> => {
+    try {
+      const response = await axios.get(`${WB_API_BASE_URL}/supplies/${supplyId}`, {
+        headers: addAuthHeaders()
+      });
+      
+      if (response.data) {
+        return response.data;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`Error fetching supply ${supplyId}:`, error);
+      toast.error(`Ошибка при загрузке информации о поставке ${supplyId}`);
+      return null;
+    }
+  },
+  
+  // Получение списка заказов в поставке
+  getSupplyOrders: async (supplyId: number): Promise<AssemblyOrder[]> => {
+    try {
+      const response = await axios.get(`${WB_API_BASE_URL}/supplies/${supplyId}/orders`, {
+        headers: addAuthHeaders()
+      });
+      
+      if (response.data && Array.isArray(response.data)) {
+        // Преобразуем данные API в наш формат
+        return response.data.map((order: any) => ({
+          id: order.id,
+          orderUid: order.orderUid,
+          createdAt: order.createdAt,
+          ddate: order.ddate,
+          price: order.price,
+          salePrice: order.salePrice,
+          supplierArticle: order.supplierArticle,
+          productName: order.productName,
+          warehouseId: order.warehouseId,
+          cargoType: order.cargoType,
+          inSupply: true,
+          category: determineProductCategory(order.productName)
+        }));
+      }
+      
+      return [];
+    } catch (error) {
+      console.error(`Error fetching orders for supply ${supplyId}:`, error);
+      toast.error(`Ошибка при загрузке заказов для поставки ${supplyId}`);
+      return [];
+    }
+  },
+  
+  // Удаление поставки
+  deleteSupply: async (supplyId: number): Promise<boolean> => {
+    try {
+      await axios.delete(`${WB_API_BASE_URL}/supplies/${supplyId}`, {
+        headers: addAuthHeaders()
+      });
+      
+      toast.success(`Поставка ${supplyId} удалена`);
+      return true;
+    } catch (error) {
+      console.error(`Error deleting supply ${supplyId}:`, error);
+      toast.error(`Ошибка при удалении поставки ${supplyId}`);
+      return false;
+    }
+  },
+  
+  // Передача поставки в доставку
+  deliverSupply: async (supplyId: number): Promise<boolean> => {
+    try {
+      await axios.patch(`${WB_API_BASE_URL}/supplies/${supplyId}/deliver`, {}, {
+        headers: addAuthHeaders()
+      });
+      
+      toast.success(`Поставка ${supplyId} передана в доставку`);
+      return true;
+    } catch (error) {
+      console.error(`Error delivering supply ${supplyId}:`, error);
+      toast.error(`Ошибка при передаче поставки ${supplyId} в доставку`);
+      return false;
+    }
+  },
+  
+  // Получение QR-кода поставки
+  getSupplyBarcode: async (supplyId: number): Promise<string | null> => {
+    try {
+      const response = await axios.get(`${WB_API_BASE_URL}/supplies/${supplyId}/barcode`, {
+        headers: addAuthHeaders(),
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { type: 'image/png' });
+      const downloadUrl = URL.createObjectURL(blob);
+      
+      toast.success(`QR-код для поставки ${supplyId} готов`);
+      return downloadUrl;
+    } catch (error) {
+      console.error(`Error getting barcode for supply ${supplyId}:`, error);
+      toast.error(`Ошибка при получении QR-кода для поставки ${supplyId}`);
+      return null;
     }
   },
   
