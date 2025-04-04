@@ -13,8 +13,7 @@ import {
   SidebarMenuItem,
   useSidebar
 } from "@/components/ui/sidebar";
-import { Package, MessageSquare, Box, LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "./ui/button";
+import { Package, MessageSquare, Box, LayoutDashboard } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 const AppSidebar = () => {
@@ -33,24 +32,16 @@ const AppSidebar = () => {
       <SidebarHeader className="flex items-center justify-between py-2 px-2">
         <div 
           onClick={toggleSidebar}
-          className={`text-xl font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2 transition-all duration-300 cursor-pointer hover:opacity-80 select-none ${state === 'collapsed' ? 'opacity-0' : 'opacity-100'}`}
+          className={`text-xl font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2 transition-all duration-200 cursor-pointer hover:opacity-80 select-none ${state === 'collapsed' ? 'opacity-0' : 'opacity-100'}`}
         >
           <Box className="h-6 w-6" />
           <span>Asterion</span>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={toggleSidebar}
-          className="hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-200"
-        >
-          {state === 'expanded' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-        </Button>
       </SidebarHeader>
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="transition-all duration-300">Навигация</SidebarGroupLabel>
+          <SidebarGroupLabel className="transition-all duration-200">Навигация</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <TooltipProvider delayDuration={150}>

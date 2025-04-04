@@ -1,641 +1,880 @@
 
-import React, { useState, useEffect } from 'react';
-import { Check, Filter, Package, RefreshCcw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { 
+import React, { useState, useEffect } from "react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
-import { 
-  getOrders, 
-  getSupplies, 
-  createSupply, 
-  addOrderToSupply,
-  Supply,
-  Order,
-  ProductCategory
-} from '@/lib/autoAssemblyApi';
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "@/hooks/use-toast";
+import { Package, Search, RefreshCw, Droplets, ShirtIcon, Paperclip, ChevronDown, PenLine, Truck, Ticket, Trash } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { autoAssemblyApi } from "@/lib/autoAssemblyApi";
 
-interface Filters {
+// Типы для данных
+interface Order {
+  id: string;
+  orderId: string;
+  article: string;
+  name: string;
+  barcode: string;
+  count: number;
+  date: string;
   warehouse: string;
   cargoType: string;
-  search: string;
-  sortBy: string;
-  sortDirection: 'asc' | 'desc';
-  category: string;
+  category?: "Парфюмерия" | "Одежда" | "Мелочёвка";
 }
 
-const AutoAssembly: React.FC = () => {
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('orders');
+interface Supply {
+  id: string;
+  name: string;
+  count: number;
+  date: string;
+  category: string;
+  orders: Order[];
+}
+
+// Функция определения категории товара по названию
+const detectCategory = (name: string): "Парфюмерия" | "Одежда" | "Мелочёвка" => {
+  const perfumeKeywords = ["духи", "туалетная вода", "парфюмерная вода", "аромат", "eau de parfum", "eau de toilette"];
+  const clothingKeywords = ["куртка", "брюки", "спортивные", "платье", "футболка", "джинсы", "шорты", "юбка", "бейсболка", "толстовка", "жилет"];
+  
+  const nameLower = name.toLowerCase();
+  
+  if (perfumeKeywords.some(keyword => nameLower.includes(keyword))) {
+    return "Парфюмерия";
+  }
+  
+  if (clothingKeywords.some(keyword => nameLower.includes(keyword))) {
+    return "Одежда";
+  }
+  
+  return "Мелочёвка";
+};
+
+// Главный компонент
+const AutoAssembly = () => {
+  // Состояния
+  const [activeTab, setActiveTab] = useState("orders");
   const [orders, setOrders] = useState<Order[]>([]);
   const [supplies, setSupplies] = useState<Supply[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState("all");
+  const [selectedCargoType, setSelectedCargoType] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("date");
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [showCreateSupplyModal, setShowCreateSupplyModal] = useState(false);
+  const [newSupplyName, setNewSupplyName] = useState("");
+  const [currentSupply, setCurrentSupply] = useState<Supply | null>(null);
+  const [showSupplyDetailsModal, setShowSupplyDetailsModal] = useState(false);
+  const [showAutoCreateDialog, setShowAutoCreateDialog] = useState(false);
+  const [autoCreateResult, setAutoCreateResult] = useState<{
+    perfume: number;
+    clothing: number;
+    other: number;
+  } | null>(null);
+  const [editSupplyId, setEditSupplyId] = useState<string | null>(null);
+  const [editSupplyName, setEditSupplyName] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [supplyToDelete, setSupplyToDelete] = useState<string | null>(null);
   
-  // Update initial state of filters to use 'all' instead of empty string
-  const [filters, setFilters] = useState<Filters>({
-    warehouse: 'all',
-    cargoType: 'all',
-    search: '',
-    sortBy: 'createdAt',
-    sortDirection: 'desc',
-    category: 'all'
-  });
-
-  // This function ensures we don't set an empty value to our filters object
-  const handleFilterChange = (field: string, value: string) => {
-    // If value is empty string, set it to a non-empty default value
-    if (field === 'warehouse' || field === 'cargoType' || field === 'category') {
-      setFilters(prev => ({
-        ...prev,
-        [field]: value === '' ? 'all' : value
-      }));
-    } else {
-      setFilters(prev => ({
-        ...prev,
-        [field]: value
-      }));
-    }
-  };
-
-  // Fetch orders and supplies on component mount
+  // Загрузка данных
   useEffect(() => {
     fetchOrders();
     fetchSupplies();
   }, []);
-
-  // Fetch orders
+  
+  // Получение заказов
   const fetchOrders = async () => {
-    setLoading(true);
+    setIsLoading(true);
     try {
-      const data = await getOrders();
-      setOrders(data);
+      const data = await autoAssemblyApi.getOrders();
+      // Добавляем категорию к каждому заказу
+      const processedOrders = data.map((order: Order) => ({
+        ...order,
+        category: detectCategory(order.name)
+      }));
+      setOrders(processedOrders);
     } catch (error) {
       console.error("Failed to fetch orders:", error);
       toast({
-        title: "Ошибка",
-        description: "Не удалось загрузить список заданий",
-        variant: "destructive",
+        title: "Ошибка загрузки заданий",
+        description: "Не удалось загрузить сборочные задания",
+        variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
-
-  // Fetch supplies
+  
+  // Получение поставок
   const fetchSupplies = async () => {
     try {
-      const data = await getSupplies();
+      const data = await autoAssemblyApi.getSupplies();
       setSupplies(data);
     } catch (error) {
       console.error("Failed to fetch supplies:", error);
       toast({
-        title: "Ошибка",
+        title: "Ошибка загрузки поставок",
         description: "Не удалось загрузить список поставок",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
-  // Handle order selection
-  const toggleOrderSelection = (orderId: number) => {
-    setSelectedOrders(prev => {
-      if (prev.includes(orderId)) {
-        return prev.filter(id => id !== orderId);
-      } else {
-        return [...prev, orderId];
-      }
-    });
-  };
-
-  // Handle select all orders
-  const toggleSelectAllOrders = () => {
-    if (selectedOrders.length === filteredOrders.length) {
-      setSelectedOrders([]);
-    } else {
-      setSelectedOrders(filteredOrders.map(order => order.id));
-    }
-  };
-
-  // Auto-assemble supplies based on categories
-  const autoAssembleSupplies = async () => {
-    if (orders.length === 0) {
-      toast({
-        title: "Внимание",
-        description: "Нет заданий для формирования поставок",
-        variant: "warning",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Group orders by category
-      const perfumeOrders = orders.filter(order => 
-        /духи|туалетная вода|парфюмерная вода|аромат|eau de parfum|eau de toilette/i.test(order.name)
-      );
-      
-      const clothingOrders = orders.filter(order => 
-        /куртка|брюки|спортивные|платье|футболка|джинсы|шорты|юбка|бейсболка|толстовка|жилет/i.test(order.name)
-      );
-      
-      // Everything else goes to misc
-      const miscOrders = orders.filter(order => 
-        !(/духи|туалетная вода|парфюмерная вода|аромат|eau de parfum|eau de toilette|куртка|брюки|спортивные|платье|футболка|джинсы|шорты|юбка|бейсболка|толстовка|жилет/i.test(order.name))
-      );
-
-      const date = new Date().toLocaleDateString('ru-RU');
-      const createdSupplies = [];
-      let totalOrdersAdded = 0;
-
-      // Create perfume supply if there are perfume orders
-      if (perfumeOrders.length > 0) {
-        const supplyName = `Поставка: Парфюмерия – ${date}`;
-        const newSupply = await createSupply(supplyName, 'perfume');
-        
-        for (const order of perfumeOrders) {
-          await addOrderToSupply(newSupply.id, order.id);
-        }
-        
-        createdSupplies.push({ category: 'perfume', count: perfumeOrders.length });
-        totalOrdersAdded += perfumeOrders.length;
-      }
-
-      // Create clothing supply if there are clothing orders
-      if (clothingOrders.length > 0) {
-        const supplyName = `Поставка: Одежда – ${date}`;
-        const newSupply = await createSupply(supplyName, 'clothing');
-        
-        for (const order of clothingOrders) {
-          await addOrderToSupply(newSupply.id, order.id);
-        }
-        
-        createdSupplies.push({ category: 'clothing', count: clothingOrders.length });
-        totalOrdersAdded += clothingOrders.length;
-      }
-
-      // Create misc supply if there are misc orders
-      if (miscOrders.length > 0) {
-        const supplyName = `Поставка: Мелочёвка – ${date}`;
-        const newSupply = await createSupply(supplyName, 'misc');
-        
-        for (const order of miscOrders) {
-          await addOrderToSupply(newSupply.id, order.id);
-        }
-        
-        createdSupplies.push({ category: 'misc', count: miscOrders.length });
-        totalOrdersAdded += miscOrders.length;
-      }
-
-      // Refresh data
-      await fetchSupplies();
-      await fetchOrders();
-
-      // Show success notification
-      if (createdSupplies.length > 0) {
-        const suppliesInfo = createdSupplies.map(s => {
-          const categoryName = s.category === 'perfume' ? 'Парфюмерия' : s.category === 'clothing' ? 'Одежда' : 'Мелочёвка';
-          return `${categoryName} (${s.count} товаров)`;
-        }).join(', ');
-        
-        toast({
-          title: "Поставки сформированы",
-          description: `Создано ${createdSupplies.length} поставок: ${suppliesInfo}`,
-          variant: "success",
-        });
-      } else {
-        toast({
-          title: "Внимание",
-          description: "Нет товаров для формирования поставок",
-          variant: "warning",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to auto-assemble supplies:", error);
-      toast({
-        title: "Ошибка",
-        description: "Не удалось сформировать поставки",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Filter orders based on selected filters
+  
+  // Фильтрация заказов
   const filteredOrders = orders.filter(order => {
-    // Filter by warehouse
-    if (filters.warehouse !== 'all' && order.warehouse !== filters.warehouse) {
+    // Фильтр по складу
+    if (selectedWarehouse !== "all" && order.warehouse !== selectedWarehouse) {
       return false;
     }
     
-    // Filter by cargo type
-    if (filters.cargoType !== 'all' && order.cargoType !== filters.cargoType) {
+    // Фильтр по типу груза
+    if (selectedCargoType !== "all" && order.cargoType !== selectedCargoType) {
       return false;
     }
     
-    // Filter by category
-    if (filters.category !== 'all') {
-      if (filters.category === 'perfume' && 
-          !(/духи|туалетная вода|парфюмерная вода|аромат|eau de parfum|eau de toilette/i.test(order.name))) {
-        return false;
-      }
-      if (filters.category === 'clothing' && 
-          !(/куртка|брюки|спортивные|платье|футболка|джинсы|шорты|юбка|бейсболка|толстовка|жилет/i.test(order.name))) {
-        return false;
-      }
-      if (filters.category === 'misc' && 
-          (/духи|туалетная вода|парфюмерная вода|аромат|eau de parfum|eau de toilette|куртка|брюки|спортивные|платье|футболка|джинсы|шорты|юбка|бейсболка|толстовка|жилет/i.test(order.name))) {
-        return false;
-      }
+    // Фильтр по категории
+    if (selectedCategory !== "all" && order.category !== selectedCategory) {
+      return false;
     }
     
-    // Filter by search
-    if (filters.search && !order.name.toLowerCase().includes(filters.search.toLowerCase()) && 
-        !order.id.toString().includes(filters.search) && 
-        !order.article.toLowerCase().includes(filters.search.toLowerCase())) {
+    // Поиск по ID или артикулу
+    if (searchQuery && 
+        !order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) && 
+        !order.article.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
     
     return true;
-  }).sort((a, b) => {
-    const direction = filters.sortDirection === 'asc' ? 1 : -1;
-    
-    switch (filters.sortBy) {
-      case 'name':
-        return direction * a.name.localeCompare(b.name);
-      case 'cargoType':
-        return direction * a.cargoType.localeCompare(b.cargoType);
-      case 'createdAt':
+  });
+  
+  // Сортировка заказов
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    switch (sortBy) {
+      case "date":
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case "name":
+        return a.name.localeCompare(b.name);
+      case "category":
+        return (a.category || "").localeCompare(b.category || "");
       default:
-        return direction * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return 0;
     }
   });
-
-  // Get category badge variant
-  const getCategoryBadgeVariant = (category: ProductCategory) => {
-    switch (category) {
-      case 'perfume':
-        return 'purple';
-      case 'clothing':
-        return 'green';
-      case 'misc':
-      default:
-        return 'secondary';
+  
+  // Создание поставки
+  const createSupply = async () => {
+    if (!newSupplyName.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Название поставки не может быть пустым",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const supply = await autoAssemblyApi.createSupply({ name: newSupplyName });
+      
+      // Добавление выбранных заказов в поставку
+      await Promise.all(selectedOrders.map(orderId => 
+        autoAssemblyApi.addOrderToSupply(supply.id, orderId)
+      ));
+      
+      toast({
+        title: "Поставка создана",
+        description: `Поставка "${newSupplyName}" успешно создана с ${selectedOrders.length} товарами`
+      });
+      
+      // Обновляем списки
+      fetchOrders();
+      fetchSupplies();
+      
+      // Сбрасываем состояние
+      setSelectedOrders([]);
+      setNewSupplyName("");
+      setShowCreateSupplyModal(false);
+    } catch (error) {
+      console.error("Failed to create supply:", error);
+      toast({
+        title: "Ошибка создания поставки",
+        description: "Не удалось создать поставку",
+        variant: "destructive"
+      });
     }
   };
-
-  // Get category display name
-  const getCategoryName = (category: ProductCategory) => {
-    switch (category) {
-      case 'perfume':
-        return 'Парфюмерия';
-      case 'clothing':
-        return 'Одежда';
-      case 'misc':
-      default:
-        return 'Мелочёвка';
+  
+  // Автоматическое создание поставок по категориям
+  const autoCreateSupplies = async () => {
+    try {
+      const date = new Date().toLocaleDateString('ru-RU');
+      
+      // Группируем заказы по категориям
+      const perfumeOrders = orders.filter(order => order.category === "Парфюмерия").map(order => order.id);
+      const clothingOrders = orders.filter(order => order.category === "Одежда").map(order => order.id);
+      const otherOrders = orders.filter(order => order.category === "Мелочёвка").map(order => order.id);
+      
+      const results = {
+        perfume: perfumeOrders.length,
+        clothing: clothingOrders.length,
+        other: otherOrders.length
+      };
+      
+      // Создаем поставки для каждой категории
+      if (perfumeOrders.length > 0) {
+        const perfumeSupply = await autoAssemblyApi.createSupply({ 
+          name: `Поставка: Парфюмерия – ${date}` 
+        });
+        
+        await Promise.all(perfumeOrders.map(orderId => 
+          autoAssemblyApi.addOrderToSupply(perfumeSupply.id, orderId)
+        ));
+      }
+      
+      if (clothingOrders.length > 0) {
+        const clothingSupply = await autoAssemblyApi.createSupply({ 
+          name: `Поставка: Одежда – ${date}` 
+        });
+        
+        await Promise.all(clothingOrders.map(orderId => 
+          autoAssemblyApi.addOrderToSupply(clothingSupply.id, orderId)
+        ));
+      }
+      
+      if (otherOrders.length > 0) {
+        const otherSupply = await autoAssemblyApi.createSupply({ 
+          name: `Поставка: Мелочёвка – ${date}` 
+        });
+        
+        await Promise.all(otherOrders.map(orderId => 
+          autoAssemblyApi.addOrderToSupply(otherSupply.id, orderId)
+        ));
+      }
+      
+      // Обновляем данные и показываем результат
+      fetchOrders();
+      fetchSupplies();
+      setAutoCreateResult(results);
+      setShowAutoCreateDialog(false);
+      
+      toast({
+        title: "Поставки созданы",
+        description: `Создано: Парфюмерия (${results.perfume}), Одежда (${results.clothing}), Мелочёвка (${results.other})`,
+      });
+    } catch (error) {
+      console.error("Failed to auto-create supplies:", error);
+      toast({
+        title: "Ошибка создания поставок",
+        description: "Не удалось автоматически создать поставки",
+        variant: "destructive"
+      });
+      setShowAutoCreateDialog(false);
     }
   };
-
-  // Get category icon
-  const getCategoryIcon = (category: ProductCategory) => {
+  
+  // Обработка выбора заказа
+  const handleOrderSelect = (orderId: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedOrders([...selectedOrders, orderId]);
+    } else {
+      setSelectedOrders(selectedOrders.filter(id => id !== orderId));
+    }
+  };
+  
+  // Выбор всех отфильтрованных заказов
+  const handleSelectAll = (isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedOrders(sortedOrders.map(order => order.id));
+    } else {
+      setSelectedOrders([]);
+    }
+  };
+  
+  // Просмотр деталей поставки
+  const viewSupplyDetails = (supply: Supply) => {
+    setCurrentSupply(supply);
+    setShowSupplyDetailsModal(true);
+  };
+  
+  // Редактирование названия поставки
+  const startEditSupply = (supplyId: string, currentName: string) => {
+    setEditSupplyId(supplyId);
+    setEditSupplyName(currentName);
+  };
+  
+  const saveSupplyName = async () => {
+    if (!editSupplyId || !editSupplyName.trim()) return;
+    
+    try {
+      await autoAssemblyApi.updateSupply(editSupplyId, { name: editSupplyName });
+      toast({
+        title: "Название обновлено",
+        description: "Название поставки успешно обновлено"
+      });
+      fetchSupplies();
+      setEditSupplyId(null);
+    } catch (error) {
+      console.error("Failed to update supply name:", error);
+      toast({
+        title: "Ошибка обновления",
+        description: "Не удалось обновить название поставки",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Удаление поставки
+  const confirmDeleteSupply = (supplyId: string) => {
+    setSupplyToDelete(supplyId);
+    setShowDeleteConfirm(true);
+  };
+  
+  const deleteSupply = async () => {
+    if (!supplyToDelete) return;
+    
+    try {
+      await autoAssemblyApi.deleteSupply(supplyToDelete);
+      toast({
+        title: "Поставка удалена",
+        description: "Поставка успешно удалена"
+      });
+      fetchSupplies();
+      fetchOrders(); // Обновляем и заказы, так как они могут быть освобождены
+      setShowDeleteConfirm(false);
+      setSupplyToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete supply:", error);
+      toast({
+        title: "Ошибка удаления",
+        description: "Не удалось удалить поставку",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Функция получения иконки для категории
+  const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'perfume':
-        return '💧';
-      case 'clothing':
-        return '👕';
-      case 'misc':
+      case "Парфюмерия":
+        return <Droplets className="h-4 w-4" />;
+      case "Одежда":
+        return <ShirtIcon className="h-4 w-4" />;
+      case "Мелочёвка":
+        return <Paperclip className="h-4 w-4" />;
       default:
-        return '🧷';
+        return <Package className="h-4 w-4" />;
+    }
+  };
+  
+  // Функция получения цвета для бейджа категории
+  const getCategoryBadgeVariant = (category: string): "default" | "destructive" | "secondary" | "outline" => {
+    switch (category) {
+      case "Парфюмерия":
+        return "secondary"; // фиолетовый цвет заменен на secondary
+      case "Одежда":
+        return "secondary"; // зеленый цвет заменен на secondary
+      case "Мелочёвка":
+      default:
+        return "outline";
     }
   };
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Автосборка</h1>
+      <h1 className="text-2xl font-bold mb-4">Автосборка</h1>
       
-      <Tabs defaultValue="orders" value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex justify-between items-center mb-4">
-          <TabsList>
-            <TabsTrigger value="orders">Сборочные задания</TabsTrigger>
-            <TabsTrigger value="supplies">Поставки</TabsTrigger>
-          </TabsList>
-          
-          {activeTab === 'orders' && (
-            <div className="flex gap-2">
-              <Button 
-                onClick={fetchOrders} 
-                variant="outline" 
-                disabled={loading}
-                className="flex items-center gap-1"
-              >
-                <RefreshCcw size={16} />
-                Обновить задания
-              </Button>
-              
-              <Button 
-                onClick={autoAssembleSupplies}
-                variant="default"
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-                disabled={loading || orders.length === 0}
-              >
-                <Package size={16} className="mr-1" /> 
-                Автосформировать поставки
-              </Button>
-            </div>
-          )}
-        </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4 overflow-x-auto flex w-auto">
+          <TabsTrigger value="orders" className="flex items-center gap-1">
+            <Package className="w-4 h-4" />
+            <span>Сборочные задания</span>
+          </TabsTrigger>
+          <TabsTrigger value="supplies" className="flex items-center gap-1">
+            <Package className="w-4 h-4" />
+            <span>Поставки</span>
+          </TabsTrigger>
+        </TabsList>
         
+        {/* Вкладка со сборочными заданиями */}
         <TabsContent value="orders" className="space-y-4">
-          {/* Filters */}
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-lg flex items-center">
-                <Filter size={16} className="mr-2" />
-                Фильтры
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium">Склад</label>
-                <Select
-                  value={filters.warehouse}
-                  onValueChange={(value) => handleFilterChange('warehouse', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите склад" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все склады</SelectItem>
-                    <SelectItem value="moscow">Москва</SelectItem>
-                    <SelectItem value="saint-petersburg">Санкт-Петербург</SelectItem>
-                    <SelectItem value="novosibirsk">Новосибирск</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Тип груза</label>
-                <Select
-                  value={filters.cargoType}
-                  onValueChange={(value) => handleFilterChange('cargoType', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите тип груза" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все типы</SelectItem>
-                    <SelectItem value="regular">Обычный</SelectItem>
-                    <SelectItem value="oversized">Крупногабарит</SelectItem>
-                    <SelectItem value="heavy">Тяжеловес</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Категория</label>
-                <Select
-                  value={filters.category}
-                  onValueChange={(value) => handleFilterChange('category', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите категорию" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все категории</SelectItem>
-                    <SelectItem value="perfume">Парфюмерия</SelectItem>
-                    <SelectItem value="clothing">Одежда</SelectItem>
-                    <SelectItem value="misc">Мелочёвка</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Поиск</label>
+          {/* Фильтры */}
+          <div className="flex flex-col md:flex-row gap-2 mb-4 flex-wrap">
+            <div className="w-full md:w-auto">
+              <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Выберите склад" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все склады</SelectItem>
+                  <SelectItem value="Moscow">Москва</SelectItem>
+                  <SelectItem value="SPb">Санкт-Петербург</SelectItem>
+                  <SelectItem value="Kazan">Казань</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="w-full md:w-auto">
+              <Select value={selectedCargoType} onValueChange={setSelectedCargoType}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Тип груза" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все типы</SelectItem>
+                  <SelectItem value="standard">Обычный</SelectItem>
+                  <SelectItem value="large">Крупногабарит</SelectItem>
+                  <SelectItem value="heavy">Тяжеловес</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="w-full md:w-auto">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Тип товара" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все типы</SelectItem>
+                  <SelectItem value="Парфюмерия">Парфюмерия</SelectItem>
+                  <SelectItem value="Одежда">Одежда</SelectItem>
+                  <SelectItem value="Мелочёвка">Мелочёвка</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="w-full md:w-auto">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Сортировка" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">По дате</SelectItem>
+                  <SelectItem value="name">По наименованию</SelectItem>
+                  <SelectItem value="category">По категории</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="w-full md:flex-1">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                 <Input
-                  placeholder="Поиск по артикулу, ID или названию"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  placeholder="Поиск по ID или артикулу"
+                  className="w-full pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              
-              <div>
-                <label className="text-sm font-medium">Сортировка</label>
-                <Select
-                  value={filters.sortBy}
-                  onValueChange={(value) => handleFilterChange('sortBy', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Сортировать по" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="createdAt">По дате</SelectItem>
-                    <SelectItem value="name">По наименованию</SelectItem>
-                    <SelectItem value="cargoType">По типу</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Направление сортировки</label>
-                <Select
-                  value={filters.sortDirection}
-                  onValueChange={(value) => handleFilterChange('sortDirection', value as 'asc' | 'desc')}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Направление сортировки" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="asc">По возрастанию</SelectItem>
-                    <SelectItem value="desc">По убыванию</SelectItem>
-                  </SelectContent>
-                </Select>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              className="md:w-auto"
+              onClick={fetchOrders}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Обновить
+            </Button>
+            
+            <Button 
+              className="md:w-auto bg-purple-600 hover:bg-purple-700"
+              onClick={() => setShowAutoCreateDialog(true)}
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Автосформировать поставки
+            </Button>
+          </div>
+          
+          {/* Таблица заданий */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Сборочные задания</CardTitle>
+              <CardDescription>
+                Всего: {sortedOrders.length} заданий {selectedOrders.length > 0 && `(выбрано: ${selectedOrders.length})`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-md overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40px] text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={sortedOrders.length > 0 && selectedOrders.length === sortedOrders.length}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                      </TableHead>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Артикул</TableHead>
+                      <TableHead className="hidden md:table-cell">Наименование</TableHead>
+                      <TableHead className="hidden md:table-cell">Кол-во</TableHead>
+                      <TableHead>Категория</TableHead>
+                      <TableHead className="hidden md:table-cell">Склад</TableHead>
+                      <TableHead className="hidden md:table-cell">Тип груза</TableHead>
+                      <TableHead className="hidden md:table-cell">Дата</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedOrders.length > 0 ? (
+                      sortedOrders.map(order => (
+                        <TableRow key={order.id}>
+                          <TableCell className="text-center">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedOrders.includes(order.id)}
+                              onChange={(e) => handleOrderSelect(order.id, e.target.checked)}
+                              className="rounded border-gray-300"
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{order.orderId}</TableCell>
+                          <TableCell>{order.article}</TableCell>
+                          <TableCell className="hidden md:table-cell max-w-[200px] truncate">{order.name}</TableCell>
+                          <TableCell className="hidden md:table-cell">{order.count}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={getCategoryBadgeVariant(order.category || "")}
+                              className="flex items-center gap-1"
+                            >
+                              {getCategoryIcon(order.category || "")}
+                              <span className="hidden sm:inline">{order.category}</span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">{order.warehouse}</TableCell>
+                          <TableCell className="hidden md:table-cell">{order.cargoType}</TableCell>
+                          <TableCell className="hidden md:table-cell">{new Date(order.date).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-4">
+                          {isLoading ? "Загрузка заданий..." : "Нет заданий для отображения"}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
-          </Card>
-          
-          {/* Orders Table */}
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-gray-800">
-                    <th className="py-3 px-4 text-left">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedOrders.length > 0 && selectedOrders.length === filteredOrders.length}
-                          onChange={toggleSelectAllOrders}
-                          className="rounded border-gray-300 mr-2"
-                        />
-                        ID
-                      </div>
-                    </th>
-                    <th className="py-3 px-4 text-left">Артикул</th>
-                    <th className="py-3 px-4 text-left">Наименование</th>
-                    <th className="py-3 px-4 text-left">Категория</th>
-                    <th className="py-3 px-4 text-left">Склад</th>
-                    <th className="py-3 px-4 text-left">Тип груза</th>
-                    <th className="py-3 px-4 text-left">Дата создания</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-4">Загрузка...</td>
-                    </tr>
-                  ) : filteredOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-4">Нет доступных заданий</td>
-                    </tr>
-                  ) : (
-                    filteredOrders.map(order => {
-                      // Determine order category
-                      let category: ProductCategory = 'misc';
-                      if (/духи|туалетная вода|парфюмерная вода|аромат|eau de parfum|eau de toilette/i.test(order.name)) {
-                        category = 'perfume';
-                      } else if (/куртка|брюки|спортивные|платье|футболка|джинсы|шорты|юбка|бейсболка|толстовка|жилет/i.test(order.name)) {
-                        category = 'clothing';
-                      }
-                      
-                      return (
-                        <tr key={order.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={selectedOrders.includes(order.id)}
-                                onChange={() => toggleOrderSelection(order.id)}
-                                className="rounded border-gray-300 mr-2"
-                              />
-                              {order.id}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">{order.article}</td>
-                          <td className="py-3 px-4">{order.name}</td>
-                          <td className="py-3 px-4">
-                            <Badge 
-                              variant={getCategoryBadgeVariant(category)}
-                              className="flex items-center gap-1 whitespace-nowrap"
-                            >
-                              <span>{getCategoryIcon(category)}</span>
-                              <span>{getCategoryName(category)}</span>
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4">
-                            {order.warehouse === 'moscow' ? 'Москва' : 
-                             order.warehouse === 'saint-petersburg' ? 'Санкт-Петербург' : 
-                             order.warehouse === 'novosibirsk' ? 'Новосибирск' : 
-                             order.warehouse}
-                          </td>
-                          <td className="py-3 px-4">
-                            {order.cargoType === 'regular' ? 'Обычный' : 
-                             order.cargoType === 'oversized' ? 'Крупногабарит' : 
-                             order.cargoType === 'heavy' ? 'Тяжеловес' : 
-                             order.cargoType}
-                          </td>
-                          <td className="py-3 px-4">{new Date(order.createdAt).toLocaleDateString('ru-RU')}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <CardFooter className="justify-end">
+              {selectedOrders.length > 0 && (
+                <Button onClick={() => setShowCreateSupplyModal(true)}>
+                  Создать поставку ({selectedOrders.length})
+                </Button>
+              )}
+            </CardFooter>
           </Card>
         </TabsContent>
         
+        {/* Вкладка с поставками */}
         <TabsContent value="supplies" className="space-y-4">
-          {/* Supplies Table */}
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-gray-800">
-                    <th className="py-3 px-4 text-left">ID</th>
-                    <th className="py-3 px-4 text-left">Название</th>
-                    <th className="py-3 px-4 text-left">Категория</th>
-                    <th className="py-3 px-4 text-left">Количество заказов</th>
-                    <th className="py-3 px-4 text-left">Статус</th>
-                    <th className="py-3 px-4 text-left">Дата создания</th>
-                    <th className="py-3 px-4 text-left">Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-4">Загрузка...</td>
-                    </tr>
-                  ) : supplies.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-4">Нет доступных поставок</td>
-                    </tr>
-                  ) : (
-                    supplies.map(supply => (
-                      <tr key={supply.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                        <td className="py-3 px-4">{supply.id}</td>
-                        <td className="py-3 px-4">{supply.name}</td>
-                        <td className="py-3 px-4">
-                          <Badge 
-                            variant={getCategoryBadgeVariant(supply.category)}
-                            className="flex items-center gap-1 whitespace-nowrap"
-                          >
-                            <span>{getCategoryIcon(supply.category)}</span>
-                            <span>{getCategoryName(supply.category)}</span>
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">{supply.ordersCount}</td>
-                        <td className="py-3 px-4">
-                          {supply.status === 'new' ? (
-                            <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300">
-                              Новая
-                            </Badge>
-                          ) : supply.status === 'in_delivery' ? (
-                            <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300">
-                              В доставке
-                            </Badge>
-                          ) : supply.status === 'delivered' ? (
-                            <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-300">
-                              <Check size={12} className="mr-1" />
-                              Доставлена
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-300">
-                              Отменена
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">{new Date(supply.createdAt).toLocaleDateString('ru-RU')}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
-                              Содержимое
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              Редактировать
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <Button 
+            variant="outline"
+            className="mb-2"
+            onClick={fetchSupplies}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Обновить список
+          </Button>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {supplies.length > 0 ? (
+              supplies.map((supply) => (
+                <Card key={supply.id}>
+                  <CardHeader className="pb-2">
+                    {editSupplyId === supply.id ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          value={editSupplyName}
+                          onChange={(e) => setEditSupplyName(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button size="sm" onClick={saveSupplyName}>Сохранить</Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => setEditSupplyId(null)}
+                        >
+                          Отмена
+                        </Button>
+                      </div>
+                    ) : (
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        {supply.name}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => startEditSupply(supply.id, supply.name)}
+                        >
+                          <PenLine className="h-4 w-4" />
+                        </Button>
+                      </CardTitle>
+                    )}
+                    <CardDescription>
+                      {supply.count} товаров • {new Date(supply.date).toLocaleDateString()}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <Badge 
+                      variant={getCategoryBadgeVariant(supply.category)}
+                      className="flex items-center gap-1"
+                    >
+                      {getCategoryIcon(supply.category)}
+                      {supply.category}
+                    </Badge>
+                  </CardContent>
+                  <CardFooter className="flex gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => viewSupplyDetails(supply)}
+                    >
+                      Содержимое
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Truck className="h-4 w-4" />
+                      <span>В доставку</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Ticket className="h-4 w-4" />
+                      <span>Стикеры</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 text-red-500 hover:text-red-700"
+                      onClick={() => confirmDeleteSupply(supply.id)}
+                    >
+                      <Trash className="h-4 w-4" />
+                      <span>Удалить</span>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))
+            ) : (
+              <Card className="col-span-full">
+                <CardContent className="pt-6 text-center">
+                  Нет созданных поставок
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Модальное окно для создания поставки вручную */}
+      <Dialog open={showCreateSupplyModal} onOpenChange={setShowCreateSupplyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Создание поставки</DialogTitle>
+            <DialogDescription>
+              Будет создана новая поставка с выбранными товарами ({selectedOrders.length}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="supply-name" className="text-sm font-medium">
+                Название поставки
+              </label>
+              <Input
+                id="supply-name"
+                value={newSupplyName}
+                onChange={(e) => setNewSupplyName(e.target.value)}
+                placeholder="Введите название поставки"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateSupplyModal(false)}>
+              Отмена
+            </Button>
+            <Button onClick={createSupply}>Создать поставку</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Модальное окно для просмотра деталей поставки */}
+      <Dialog open={showSupplyDetailsModal} onOpenChange={setShowSupplyDetailsModal}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{currentSupply?.name}</DialogTitle>
+            <DialogDescription>
+              Категория: {currentSupply?.category} • {currentSupply?.count} товаров
+            </DialogDescription>
+          </DialogHeader>
+          <div className="border rounded-md overflow-hidden mt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Артикул</TableHead>
+                  <TableHead>Наименование</TableHead>
+                  <TableHead>Кол-во</TableHead>
+                  <TableHead>Категория</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentSupply?.orders?.length ? (
+                  currentSupply.orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>{order.orderId}</TableCell>
+                      <TableCell>{order.article}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{order.name}</TableCell>
+                      <TableCell>{order.count}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={getCategoryBadgeVariant(order.category || "")}
+                          className="flex items-center gap-1"
+                        >
+                          {getCategoryIcon(order.category || "")}
+                          <span>{order.category}</span>
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4">
+                      Нет товаров в поставке
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Диалог для автоматического создания поставок */}
+      <AlertDialog open={showAutoCreateDialog} onOpenChange={setShowAutoCreateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Автоформирование поставок</AlertDialogTitle>
+            <AlertDialogDescription>
+              Система автоматически распределит товары по категориям и создаст отдельные поставки для каждой категории (Парфюмерия, Одежда, Мелочёвка).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={autoCreateSupplies}>
+              Создать поставки
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Диалог для подтверждения удаления */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтверждение удаления</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы действительно хотите удалить поставку? Все товары в ней будут освобождены.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteSupply} className="bg-red-600 hover:bg-red-700">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Результат автоматического создания */}
+      {autoCreateResult && (
+        <Dialog open={!!autoCreateResult} onOpenChange={() => setAutoCreateResult(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Поставки успешно созданы</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <Alert>
+                <AlertTitle className="flex items-center gap-1">
+                  <Droplets className="h-4 w-4" /> Парфюмерия
+                </AlertTitle>
+                <AlertDescription>
+                  Создана поставка с {autoCreateResult.perfume} товарами
+                </AlertDescription>
+              </Alert>
+              
+              <Alert>
+                <AlertTitle className="flex items-center gap-1">
+                  <ShirtIcon className="h-4 w-4" /> Одежда
+                </AlertTitle>
+                <AlertDescription>
+                  Создана поставка с {autoCreateResult.clothing} товарами
+                </AlertDescription>
+              </Alert>
+              
+              <Alert>
+                <AlertTitle className="flex items-center gap-1">
+                  <Paperclip className="h-4 w-4" /> Мелочёвка
+                </AlertTitle>
+                <AlertDescription>
+                  Создана поставка с {autoCreateResult.other} товарами
+                </AlertDescription>
+              </Alert>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => {
+                setAutoCreateResult(null);
+                setActiveTab("supplies"); // Переключение на вкладку с поставками
+              }}>
+                Перейти к поставкам
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
