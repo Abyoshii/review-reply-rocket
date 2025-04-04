@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import HeaderAutoResponse from "@/components/HeaderAutoResponse";
 import { ReviewListParams, WbReview, WbQuestion, QuestionListParams } from "@/types/wb";
 import { WbAPI } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { logObjectStructure } from "@/lib/imageUtils";
 
 const Reviews = () => {
   const [activeTab, setActiveTab] = useState("new");
@@ -45,6 +47,9 @@ const Reviews = () => {
       
       const reviewsResponse = await WbAPI.getReviews(reviewsParams);
       
+      // Log the data structure to see what we're getting from the API
+      logObjectStructure(reviewsResponse, "WB API Reviews Response");
+      
       const questionsParams: QuestionListParams = { 
         isAnswered: false, 
         take: 10, 
@@ -62,6 +67,9 @@ const Reviews = () => {
       };
       
       const archiveResponse = await WbAPI.getArchiveReviews(archiveParams);
+      
+      // Log the archive response to see what we're getting
+      logObjectStructure(archiveResponse, "WB API Archive Response");
       
       setReviews(reviewsResponse.data.feedbacks || []);
       setQuestions(questionsResponse.data.questions || []);

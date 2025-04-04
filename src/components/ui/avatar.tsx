@@ -25,7 +25,11 @@ const AvatarImage = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
-    className={cn("aspect-square h-full w-full", className)}
+    className={cn("aspect-square h-full w-full object-cover", className)}
+    onError={(e) => {
+      // If image fails to load, show the fallback
+      e.currentTarget.src = "https://via.placeholder.com/100?text=Нет+фото";
+    }}
     {...props}
   />
 ))

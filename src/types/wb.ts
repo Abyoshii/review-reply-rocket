@@ -47,6 +47,8 @@ export interface WbReview {
     supplierName: string;
     brandName: string;
     size: string;
+    image?: string; // Add this field for product image
+    category?: string; // Add this field for product category
   };
   wasViewed?: boolean;
   userName?: string;
