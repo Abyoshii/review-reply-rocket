@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -9,27 +9,53 @@ import { Search, ArrowDownWideNarrow, Droplets, Shirt, Paperclip } from "lucide-
 import { WarehouseFilter, CargoTypeFilter, ProductCategory } from "@/types/wb";
 
 interface OrdersFiltersProps {
-  filters: {
-    warehouse: string;
-    cargoType: string;
-    search: string;
-    sortBy: string;
-    sortDirection: 'asc' | 'desc';
-    category: string;
-  };
-  warehouses: WarehouseFilter[];
-  cargoTypes: CargoTypeFilter[];
-  handleFilterChange: (field: string, value: string) => void;
-  filteredOrdersCount: number;
+  warehouseOptions: WarehouseFilter[];
+  cargoTypeOptions: CargoTypeFilter[];
+  onFilterChange: (newFilterState: Partial<{
+    warehouseId: WarehouseFilter | null;
+    productCategory: ProductCategory | null;
+    cargoType: CargoTypeFilter | null;
+    dateFrom: Date | null;
+    dateTo: Date | null;
+  }>) => void;
 }
 
 const OrdersFilters: React.FC<OrdersFiltersProps> = ({
-  filters,
-  warehouses,
-  cargoTypes,
-  handleFilterChange,
-  filteredOrdersCount
+  warehouseOptions,
+  cargoTypeOptions,
+  onFilterChange
 }) => {
+  const [filters, setFilters] = useState({
+    warehouse: "all",
+    cargoType: "all",
+    category: "all",
+    search: "",
+    sortBy: "createdAt",
+    sortDirection: 'desc' as 'asc' | 'desc'
+  });
+
+  const handleFilterChange = (field: string, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+    
+    // Map the filter changes to the parent component's filter structure
+    if (field === 'warehouse') {
+      const warehouseFilter = value === 'all' 
+        ? null 
+        : warehouseOptions.find(w => w.id.toString() === value) || null;
+      onFilterChange({ warehouseId: warehouseFilter });
+    } else if (field === 'cargoType') {
+      const cargoTypeFilter = value === 'all'
+        ? null
+        : cargoTypeOptions.find(c => c.id.toString() === value) || null;
+      onFilterChange({ cargoType: cargoTypeFilter });
+    } else if (field === 'category') {
+      const categoryFilter = value === 'all'
+        ? null
+        : value as ProductCategory;
+      onFilterChange({ productCategory: categoryFilter });
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -45,7 +71,7 @@ const OrdersFilters: React.FC<OrdersFiltersProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все склады</SelectItem>
-                {warehouses.map(warehouse => (
+                {warehouseOptions.map(warehouse => (
                   <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
                     {warehouse.name}
                   </SelectItem>
@@ -62,7 +88,7 @@ const OrdersFilters: React.FC<OrdersFiltersProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все типы</SelectItem>
-                {cargoTypes.map(cargoType => (
+                {cargoTypeOptions.map(cargoType => (
                   <SelectItem key={cargoType.id} value={cargoType.id.toString()}>
                     {cargoType.name}
                   </SelectItem>
@@ -148,9 +174,6 @@ const OrdersFilters: React.FC<OrdersFiltersProps> = ({
             >
               Сбросить фильтры
             </Button>
-            <span className="text-sm text-muted-foreground">
-              Найдено: {filteredOrdersCount}
-            </span>
           </div>
           
           <Button 
