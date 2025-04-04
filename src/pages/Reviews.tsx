@@ -13,53 +13,72 @@ import FloatingActionButtons from "@/components/FloatingActionButtons";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import HeaderAutoResponse from "@/components/HeaderAutoResponse";
-import { ReviewListParams } from "@/types/wb";
+import { ReviewListParams, WbReview, WbQuestion } from "@/types/wb";
+import { WbAPI } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 const Reviews = () => {
   const [activeTab, setActiveTab] = useState("new");
-  const [reviews, setReviews] = useState([]);
-  const [questions, setQuestions] = useState([]);
-  const [archiveReviews, setArchiveReviews] = useState([]);
+  const [reviews, setReviews] = useState<WbReview[]>([]);
+  const [questions, setQuestions] = useState<WbQuestion[]>([]);
+  const [archiveReviews, setArchiveReviews] = useState<WbReview[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedReviews, setSelectedReviews] = useState([]);
+  const [selectedReviews, setSelectedReviews] = useState<string[]>([]);
   const [autoResponderOpen, setAutoResponderOpen] = useState(false);
   const [autoResponderSettings, setAutoResponderSettings] = useState({
     model: "gpt-3.5-turbo",
     temperature: 0.7,
     systemPrompt: "Ты помощник по товарам на маркетплейсе Wildberries. Твоя задача - вежливо отвечать на отзывы и вопросы покупателей.",
   });
+  const [error, setError] = useState<string | null>(null);
 
   // Функция для обновления данных
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
-      // Здесь должен быть код для получения данных с API
-      // Для демонстрации используем моковые данные
-      setTimeout(() => {
-        const mockReviews = [
-          { id: 1, productName: "Товар 1", rating: 5, text: "Отличный товар!", status: "new" },
-          { id: 2, productName: "Товар 2", rating: 2, text: "Не соответствует описанию", status: "new" },
-        ];
-        
-        const mockQuestions = [
-          { id: 1, productName: "Товар 1", question: "Как долго работает батарея?", date: "2023-05-15" },
-          { id: 2, productName: "Товар 3", question: "Есть ли в наличии красный цвет?", date: "2023-05-14" },
-        ];
-        
-        const mockArchive = [
-          { id: 3, productName: "Товар 3", rating: 4, text: "Хороший товар", status: "archived", reply: "Спасибо за отзыв!" },
-          { id: 4, productName: "Товар 4", rating: 1, text: "Ужасное качество", status: "archived", reply: "Приносим извинения за неудобства." },
-        ];
-        
-        setReviews(mockReviews);
-        setQuestions(mockQuestions);
-        setArchiveReviews(mockArchive);
-        setLoading(false);
-      }, 1000);
+      // Получаем новые отзывы
+      const reviewsParams: ReviewListParams = { 
+        isAnswered: false, 
+        take: 10, 
+        skip: 0,
+        order: "dateDesc" 
+      };
+      
+      const reviewsResponse = await WbAPI.getReviews(reviewsParams);
+      
+      // Получаем вопросы
+      const questionsParams = { 
+        isAnswered: false, 
+        take: 10, 
+        skip: 0,
+        order: "dateDesc" 
+      };
+      
+      const questionsResponse = await WbAPI.getQuestions(questionsParams);
+      
+      // Получаем архивные отзывы
+      const archiveParams: ReviewListParams = { 
+        isAnswered: true, 
+        take: 10, 
+        skip: 0,
+        order: "dateDesc" 
+      };
+      
+      const archiveResponse = await WbAPI.getArchiveReviews(archiveParams);
+      
+      // Устанавливаем полученные данные
+      setReviews(reviewsResponse.data.feedbacks || []);
+      setQuestions(questionsResponse.data.questions || []);
+      setArchiveReviews(archiveResponse.data.feedbacks || []);
+      
     } catch (error) {
       console.error("Ошибка при получении данных:", error);
-      setLoading(false);
+      setError("Не удалось загрузить данные. Проверьте API-токен и сетевое соединение.");
       toast.error("Не удалось загрузить данные. Пожалуйста, попробуйте позже.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,7 +87,7 @@ const Reviews = () => {
   }, []);
 
   // Обработчик выбора отзывов
-  const handleSelectReview = (reviewId: number, isSelected: boolean) => {
+  const handleSelectReview = (reviewId: string, isSelected: boolean) => {
     if (isSelected) {
       setSelectedReviews([...selectedReviews, reviewId]);
     } else {
@@ -77,7 +96,7 @@ const Reviews = () => {
   };
 
   // Обработчик множественного выбора отзывов
-  const handleSelectAllReviews = (ids: number[]) => {
+  const handleSelectAllReviews = (ids: string[]) => {
     setSelectedReviews(ids);
   };
 
@@ -111,22 +130,39 @@ const Reviews = () => {
   // Обработчик изменения фильтров для отзывов
   const handleFilterChange = (filters: ReviewListParams) => {
     console.log("Применяем фильтры:", filters);
-    // Здесь должен быть код для фильтрации отзывов
-    // Для демонстрации просто сбрасываем загрузку
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
+    
+    // Запрашиваем отзывы с новыми фильтрами
+    WbAPI.getReviews(filters)
+      .then(response => {
+        setReviews(response.data.feedbacks || []);
+      })
+      .catch(error => {
+        console.error("Ошибка при фильтрации отзывов:", error);
+        toast.error("Ошибка фильтрации. Попробуйте другие параметры.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   // Обработчик изменения фильтров для вопросов
   const handleQuestionsFilterChange = (filters: any) => {
     console.log("Применяем фильтры для вопросов:", filters);
-    // Здесь должен быть код для фильтрации вопросов
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
+    
+    // Запрашиваем вопросы с новыми фильтрами
+    WbAPI.getQuestions(filters)
+      .then(response => {
+        setQuestions(response.data.questions || []);
+      })
+      .catch(error => {
+        console.error("Ошибка при фильтрации вопросов:", error);
+        toast.error("Ошибка фильтрации. Попробуйте другие параметры.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   // Обработчик для генерации ответов на отзывы с использованием FloatingActionButtons
@@ -153,6 +189,17 @@ const Reviews = () => {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-4 p-4 border border-red-300 bg-red-50 rounded-md text-red-700">
+          <p className="font-medium">Ошибка загрузки данных:</p>
+          <p>{error}</p>
+          <Button variant="outline" className="mt-2" onClick={fetchData}>
+            <Loader2 className="mr-2 h-4 w-4" />
+            Повторить попытку
+          </Button>
+        </div>
+      )}
+
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="new" className="flex-1">Новые отзывы</TabsTrigger>
@@ -176,7 +223,7 @@ const Reviews = () => {
               
               {reviews && reviews.length > 0 && (
                 <FloatingActionButtons 
-                  selectedReviews={new Set(selectedReviews.map(id => id.toString()))}
+                  selectedReviews={new Set(selectedReviews)}
                   reviews={reviews}
                   onGenerateAnswers={handleGenerateAnswers}
                   onSendAnswers={handleSendAnswers}
