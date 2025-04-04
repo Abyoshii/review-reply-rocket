@@ -780,4 +780,58 @@ const AutoAssembly = () => {
                 </div> : <div className="space-y-4">
                   {supplies.map(supply => <Card key={supply.id} className="overflow-hidden">
                       <div className="bg-muted/30 p-4 flex items-center justify-between flex-wrap gap-4">
-                        <div
+                        <div className="flex items-center gap-3">
+                          <Truck className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <h3 className="font-medium text-lg">{supply.name}</h3>
+                            <p className="text-sm text-muted-foreground">ID: {supply.supplyId}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Badge variant={supply.done ? "outline" : "secondary"} className={supply.done ? "bg-green-50 text-green-700 border-green-200" : ""}>
+                            {supply.status}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {formatDate(supply.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <CardContent className="p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="text-sm text-muted-foreground">
+                              Количество заказов: <strong>{supply.ordersCount}</strong>
+                            </div>
+                            {supply.category && (
+                              <Badge variant="outline" className="mr-2">
+                                {getCategoryDisplay(supply.category).icon}
+                                {supply.category}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" onClick={() => getSupplyBarcode(supply.id)}>
+                              <Download className="mr-2 h-4 w-4" />
+                              QR-код поставки
+                            </Button>
+                            
+                            {!supply.done && <Button variant="default" size="sm" onClick={() => deliverSupply(supply.id)}>
+                              <Send className="mr-2 h-4 w-4" />
+                              Передать в доставку
+                            </Button>}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>)}
+                </div>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>;
+};
+
+export default AutoAssembly;
