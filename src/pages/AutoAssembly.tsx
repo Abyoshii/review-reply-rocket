@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -905,3 +906,73 @@ const AutoAssembly = () => {
                     onClick={() => setActiveTab("orders")}
                   >
                     Перейти к сборочным заданиям
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredSupplies.map((supply) => (
+                    <Card key={supply.id} className="overflow-hidden">
+                      <div className="bg-muted/30 p-4 flex items-center justify-between flex-wrap gap-4">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <Package className="h-5 w-5 text-primary" />
+                            <span className="text-lg font-medium">{supply.name}</span>
+                            {supply.category && (
+                              <Badge variant="outline" className="ml-2">
+                                {supply.category}
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            Создана: {formatDate(supply.createdAt)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={supply.done ? "outline" : "secondary"}
+                            className={supply.done ? "bg-green-50 text-green-700 border-green-300" : ""}
+                          >
+                            {supply.done ? "Завершена" : "В процессе"}
+                          </Badge>
+                          <Badge variant="outline">
+                            {supply.ordersCount} заказов
+                          </Badge>
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <CardContent className="p-4 pt-4">
+                        <div className="flex flex-wrap gap-2 items-center justify-between">
+                          <div>
+                            <span className="text-sm font-medium">ID поставки: </span>
+                            <span className="text-sm text-muted-foreground">{supply.supplyId}</span>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm">
+                              <Download className="mr-2 h-4 w-4" />
+                              Скачать документы
+                            </Button>
+                            <Button size="sm">
+                              <Send className="mr-2 h-4 w-4" />
+                              Отправить в доставку
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default AutoAssembly;
