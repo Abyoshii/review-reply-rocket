@@ -1,6 +1,6 @@
 
 import axios from "axios";
-import { ProductCardResponse, ProductCardInfo } from "@/types/wb";
+import { ProductCardInfo, ProductCategory } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
 
 // API URL для получения информации о товаре
@@ -9,7 +9,7 @@ const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards
 // Кэш для хранения информации о товарах
 const productInfoCache: Record<number, ProductCardInfo> = {};
 
-// Функция для получения информации о товаре по nmId без использования "заглушек"
+// Функция для получения информации о товаре по nmId
 export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo | null> => {
   try {
     // 1. Проверяем кэш
@@ -32,47 +32,48 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     console.log(`🔍 Запрос данных карточки товара через POST API для nmId=${nmId}`);
     const response = await axios.post(WB_CARD_API_URL, requestBody);
     
-    // 3. Проверяем наличие данных в ответе
-    if (!response.data?.cards?.length) {
-      console.warn(`Не найдена карточка товара для nmId=${nmId} в ответе API`);
+    // 3. Вывод полного ответа для отладки (только в разработке)
+    console.log("Полный ответ API карточки товара:");
+    console.log(JSON.stringify(response.data, null, 2));
+    
+    // 4. Проверяем наличие карточек в ответе
+    const cards = response.data.cards;
+    if (!cards || cards.length === 0) {
+      console.warn(`[WARN] Не найдены данные товара для nmId=${nmId}`);
       return null;
     }
-
-    const product = response.data.cards[0];
     
-    // 4. Проверяем обязательные поля
+    const product = cards[0];
+    
+    // 5. Проверка обязательного поля "title"
     if (!product.title) {
-      console.warn(`У товара nmId=${nmId} отсутствует поле title (название)`);
+      console.warn(`[WARN] У товара nmId=${nmId} отсутствует поле title (наименование).`);
       return null;
     }
     
-    // 5. Проверяем наличие изображения
-    let imageUrl = '';
-    if (product.photos?.length && product.photos[0]?.big) {
-      imageUrl = product.photos[0].big;
-      console.log(`Получен URL изображения для nmId=${nmId}: ${imageUrl}`);
-    } else {
-      console.warn(`У товара nmId=${nmId} отсутствуют фотографии`);
+    // 6. Проверка наличия фото и URL изображения
+    if (!product.photos || !product.photos[0]?.big) {
+      console.warn(`[WARN] У товара nmId=${nmId} отсутствуют фотографии или URL фотографии.`);
       return null;
     }
     
-    // 6. Проверяем категорию
+    // 7. Проверка обязательного поля "subjectName"
     if (!product.subjectName) {
-      console.warn(`У товара nmId=${nmId} отсутствует subjectName (категория)`);
+      console.warn(`[WARN] У товара nmId=${nmId} отсутствует поле subjectName (категория).`);
       return null;
     }
     
-    // 7. Формируем результат без использования заглушек
+    // 8. Формирование объекта с информацией о товаре
     const productInfo: ProductCardInfo = {
       nmId: nmId,
       name: product.title,
       brand: product.brand || "",
-      image: imageUrl,
+      image: product.photos[0].big,
       category: product.subjectName,
       productCategory: determineCategoryBySubject(product.subjectName)
     };
     
-    // 8. Сохраняем в кэш только корректные данные
+    // 9. Сохраняем корректную карточку в кэш
     productInfoCache[nmId] = productInfo;
     
     return productInfo;
