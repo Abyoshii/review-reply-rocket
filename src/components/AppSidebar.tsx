@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
 import { 
   Home, MessageSquare, Calendar, FileSpreadsheet, Settings,
-  ShoppingCart, HelpCircle, LucideIcon, MenuIcon
+  ShoppingCart, HelpCircle, LucideIcon, MenuIcon, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -42,9 +42,8 @@ const SidebarItem = ({ icon: Icon, title, href, badge }: SidebarItemProps) => {
 interface AppSidebarProps {}
 
 const AppSidebar = ({}: AppSidebarProps) => {
-  const { isOpen, setIsOpen } = useSidebar();
+  const { state, openMobile, setOpenMobile, isMobile, toggleSidebar } = useSidebar();
   const [width, setWidth] = useState(window.innerWidth);
-  const isMobile = width <= 768;
   
   useEffect(() => {
     const handleResize = () => {
@@ -55,24 +54,16 @@ const AppSidebar = ({}: AppSidebarProps) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  useEffect(() => {
-    if (isMobile) {
-      setIsOpen(false);
-    } else {
-      setIsOpen(true);
-    }
-  }, [isMobile, setIsOpen]);
-  
   // Добавляем кнопку меню для отображения сайдбара на мобильных устройствах
   const FloatingMenuButton = () => {
-    if (!isMobile || isOpen) return null;
+    if (!isMobile || openMobile) return null;
     
     return (
       <Button
         variant="outline"
         size="icon"
         className="fixed bottom-4 left-4 z-50 bg-background/50 backdrop-blur-sm hover:bg-background/80 border border-gray-200 dark:border-gray-800"
-        onClick={() => setIsOpen(true)}
+        onClick={toggleSidebar}
       >
         <MenuIcon className="h-4 w-4" />
       </Button>
@@ -86,8 +77,8 @@ const AppSidebar = ({}: AppSidebarProps) => {
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r bg-background transition-transform duration-300 ease-in-out dark:border-gray-800",
-          isMobile && !isOpen && "-translate-x-full",
-          isMobile && isOpen && "shadow-lg"
+          isMobile && state !== "expanded" && "-translate-x-full",
+          isMobile && state === "expanded" && "shadow-lg"
         )}
       >
         {isMobile && (
@@ -95,23 +86,9 @@ const AppSidebar = ({}: AppSidebarProps) => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsOpen(false)}
+              onClick={() => setOpenMobile(false)}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M18 6 6 18" />
-                <path d="m6 6 12 12" />
-              </svg>
+              <X className="h-4 w-4" />
               <span className="sr-only">Закрыть меню</span>
             </Button>
           </div>
