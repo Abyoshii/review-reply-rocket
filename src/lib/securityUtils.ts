@@ -23,6 +23,7 @@ const deobfuscateToken = (encodedToken: string): string => {
   }
 };
 
+// Используем константу для API токена, чтобы избежать опечаток
 const API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
 
 // Функция для сохранения токена в localStorage с обфускацией
@@ -71,9 +72,11 @@ const addAuthHeaders = (headers: Record<string, string> = {}): Record<string, st
   
   if (token) {
     console.log(`Добавление заголовка ${headerName} к запросу`);
+    // ВАЖНО: API Wildberries требует формат "Bearer токен"
     return {
       ...headers,
-      [headerName]: `Bearer ${token}`
+      [headerName]: `Bearer ${token}`,
+      'Content-Type': 'application/json' // Добавляем Content-Type для всех запросов
     };
   }
   

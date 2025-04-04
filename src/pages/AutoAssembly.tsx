@@ -3,12 +3,14 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Truck, Box, Loader2, RefreshCw } from "lucide-react";
+import { Package, Truck, Box, Loader2, RefreshCw, Shield } from "lucide-react";
 import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply } from "@/types/wb";
 import { AutoAssemblyAPI } from "@/lib/autoAssemblyApi";
 import { formatPrice } from "@/lib/utils/formatUtils";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { getApiToken, getHeaderName } from "@/lib/securityUtils";
+import { logAuthStatus } from "@/lib/logUtils";
 
 // Импорт компонентов
 import OrdersTable from "@/components/autoAssembly/OrdersTable";
@@ -52,6 +54,11 @@ const AutoAssembly = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
+      // Диагностика авторизации перед запросом
+      const token = getApiToken();
+      const headerName = getHeaderName();
+      logAuthStatus(token, headerName);
+      
       const newOrders = await AutoAssemblyAPI.getNewOrders();
       console.log("Loaded orders:", newOrders);
       setOrders(newOrders);
@@ -281,6 +288,23 @@ const AutoAssembly = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="border-dashed flex items-center gap-1" 
+            onClick={() => {
+              // Диагностическая кнопка для проверки токена
+              const token = getApiToken();
+              const headerName = getHeaderName();
+              logAuthStatus(token, headerName);
+              toast.info("Проверка авторизации", {
+                description: `Заголовок: ${headerName}, Токен: ${token.substring(0, 15)}...`,
+              });
+            }}
+          >
+            <Shield className="h-4 w-4" />
+            Проверить токен
+          </Button>
+          
           <Button variant="outline" className="border-dashed" onClick={handleRefreshOrders} disabled={isLoading}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Обновить задания

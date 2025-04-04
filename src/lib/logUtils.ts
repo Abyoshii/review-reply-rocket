@@ -52,3 +52,26 @@ export const logInfo = (message: string, details?: string) => {
     });
   }
 };
+
+/**
+ * Функция для тестирования токена авторизации
+ * с выводом подробной информации о состоянии
+ */
+export const logAuthStatus = (token: string, headerName: string) => {
+  if (!token) {
+    console.error('❌ [AUTH] Токен отсутствует! Авторизация невозможна.');
+    return;
+  }
+  
+  console.log('✅ [AUTH] Авторизационные данные:');
+  console.log(`✅ [AUTH] Заголовок: ${headerName}`);
+  console.log(`✅ [AUTH] Токен (первые 20 символов): ${token.substring(0, 20)}...`);
+  console.log(`✅ [AUTH] Длина токена: ${token.length} символов`);
+  
+  // Проверка формата токена (должен начинаться с "ey")
+  if (token.startsWith('ey')) {
+    console.log('✅ [AUTH] Формат токена: похоже на JWT');
+  } else {
+    console.warn('⚠️ [AUTH] Формат токена: не похож на стандартный JWT!');
+  }
+};
