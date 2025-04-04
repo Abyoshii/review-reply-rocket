@@ -14,6 +14,7 @@ import Boxes from "./pages/Boxes";
 import { useState } from "react";
 import { Button } from "./components/ui/button";
 import { Menu } from "lucide-react";
+import ConsoleViewer from "./components/ConsoleViewer";
 
 function App() {
   const [unansweredCount, setUnansweredCount] = useState(0);
@@ -63,6 +64,7 @@ function App() {
                   </SidebarTrigger>
                 </div>
               </main>
+              <ConsoleViewer />
               <Toaster />
             </div>
           </div>
