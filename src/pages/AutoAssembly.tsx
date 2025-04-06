@@ -18,6 +18,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import OrdersFilters from "@/components/autoAssembly/OrdersFilters";
+import OrdersTable from "@/components/autoAssembly/OrdersTable";
+import SelectedOrdersActions from "@/components/autoAssembly/SelectedOrdersActions";
+import SuppliesContent from "@/components/autoAssembly/SuppliesContent";
+import ResultDialog from "@/components/autoAssembly/ResultDialog";
 
 interface FilterState {
   warehouseId: WarehouseFilter | null;
