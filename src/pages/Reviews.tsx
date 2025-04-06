@@ -15,8 +15,9 @@ import { Button } from "@/components/ui/button";
 import HeaderAutoResponse from "@/components/HeaderAutoResponse";
 import { ReviewListParams, WbReview, WbQuestion, QuestionListParams } from "@/types/wb";
 import { WbAPI } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { logObjectStructure } from "@/lib/imageUtils";
+import { UNIFIED_API_TOKEN, saveApiToken } from "@/lib/securityUtils";
 
 const Reviews = () => {
   const [activeTab, setActiveTab] = useState("new");
@@ -32,12 +33,33 @@ const Reviews = () => {
     systemPrompt: "Ты помощник по товарам на маркетплейсе Wildberries. Твоя задача - вежливо отвечать на отзывы и вопросы покупателей.",
   });
   const [error, setError] = useState<string | null>(null);
+  const [tokenResetAttempted, setTokenResetAttempted] = useState(false);
+
+  const ensureLatestToken = () => {
+    // Сбрасываем токен до актуального значения при первой загрузке компонента
+    try {
+      saveApiToken(UNIFIED_API_TOKEN, {
+        useHeaderApiKey: true,
+        headerName: 'Authorization',
+        obfuscateTokens: true
+      });
+      console.log("Токен сброшен до актуального значения");
+    } catch (error) {
+      console.error("Ошибка при сбросе токена:", error);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     
     try {
+      // При первой загрузке или после ошибки авторизации сбрасываем токен
+      if (!tokenResetAttempted) {
+        ensureLatestToken();
+        setTokenResetAttempted(true);
+      }
+      
       const reviewsParams: ReviewListParams = { 
         isAnswered: false, 
         take: 10, 
@@ -75,9 +97,36 @@ const Reviews = () => {
       setQuestions(questionsResponse.data.questions || []);
       setArchiveReviews(archiveResponse.data.feedbacks || []);
       
+      // Показываем уведомление об успешной загрузке
+      toast.success("Данные успешно загружены", {
+        description: `Загружено отзывов: ${reviewsResponse.data.feedbacks?.length || 0}`
+      });
+      
     } catch (error) {
       console.error("Ошибка при получении данных:", error);
-      setError("Не удалось загрузить данные. Проверьте API-токен и сетевое соединение.");
+      
+      let errorMessage = "Не удалось загрузить данные. Проверьте API-токен и сетевое соединение.";
+      
+      // Проверяем не связана ли ошибка с токеном
+      if (error.response?.status === 401) {
+        errorMessage = "Ошибка авторизации (401). Токен недействителен или отозван.";
+        
+        // Если это первая ошибка авторизации после загрузки страницы, пробуем сбросить токен и загрузить снова
+        if (!tokenResetAttempted) {
+          ensureLatestToken();
+          setTokenResetAttempted(true);
+          toast.info("Попытка обновления токена", {
+            description: "Выполняется обновление токена авторизации..."
+          });
+          setError(null);
+          setLoading(false);
+          // Пробуем загрузить данные снова после небольшой задержки
+          setTimeout(fetchData, 1000);
+          return;
+        }
+      }
+      
+      setError(errorMessage);
       toast.error("Не удалось загрузить данные. Пожалуйста, попробуйте позже.");
     } finally {
       setLoading(false);
@@ -181,12 +230,31 @@ const Reviews = () => {
 
       {error && (
         <div className="mb-4 p-4 border border-red-300 bg-red-50 rounded-md text-red-700">
-          <p className="font-medium">Ошибка загрузки данных:</p>
+          <p className="font-medium flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            Ошибка загрузки данных:
+          </p>
           <p>{error}</p>
-          <Button variant="outline" className="mt-2" onClick={fetchData}>
-            <Loader2 className="mr-2 h-4 w-4" />
-            Повторить попытку
-          </Button>
+          <div className="mt-2 flex gap-2">
+            <Button variant="outline" onClick={fetchData}>
+              <Loader2 className="mr-2 h-4 w-4" />
+              Повторить попытку
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="bg-blue-50 hover:bg-blue-100 border-blue-200"
+              onClick={() => {
+                ensureLatestToken();
+                setTokenResetAttempted(true);
+                toast.info("Токен сброшен до актуального значения", {
+                  description: "Попробуйте загрузить данные снова"
+                });
+              }}
+            >
+              Сбросить токен
+            </Button>
+          </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, AlertCircle, CheckCircle, Clock, XCircle, RefreshCw, Info } from "lucide-react";
-import { getApiToken, getHeaderName, decodeJWT, getTokenDetails, saveApiToken } from "@/lib/securityUtils";
+import { Shield, AlertCircle, CheckCircle, Clock, XCircle, RefreshCw, Info, RotateCcw } from "lucide-react";
+import { getApiToken, getHeaderName, decodeJWT, getTokenDetails, saveApiToken, UNIFIED_API_TOKEN } from "@/lib/securityUtils";
 import { logAuthStatus } from "@/lib/logUtils";
 import { SecuritySettings } from "@/types/openai";
 import { toast } from "sonner";
@@ -26,6 +26,11 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
   const [tokenDetails, setTokenDetails] = useState(() => getTokenDetails(currentToken));
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUsingLatestToken, setIsUsingLatestToken] = useState(false);
+  
+  useEffect(() => {
+    setIsUsingLatestToken(currentToken === UNIFIED_API_TOKEN);
+  }, [currentToken]);
   
   const refreshTokenDetails = () => {
     setIsLoading(true);
@@ -34,6 +39,7 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
       setCurrentToken(token);
       setTokenDetails(getTokenDetails(token));
       logAuthStatus(token, headerName);
+      setIsUsingLatestToken(token === UNIFIED_API_TOKEN);
       
       toast.success("Информация о токене обновлена", {
         description: "Проверка токена отключена, считаем его действительным"
@@ -44,6 +50,31 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const resetToDefaultToken = () => {
+    try {
+      setIsUpdating(true);
+      
+      const securitySettings: SecuritySettings = {
+        useHeaderApiKey: true,
+        headerName: headerName,
+        obfuscateTokens: true
+      };
+      
+      saveApiToken(UNIFIED_API_TOKEN, securitySettings);
+      refreshTokenDetails();
+      
+      toast.success("Токен сброшен до значения по умолчанию", {
+        description: "Используется актуальный единый токен"
+      });
+    } catch (error) {
+      toast.error("Ошибка при сбросе токена", {
+        description: error instanceof Error ? error.message : "Неизвестная ошибка"
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
   
@@ -102,6 +133,12 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
                   </Badge>
                 )}
                 <span className="ml-2">Текущий токен</span>
+                
+                {isUsingLatestToken && (
+                  <Badge variant="outline" className="ml-auto bg-blue-100 text-blue-800 border-blue-300">
+                    Актуальный токен
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 Заголовок: {headerName || "Не указан"}
@@ -142,13 +179,13 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
                 </>
               )}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-wrap gap-2">
               <Button 
                 variant="outline" 
-                size="sm" 
-                className="w-full" 
+                size="sm"
                 onClick={refreshTokenDetails}
                 disabled={isLoading}
+                className="flex-1"
               >
                 {isLoading ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -156,6 +193,17 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
                   <RefreshCw className="w-4 h-4 mr-2" />
                 )}
                 Обновить информацию
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={resetToDefaultToken}
+                disabled={isLoading || isUsingLatestToken}
+                className="flex-1 bg-blue-50 hover:bg-blue-100 border-blue-200"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Сбросить до актуального
               </Button>
             </CardFooter>
           </Card>
