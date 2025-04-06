@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Tabs,
@@ -29,6 +30,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -38,34 +40,67 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/use-toast";
-import { Package, Search, RefreshCw, Droplets, ShirtIcon, Paperclip, ChevronDown, PenLine, Truck, Ticket, Trash } from "lucide-react";
+import { 
+  Package, 
+  Search, 
+  RefreshCw, 
+  Droplets, 
+  ShirtIcon, 
+  Paperclip, 
+  ChevronDown,
+  ChevronUp, 
+  PenLine, 
+  Truck, 
+  Ticket, 
+  Trash, 
+  Download,
+  FileDown
+} from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { autoAssemblyApi, type Order, type Supply, type ProductCategory } from "@/lib/autoAssemblyApi";
+import { 
+  autoAssemblyApi, 
+  type Order, 
+  type Supply, 
+  type ProductCategory,
+  type StickerType,
+  type StickerSize
+} from "@/lib/autoAssemblyApi";
 
 // Типы для данных
-interface AppOrder extends Omit<Order, 'id'> {
-  id: string;
-  orderId: string;
-  barcode: string;
-  count: number;
-  date: string;
-  warehouse: string;
-  cargoType: string;
-  category?: "Парфюмерия" | "Одежда" | "Мелочёвка";
+interface AppOrder extends Order {
+  id: number;
+  selected?: boolean;
+  orderId?: string;
+  barcode?: string;
+  count?: number;
+  date?: string;
+  category?: string;
 }
 
-interface AppSupply {
+interface AppSupply extends Omit<Supply, 'id'> {
   id: string;
-  name: string;
-  count: number;
-  date: string;
-  category: string;
-  orders: AppOrder[];
+  date?: string;
+  count?: number;
+  orders?: AppOrder[];
 }
 
 // Функция определения категории товара по названию
@@ -86,8 +121,32 @@ const detectCategory = (name: string): "Парфюмерия" | "Одежда" |
   return "Мелочёвка";
 };
 
+// Функция для конвертации категории товара в API тип
+const categoryToApiType = (category: string): ProductCategory => {
+  switch (category) {
+    case "Парфюмерия":
+      return "perfume";
+    case "Одежда":
+      return "clothing";
+    default:
+      return "misc";
+  }
+};
+
+// Функция для конвертации API типа в категорию товара
+const apiTypeToCategory = (type: ProductCategory): string => {
+  switch (type) {
+    case "perfume":
+      return "Парфюмерия";
+    case "clothing":
+      return "Одежда";
+    default:
+      return "Мелочёвка";
+  }
+};
+
 // Главный компонент
-const AutoAssembly = () => {
+const AutoAssembly: React.FC = () => {
   // Состояния
   const [activeTab, setActiveTab] = useState("orders");
   const [orders, setOrders] = useState<AppOrder[]>([]);
@@ -98,10 +157,11 @@ const AutoAssembly = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
   const [showCreateSupplyModal, setShowCreateSupplyModal] = useState(false);
   const [newSupplyName, setNewSupplyName] = useState("");
   const [currentSupply, setCurrentSupply] = useState<AppSupply | null>(null);
+  const [currentSupplyOrders, setCurrentSupplyOrders] = useState<AppOrder[]>([]);
   const [showSupplyDetailsModal, setShowSupplyDetailsModal] = useState(false);
   const [showAutoCreateDialog, setShowAutoCreateDialog] = useState(false);
   const [autoCreateResult, setAutoCreateResult] = useState<{
@@ -113,6 +173,15 @@ const AutoAssembly = () => {
   const [editSupplyName, setEditSupplyName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [supplyToDelete, setSupplyToDelete] = useState<string | null>(null);
+  const [openedSupplyContent, setOpenedSupplyContent] = useState<string | null>(null);
+  const [showStickersDialog, setShowStickersDialog] = useState(false);
+  const [stickerType, setStickerType] = useState<StickerType>("png");
+  const [stickerSize, setStickerSize] = useState<StickerSize>("58x40");
+  const [stickerSupplyId, setStickerSupplyId] = useState<string | null>(null);
+  const [showDeliverConfirm, setShowDeliverConfirm] = useState(false);
+  const [supplyToDeliver, setSupplyToDeliver] = useState<string | null>(null);
+  const [isLoadingStickers, setIsLoadingStickers] = useState(false);
+  const [isLoadingSupplyContent, setIsLoadingSupplyContent] = useState(false);
   
   // Загрузка данных
   useEffect(() => {
@@ -125,16 +194,12 @@ const AutoAssembly = () => {
     setIsLoading(true);
     try {
       const data = await autoAssemblyApi.getOrders();
-      const processedOrders = data.map((order: Order) => ({
-        id: order.id.toString(),
+      const processedOrders = data.map((order) => ({
+        ...order,
         orderId: `WB-${order.id}`,
-        article: order.article,
-        name: order.name,
         barcode: `123${order.id}`,
         count: 1,
         date: order.createdAt,
-        warehouse: order.warehouse,
-        cargoType: order.cargoType,
         category: detectCategory(order.name)
       }));
       setOrders(processedOrders);
@@ -155,13 +220,11 @@ const AutoAssembly = () => {
     try {
       const data = await autoAssemblyApi.getSupplies();
       const processedSupplies = data.map((supply) => ({
+        ...supply,
         id: supply.id.toString(),
-        name: supply.name,
-        count: supply.ordersCount,
         date: supply.createdAt,
-        category: supply.category === 'perfume' ? 'Парфюмерия' : 
-                 supply.category === 'clothing' ? 'Одежда' : 'Мелочёвка',
-        orders: []
+        count: supply.ordersCount,
+        category: apiTypeToCategory(supply.category)
       }));
       setSupplies(processedSupplies);
     } catch (error) {
@@ -171,6 +234,46 @@ const AutoAssembly = () => {
         description: "Не удалось загрузить список поставок",
         variant: "destructive"
       });
+    }
+  };
+
+  // Загрузка заказов поставки
+  const fetchSupplyOrders = async (supplyId: string) => {
+    setIsLoadingSupplyContent(true);
+    try {
+      const data = await autoAssemblyApi.getSupplyOrders(parseInt(supplyId));
+      const processedOrders = data.map((order) => ({
+        ...order,
+        orderId: `WB-${order.id}`,
+        barcode: `123${order.id}`,
+        count: 1,
+        date: order.createdAt,
+        category: detectCategory(order.name)
+      }));
+      
+      // Обновляем список заказов для поставки
+      const updatedSupplies = supplies.map(supply => {
+        if (supply.id === supplyId) {
+          return {
+            ...supply,
+            orders: processedOrders
+          };
+        }
+        return supply;
+      });
+      
+      setSupplies(updatedSupplies);
+      return processedOrders;
+    } catch (error) {
+      console.error("Failed to fetch supply orders:", error);
+      toast({
+        title: "Ошибка загрузки заказов",
+        description: "Не удалось загрузить список заказов в поставке",
+        variant: "destructive"
+      });
+      return [];
+    } finally {
+      setIsLoadingSupplyContent(false);
     }
   };
   
@@ -189,7 +292,7 @@ const AutoAssembly = () => {
     }
     
     if (searchQuery && 
-        !order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) && 
+        !order.id.toString().includes(searchQuery.toLowerCase()) && 
         !order.article.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
@@ -201,7 +304,7 @@ const AutoAssembly = () => {
   const sortedOrders = [...filteredOrders].sort((a, b) => {
     switch (sortBy) {
       case "date":
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case "name":
         return a.name.localeCompare(b.name);
       case "category":
@@ -248,7 +351,7 @@ const AutoAssembly = () => {
       const supply = await autoAssemblyApi.createSupply(newSupplyName, category);
       
       await Promise.all(selectedOrders.map(orderId => 
-        autoAssemblyApi.addOrderToSupply(supply.id, parseInt(orderId))
+        autoAssemblyApi.addOrderToSupply(supply.id, orderId)
       ));
       
       toast({
@@ -277,9 +380,9 @@ const AutoAssembly = () => {
     try {
       const date = new Date().toLocaleDateString('ru-RU');
       
-      const perfumeOrders = orders.filter(order => order.category === "Парфюмерия").map(order => parseInt(order.id));
-      const clothingOrders = orders.filter(order => order.category === "Одежда").map(order => parseInt(order.id));
-      const otherOrders = orders.filter(order => order.category === "Мелочёвка").map(order => parseInt(order.id));
+      const perfumeOrders = orders.filter(order => order.category === "Парфюмерия").map(order => order.id);
+      const clothingOrders = orders.filter(order => order.category === "Одежда").map(order => order.id);
+      const otherOrders = orders.filter(order => order.category === "Мелочёвка").map(order => order.id);
       
       const results = {
         perfume: perfumeOrders.length,
@@ -341,7 +444,7 @@ const AutoAssembly = () => {
   };
   
   // Обработка выбора заказа
-  const handleOrderSelect = (orderId: string, isSelected: boolean) => {
+  const handleOrderSelect = (orderId: number, isSelected: boolean) => {
     if (isSelected) {
       setSelectedOrders([...selectedOrders, orderId]);
     } else {
@@ -362,6 +465,31 @@ const AutoAssembly = () => {
   const viewSupplyDetails = (supply: AppSupply) => {
     setCurrentSupply(supply);
     setShowSupplyDetailsModal(true);
+    
+    // Если у поставки уже есть загруженные заказы, просто устанавливаем их
+    if (supply.orders && supply.orders.length > 0) {
+      setCurrentSupplyOrders(supply.orders);
+    } else {
+      // Иначе загружаем заказы этой поставки
+      fetchSupplyOrders(supply.id).then(orders => {
+        setCurrentSupplyOrders(orders);
+      });
+    }
+  };
+  
+  // Управление содержимым поставки
+  const toggleSupplyContent = async (supplyId: string) => {
+    if (openedSupplyContent === supplyId) {
+      setOpenedSupplyContent(null);
+    } else {
+      setOpenedSupplyContent(supplyId);
+      const supply = supplies.find(s => s.id === supplyId);
+      
+      // Проверяем есть ли уже загруженные заказы
+      if (!supply?.orders || supply.orders.length === 0) {
+        await fetchSupplyOrders(supplyId);
+      }
+    }
   };
   
   // Редактирование названия поставки
@@ -391,6 +519,104 @@ const AutoAssembly = () => {
     }
   };
   
+  // Генерация стикеров
+  const openStickersDialog = (supplyId: string) => {
+    setStickerSupplyId(supplyId);
+    setShowStickersDialog(true);
+  };
+  
+  const generateStickers = async () => {
+    if (!stickerSupplyId) return;
+    
+    const supply = supplies.find(s => s.id === stickerSupplyId);
+    if (!supply) return;
+    
+    // Получаем заказы для поставки, если они еще не загружены
+    let orderIds: number[] = [];
+    if (supply.orders && supply.orders.length > 0) {
+      orderIds = supply.orders.map(o => o.id);
+    } else {
+      const orders = await fetchSupplyOrders(stickerSupplyId);
+      orderIds = orders.map(o => o.id);
+    }
+    
+    if (orderIds.length === 0) {
+      toast({
+        title: "Невозможно создать стикеры",
+        description: "В поставке нет заказов для создания стикеров",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsLoadingStickers(true);
+    try {
+      // Разбираем размер стикера
+      const [width, height] = stickerSize.split('x').map(Number);
+      
+      const stickerParams = {
+        type: stickerType,
+        width,
+        height,
+        orders: orderIds
+      };
+      
+      const result = await autoAssemblyApi.generateStickers(stickerParams);
+      
+      toast({
+        title: "Стикеры созданы",
+        description: `Стикеры успешно созданы. Начинаем скачивание...`
+      });
+      
+      // В реальном приложении здесь был бы код для скачивания файла
+      setTimeout(() => {
+        toast({
+          title: "Стикеры скачаны",
+          description: `Файл ${result} успешно скачан`
+        });
+      }, 1500);
+      
+      setShowStickersDialog(false);
+    } catch (error) {
+      console.error("Failed to generate stickers:", error);
+      toast({
+        title: "Ошибка создания стикеров",
+        description: "Не удалось создать стикеры для заказов",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingStickers(false);
+    }
+  };
+  
+  // Подтверждение передачи в доставку
+  const confirmDeliverSupply = (supplyId: string) => {
+    setSupplyToDeliver(supplyId);
+    setShowDeliverConfirm(true);
+  };
+  
+  const deliverSupply = async () => {
+    if (!supplyToDeliver) return;
+    
+    try {
+      await autoAssemblyApi.deliverSupply(parseInt(supplyToDeliver));
+      toast({
+        title: "Успешно",
+        description: "Поставка передана в доставку"
+      });
+      fetchSupplies();
+      setShowDeliverConfirm(false);
+      setSupplyToDeliver(null);
+    } catch (error) {
+      console.error("Failed to deliver supply:", error);
+      toast({
+        title: "Ошибка",
+        description: error instanceof Error ? error.message : "Не удалось передать поставку в доставку",
+        variant: "destructive"
+      });
+    }
+  };
+  
   // Удаление поставки
   const confirmDeleteSupply = (supplyId: string) => {
     setSupplyToDelete(supplyId);
@@ -414,7 +640,7 @@ const AutoAssembly = () => {
       console.error("Failed to delete supply:", error);
       toast({
         title: "Ошибка удаления",
-        description: "Не удалось удалить поставку",
+        description: error instanceof Error ? error.message : "Не удалось удалить поставку",
         variant: "destructive"
       });
     }
@@ -472,9 +698,9 @@ const AutoAssembly = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Все склады</SelectItem>
-                  <SelectItem value="Moscow">Москва</SelectItem>
-                  <SelectItem value="SPb">Санкт-Петербург</SelectItem>
-                  <SelectItem value="Kazan">Казань</SelectItem>
+                  <SelectItem value="moscow">Москва</SelectItem>
+                  <SelectItem value="saint-petersburg">Санкт-Петербург</SelectItem>
+                  <SelectItem value="novosibirsk">Новосибирск</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -486,8 +712,8 @@ const AutoAssembly = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Все типы</SelectItem>
-                  <SelectItem value="standard">Обычный</SelectItem>
-                  <SelectItem value="large">Крупногабарит</SelectItem>
+                  <SelectItem value="regular">Обычный</SelectItem>
+                  <SelectItem value="oversized">Крупногабарит</SelectItem>
                   <SelectItem value="heavy">Тяжеловес</SelectItem>
                 </SelectContent>
               </Select>
@@ -538,11 +764,11 @@ const AutoAssembly = () => {
               onClick={fetchOrders}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Обновить
+              Обновить задания
             </Button>
             
             <Button 
-              className="md:w-auto bg-purple-600 hover:bg-purple-700"
+              className="md:w-auto bg-purple-600 hover:bg-purple-700 text-white"
               onClick={() => setShowAutoCreateDialog(true)}
             >
               <Package className="h-4 w-4 mr-2" />
@@ -563,11 +789,9 @@ const AutoAssembly = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[40px] text-center">
-                        <input 
-                          type="checkbox" 
+                        <Checkbox 
                           checked={sortedOrders.length > 0 && selectedOrders.length === sortedOrders.length}
-                          onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="rounded border-gray-300"
+                          onCheckedChange={(checked) => handleSelectAll(checked === true)}
                         />
                       </TableHead>
                       <TableHead>ID</TableHead>
@@ -582,20 +806,18 @@ const AutoAssembly = () => {
                   </TableHeader>
                   <TableBody>
                     {sortedOrders.length > 0 ? (
-                      sortedOrders.map(order => (
+                      sortedOrders.map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="text-center">
-                            <input 
-                              type="checkbox" 
+                            <Checkbox 
                               checked={selectedOrders.includes(order.id)}
-                              onChange={(e) => handleOrderSelect(order.id, e.target.checked)}
-                              className="rounded border-gray-300"
+                              onCheckedChange={(checked) => handleOrderSelect(order.id, checked === true)}
                             />
                           </TableCell>
-                          <TableCell className="font-medium">{order.orderId}</TableCell>
+                          <TableCell className="font-medium">{order.orderId || `WB-${order.id}`}</TableCell>
                           <TableCell>{order.article}</TableCell>
                           <TableCell className="hidden md:table-cell max-w-[200px] truncate">{order.name}</TableCell>
-                          <TableCell className="hidden md:table-cell">{order.count}</TableCell>
+                          <TableCell className="hidden md:table-cell">{order.count || 1}</TableCell>
                           <TableCell>
                             <Badge 
                               variant={getCategoryBadgeVariant(order.category || "")}
@@ -607,7 +829,7 @@ const AutoAssembly = () => {
                           </TableCell>
                           <TableCell className="hidden md:table-cell">{order.warehouse}</TableCell>
                           <TableCell className="hidden md:table-cell">{order.cargoType}</TableCell>
-                          <TableCell className="hidden md:table-cell">{new Date(order.date).toLocaleDateString()}</TableCell>
+                          <TableCell className="hidden md:table-cell">{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))
                     ) : (
@@ -675,10 +897,10 @@ const AutoAssembly = () => {
                       </CardTitle>
                     )}
                     <CardDescription>
-                      {supply.count} товаров • {new Date(supply.date).toLocaleDateString()}
+                      {supply.count} товаров • {new Date(supply.createdAt).toLocaleDateString()}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="pb-2">
+                  <CardContent className="pb-2 space-y-2">
                     <Badge 
                       variant={getCategoryBadgeVariant(supply.category)}
                       className="flex items-center gap-1"
@@ -686,30 +908,82 @@ const AutoAssembly = () => {
                       {getCategoryIcon(supply.category)}
                       {supply.category}
                     </Badge>
+
+                    <Collapsible
+                      open={openedSupplyContent === supply.id}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          toggleSupplyContent(supply.id);
+                        } else {
+                          setOpenedSupplyContent(null);
+                        }
+                      }}
+                      className="w-full"
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full mb-2 flex justify-between"
+                        >
+                          <span>Содержимое</span>
+                          {openedSupplyContent === supply.id ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="border rounded-md p-2 mt-2 space-y-2 bg-muted/50">
+                        {isLoadingSupplyContent && <p className="text-center py-2">Загрузка...</p>}
+                        
+                        {!isLoadingSupplyContent && supply.orders && supply.orders.length > 0 ? (
+                          <div className="max-h-60 overflow-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>ID</TableHead>
+                                  <TableHead>Артикул</TableHead>
+                                  <TableHead>Название</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {supply.orders.map(order => (
+                                  <TableRow key={order.id}>
+                                    <TableCell>{order.orderId || `WB-${order.id}`}</TableCell>
+                                    <TableCell>{order.article}</TableCell>
+                                    <TableCell className="max-w-[150px] truncate">{order.name}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        ) : (
+                          !isLoadingSupplyContent && (
+                            <p className="text-center py-2">Нет товаров в поставке</p>
+                          )
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
                   </CardContent>
                   <CardFooter className="flex gap-2 flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => viewSupplyDetails(supply)}
-                    >
-                      Содержимое
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
                       className="flex items-center gap-1"
-                    >
-                      <Truck className="h-4 w-4" />
-                      <span>В доставку</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-1"
+                      onClick={() => openStickersDialog(supply.id)}
                     >
                       <Ticket className="h-4 w-4" />
                       <span>Стикеры</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                      onClick={() => confirmDeliverSupply(supply.id)}
+                    >
+                      <Truck className="h-4 w-4" />
+                      <span>В доставку</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -734,6 +1008,7 @@ const AutoAssembly = () => {
         </TabsContent>
       </Tabs>
       
+      {/* Модальные окна */}
       <Dialog open={showCreateSupplyModal} onOpenChange={setShowCreateSupplyModal}>
         <DialogContent>
           <DialogHeader>
@@ -784,13 +1059,13 @@ const AutoAssembly = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentSupply?.orders?.length ? (
-                  currentSupply.orders.map((order) => (
+                {currentSupplyOrders?.length ? (
+                  currentSupplyOrders.map((order) => (
                     <TableRow key={order.id}>
-                      <TableCell>{order.orderId}</TableCell>
+                      <TableCell>{order.orderId || `WB-${order.id}`}</TableCell>
                       <TableCell>{order.article}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{order.name}</TableCell>
-                      <TableCell>{order.count}</TableCell>
+                      <TableCell>{order.count || 1}</TableCell>
                       <TableCell>
                         <Badge
                           variant={getCategoryBadgeVariant(order.category || "")}
@@ -805,7 +1080,7 @@ const AutoAssembly = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-4">
-                      Нет товаров в поставке
+                      {isLoadingSupplyContent ? "Загрузка товаров..." : "Нет товаров в поставке"}
                     </TableCell>
                   </TableRow>
                 )}
@@ -848,6 +1123,90 @@ const AutoAssembly = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <AlertDialog open={showDeliverConfirm} onOpenChange={setShowDeliverConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Передать в доставку</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите передать поставку в доставку?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={deliverSupply}>
+              Передать
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <Dialog open={showStickersDialog} onOpenChange={setShowStickersDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Стикеры для поставки</DialogTitle>
+            <DialogDescription>
+              Выберите формат и размер для генерации стикеров
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="sticker-type" className="text-sm font-medium">
+                  Формат
+                </label>
+                <Select value={stickerType} onValueChange={(val) => setStickerType(val as StickerType)}>
+                  <SelectTrigger id="sticker-type">
+                    <SelectValue placeholder="Выберите формат" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="png">PNG</SelectItem>
+                    <SelectItem value="svg">SVG</SelectItem>
+                    <SelectItem value="zplv">ZPLV</SelectItem>
+                    <SelectItem value="zplh">ZPLH</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="sticker-size" className="text-sm font-medium">
+                  Размер
+                </label>
+                <Select value={stickerSize} onValueChange={(val) => setStickerSize(val as StickerSize)}>
+                  <SelectTrigger id="sticker-size">
+                    <SelectValue placeholder="Выберите размер" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="58x40">58x40</SelectItem>
+                    <SelectItem value="40x30">40x30</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStickersDialog(false)}>
+              Отмена
+            </Button>
+            <Button 
+              onClick={generateStickers}
+              disabled={isLoadingStickers}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {isLoadingStickers ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Создание...
+                </>
+              ) : (
+                <>
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Скачать стикеры
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {autoCreateResult && (
         <Dialog open={!!autoCreateResult} onOpenChange={() => setAutoCreateResult(null)}>

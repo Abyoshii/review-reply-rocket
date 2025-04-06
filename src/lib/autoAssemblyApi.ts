@@ -27,6 +27,16 @@ export interface Supply {
   status: 'new' | 'in_delivery' | 'delivered' | 'cancelled';
 }
 
+export type StickerType = 'png' | 'svg' | 'zplv' | 'zplh';
+export type StickerSize = '58x40' | '40x30';
+
+export interface StickerParams {
+  type: StickerType;
+  width: number;
+  height: number;
+  orders: number[];
+}
+
 // Mock data
 let orders: Order[] = [
   { id: 1001, article: 'WB-12345', name: 'Духи Chanel No.5', warehouse: 'moscow', cargoType: 'regular', createdAt: '2025-04-01T12:30:00Z' },
@@ -58,6 +68,14 @@ const getSupplies = async (): Promise<Supply[]> => {
   await new Promise(resolve => setTimeout(resolve, 500));
   
   return supplies;
+};
+
+const getSupplyOrders = async (supplyId: number): Promise<Order[]> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 600));
+  
+  // Find orders in this supply
+  return orders.filter(order => order.supplyId === supplyId);
 };
 
 const createSupply = async (name: string, category: ProductCategory): Promise<Supply> => {
@@ -146,6 +164,46 @@ const updateSupplyName = async (supplyId: number, name: string): Promise<Supply>
   return supplies[supplyIndex];
 };
 
+const deliverSupply = async (supplyId: number): Promise<Supply> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 400));
+  
+  // Find the supply
+  const supplyIndex = supplies.findIndex(s => s.id === supplyId);
+  if (supplyIndex === -1) {
+    throw new Error(`Supply with ID ${supplyId} not found`);
+  }
+
+  // Check if supply has orders
+  if (supplies[supplyIndex].ordersCount <= 0) {
+    throw new Error('Нельзя передать в доставку пустую поставку');
+  }
+  
+  // Update supply status to in_delivery
+  supplies[supplyIndex] = {
+    ...supplies[supplyIndex],
+    status: 'in_delivery'
+  };
+  
+  return supplies[supplyIndex];
+};
+
+const generateStickers = async (params: StickerParams): Promise<string> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 600));
+  
+  // Check if orders exist
+  for (const orderId of params.orders) {
+    const orderExists = orders.some(o => o.id === orderId);
+    if (!orderExists) {
+      throw new Error(`Order with ID ${orderId} not found`);
+    }
+  }
+
+  // In a real app, this would return a file URL or blob
+  return `stickers_${params.type}_${new Date().getTime()}.${params.type === 'png' ? 'png' : 'pdf'}`;
+};
+
 const deleteSupply = async (supplyId: number): Promise<void> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
@@ -156,7 +214,16 @@ const deleteSupply = async (supplyId: number): Promise<void> => {
     throw new Error(`Supply with ID ${supplyId} not found`);
   }
   
-  // Release all orders from this supply
+  // Check if supply has orders
+  const hasOrders = orders.some(order => order.supplyId === supplyId);
+  if (hasOrders) {
+    throw new Error('Нельзя удалить поставку, в которой есть заказы');
+  }
+  
+  // Remove the supply
+  supplies = supplies.filter(s => s.id !== supplyId);
+  
+  // Release all orders from this supply (shouldn't be necessary due to the check above, but just in case)
   orders = orders.map(order => {
     if (order.supplyId === supplyId) {
       const { inSupply, supplyId, ...rest } = order;
@@ -164,18 +231,18 @@ const deleteSupply = async (supplyId: number): Promise<void> => {
     }
     return order;
   });
-  
-  // Remove the supply
-  supplies = supplies.filter(s => s.id !== supplyId);
 };
 
 // Export all functions as a single API object
 export const autoAssemblyApi = {
   getOrders,
   getSupplies,
+  getSupplyOrders,
   createSupply,
   addOrderToSupply,
   updateSupplyStatus,
   updateSupplyName,
+  deliverSupply,
+  generateStickers,
   deleteSupply
 };
