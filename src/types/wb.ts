@@ -1,4 +1,3 @@
-
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -177,7 +176,53 @@ export interface WbQuestionAnswerResponse {
   };
 }
 
-// Новые типы для работы с Автосборкой
+// Новые типы для работы с поставками
+export interface Supply {
+  id: number;
+  name: string;
+  createdAt: string;
+  done: boolean;
+  scanDt?: string;
+  status: string;
+  supplyId: string;
+  ordersCount: number;
+  cargoType?: number;
+  category?: ProductCategory;
+}
+
+export interface SupplyOrder {
+  id: number;
+  supplierArticle: string;
+  nmId: number;
+  chrtId: number;
+  barcode: string;
+  quantity: number;
+  rid: string;
+  price: number;
+  salePrice: number;
+  convertedPrice: number;
+  convertedSalePrice: number;
+  isSupply: boolean;
+  isReturn: boolean;
+  cargoType: number;
+  isLargeCargo?: boolean;
+}
+
+// Типы для коробов
+export interface TrbxBox {
+  id: string;
+  name: string;
+  supplyId: number;
+  createdAt: string;
+  orders: TrbxOrder[];
+}
+
+export interface TrbxOrder {
+  id: number;
+  rid: string;
+}
+
+// Типы для работы с Автосборкой
 
 // Тип товара для категоризации
 export enum ProductCategory {
@@ -212,16 +257,6 @@ export interface WarehouseFilter {
 export interface CargoTypeFilter {
   id: number;
   name: string;
-}
-
-// Поставка
-export interface Supply {
-  id: number;
-  name: string;
-  createdAt: string;
-  status: "new" | "in_delivery" | "delivered" | "cancelled";
-  category: ProductCategory;
-  ordersCount: number;
 }
 
 // API запросы для поставок
