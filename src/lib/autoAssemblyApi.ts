@@ -45,7 +45,7 @@ let supplies: Supply[] = [];
 let nextSupplyId = 5001;
 
 // API functions
-export const getOrders = async (): Promise<Order[]> => {
+const getOrders = async (): Promise<Order[]> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 800));
   
@@ -53,14 +53,14 @@ export const getOrders = async (): Promise<Order[]> => {
   return orders.filter(order => !order.inSupply);
 };
 
-export const getSupplies = async (): Promise<Supply[]> => {
+const getSupplies = async (): Promise<Supply[]> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
   return supplies;
 };
 
-export const createSupply = async (name: string, category: ProductCategory): Promise<Supply> => {
+const createSupply = async (name: string, category: ProductCategory): Promise<Supply> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 600));
   
@@ -78,7 +78,7 @@ export const createSupply = async (name: string, category: ProductCategory): Pro
   return newSupply;
 };
 
-export const addOrderToSupply = async (supplyId: number, orderId: number): Promise<void> => {
+const addOrderToSupply = async (supplyId: number, orderId: number): Promise<void> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 300));
   
@@ -108,7 +108,7 @@ export const addOrderToSupply = async (supplyId: number, orderId: number): Promi
   };
 };
 
-export const updateSupplyStatus = async (supplyId: number, status: Supply['status']): Promise<Supply> => {
+const updateSupplyStatus = async (supplyId: number, status: Supply['status']): Promise<Supply> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 400));
   
@@ -127,7 +127,7 @@ export const updateSupplyStatus = async (supplyId: number, status: Supply['statu
   return supplies[supplyIndex];
 };
 
-export const updateSupplyName = async (supplyId: number, name: string): Promise<Supply> => {
+const updateSupplyName = async (supplyId: number, name: string): Promise<Supply> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 300));
   
@@ -146,7 +146,7 @@ export const updateSupplyName = async (supplyId: number, name: string): Promise<
   return supplies[supplyIndex];
 };
 
-export const deleteSupply = async (supplyId: number): Promise<void> => {
+const deleteSupply = async (supplyId: number): Promise<void> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
   
@@ -167,4 +167,15 @@ export const deleteSupply = async (supplyId: number): Promise<void> => {
   
   // Remove the supply
   supplies = supplies.filter(s => s.id !== supplyId);
+};
+
+// Export all functions as a single API object
+export const autoAssemblyApi = {
+  getOrders,
+  getSupplies,
+  createSupply,
+  addOrderToSupply,
+  updateSupplyStatus,
+  updateSupplyName,
+  deleteSupply
 };
