@@ -26,14 +26,14 @@ const WB_API_BASE_URL = "https://feedbacks-api.wildberries.ru/api/v1";
 const FEEDBACKS_URL = `${WB_API_BASE_URL}/feedbacks`;
 const QUESTIONS_URL = `${WB_API_BASE_URL}/questions`;
 
-// Единый токен для всех API
-const UNIFIED_WB_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTcxOTY3NywiaWQiOiIwMTk2MGI5ZS1jOGU2LTcxMDUtYjU2MC1lMTU2YzA4OWQwZDYiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6MTI4LCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.ast0KkuIGky-fGx5nm3ZKeW0Y1-oCIcRPl104niIGBwWzJrKdsOn3cmYh0qoE6Wti1Cc5oCQLy2g94coavG0eQ";
+// Дефолтный токен, будет использоваться если пользователь не указал свой
+const DEFAULT_WB_TOKEN = "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
 const DEFAULT_OPENAI_API_KEY = "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";
 
-// Получение токена WB из localStorage или использование единого токена
+// Получение токена WB из localStorage или использование дефолтного
 const getWbToken = (): string => {
   const token = localStorage.getItem("wb_token");
-  return token || UNIFIED_WB_TOKEN;
+  return token || DEFAULT_WB_TOKEN;
 };
 
 // Получение токена OpenAI из localStorage или использование дефолтного
@@ -52,7 +52,7 @@ export const WbAPI = {
       
       const response = await axios.get(FEEDBACKS_URL, {
         headers: {
-          Authorization: `Bearer ${getWbToken()}`,
+          Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
         params: params,
@@ -76,7 +76,7 @@ export const WbAPI = {
     try {
       const response = await axios.post(`${FEEDBACKS_URL}/answer`, data, {
         headers: {
-          Authorization: `Bearer ${getWbToken()}`,
+          Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
       });
@@ -98,7 +98,7 @@ export const WbAPI = {
     try {
       const response = await axios.patch(`${FEEDBACKS_URL}/answer`, data, {
         headers: {
-          Authorization: `Bearer ${getWbToken()}`,
+          Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
       });
@@ -122,7 +122,7 @@ export const WbAPI = {
       
       const response = await axios.get(`${FEEDBACKS_URL}/archive`, {
         headers: {
-          Authorization: `Bearer ${getWbToken()}`,
+          Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
         params: params,
@@ -147,18 +147,19 @@ export const WbAPI = {
       console.log("Fetching unanswered count...");
       const response = await axios.get(FEEDBACKS_URL, {
         headers: {
-          Authorization: `Bearer ${getWbToken()}`,
+          Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
         params: {
           isAnswered: false,
-          take: 1,
+          take: 1,  // Запрашиваем только один отзыв, нам нужен только count
           skip: 0,
         },
       });
       
       console.log("Unanswered count response:", response.data);
       
+      // Проверяем структуру ответа
       if (response.data && response.data.data && typeof response.data.data.countUnanswered === 'number') {
         return response.data.data.countUnanswered;
       } else {
@@ -178,7 +179,7 @@ export const WbAPI = {
       
       const response = await axios.get(QUESTIONS_URL, {
         headers: {
-          Authorization: `Bearer ${getWbToken()}`,
+          Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
         params: params,
@@ -191,7 +192,7 @@ export const WbAPI = {
       if (axios.isAxiosError(error) && error.response) {
         toast.error(`Ошибка получения вопросов: ${error.response.status} ${error.response.statusText}`);
       } else {
-        toast.error("Ошибка получения вопросов. Проверьте консоль для деталей.");
+        toast.error("Ошибка получен��я вопросов. Проверьте консоль для деталей.");
       }
       throw error;
     }
@@ -203,13 +204,14 @@ export const WbAPI = {
       console.log("Fetching unanswered questions count...");
       const response = await axios.get(`${QUESTIONS_URL}/count-unanswered`, {
         headers: {
-          Authorization: `Bearer ${getWbToken()}`,
+          Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
       });
       
       console.log("Unanswered questions count response:", response.data);
       
+      // Проверяем структуру ответа
       if (response.data && response.data.data && typeof response.data.data.count === 'number') {
         return response.data.data.count;
       } else {
@@ -227,7 +229,7 @@ export const WbAPI = {
     try {
       const response = await axios.patch(QUESTIONS_URL, data, {
         headers: {
-          Authorization: `Bearer ${getWbToken()}`,
+          Authorization: getWbToken(),
           "Content-Type": "application/json",
         },
       });
@@ -282,7 +284,7 @@ export const OpenAIAPI = {
       // Новый системный промт, одинаковый для всех типов отзывов
       const systemPrompt = `Ты — специалист клиентского сервиса магазина на Wildberries. Твоя задача — писать ответы на отзывы покупателей.
 
-Пиши на русском, дружелюбно, тепло, с добрым и с��етлым юмором.  
+Пиши на русском, дружелюбно, тепло, с добрым и светлым юмором.  
 Обращайся на ВЫ, как будто общаешься с хорошими людьми 😊
 
 🔹 Правила:
@@ -292,7 +294,7 @@ export const OpenAIAPI = {
 - Если отзыв с оценкой без текста — просто поблагодари
 - Если в отзыве есть и плюсы, и минусы — обязательно упомяни оба
 - Не придумывай — отвечай только по содержанию отзыва
-- Не упоминай воз��рат, если клиент не просил
+- Не упоминай возврат, если клиент не просил
 - Не указывай адреса, почты, телефоны — никаких контактов
 - В конце ответа всегда пиши: **Asterion**
 
@@ -304,7 +306,7 @@ export const OpenAIAPI = {
 > Asterion
 
 2. **Пришёл не тот товар (если не вскрыт)**  
-Если покупатель получил не тот товар, но он в упаковке — пиши так:
+Если покупатель получил не тот товар, но он в упаковке — пи��и так:
 > Ой, неловко получилось 😅 Простите нас за такую путаницу. Можете просто оформить возврат в личном кабинете — главное, не вскрывайте товар. Мы всё проверим и постараемся одобрить.  
 > Asterion
 

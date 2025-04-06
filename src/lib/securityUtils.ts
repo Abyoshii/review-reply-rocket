@@ -1,9 +1,7 @@
+
 import { SecuritySettings } from "@/types/openai";
 import { toast } from "sonner";
 import { logWarning } from "./logUtils";
-
-// Единый API токен для всех API запросов
-const UNIFIED_API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTcxOTY3NywiaWQiOiIwMTk2MGI5ZS1jOGU2LTcxMDUtYjU2MC1lMTU2YzA4OWQwZDYiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6MTI4LCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.ast0KkuIGky-fGx5nm3ZKeW0Y1-oCIcRPl104niIGBwWzJrKdsOn3cmYh0qoE6Wti1Cc5oCQLy2g94coavG0eQ";
 
 // Функция для обфускации токенов API
 const obfuscateToken = (token: string): string => {
@@ -26,6 +24,9 @@ const deobfuscateToken = (encodedToken: string): string => {
     return '';
   }
 };
+
+// Используем константу для API токена, чтобы избежать опечаток
+const API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTIyNTE5NSwiaWQiOiIwMTk1ZWUyNS05NDA3LTczZTAtYTA0Mi0wZTExNTc4NTIwNDQiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjQyLCJzaWQiOiJlNmFjNjYwNC0xZDIxLTQxNWMtOTA1ZC0zZGMwYzRhOGYyYmUiLCJ0IjpmYWxzZSwidWlkIjo1MDEwOTI3MH0.uLCv4lMfwG2cr6JG-kR7y_xAFYOKN5uW0YQiCyR4Czyh33LICsgKrvaYfxmrCPHtWMBbSQWqQjBq-SVSJWwefg";
 
 // Функция для декодирования JWT без использования внешних библиотек
 const decodeJWT = (token: string): { header: any, payload: any } | null => {
@@ -163,7 +164,7 @@ const saveApiToken = (token: string, securitySettings: SecuritySettings): void =
       ? obfuscateToken(token)
       : token;
     
-    localStorage.setItem('wb_token', tokenToSave);
+    localStorage.setItem('wb_api_token', tokenToSave);
     localStorage.setItem('wb_token_obfuscated', String(securitySettings.obfuscateTokens));
     localStorage.setItem('wb_header_name', securitySettings.headerName);
     
@@ -181,12 +182,12 @@ const saveApiToken = (token: string, securitySettings: SecuritySettings): void =
 
 // Функция для получения токена из localStorage с деобфускацией при необходимости
 const getApiToken = (): string => {
-  const token = localStorage.getItem('wb_token') || UNIFIED_API_TOKEN;
+  const token = localStorage.getItem('wb_api_token') || API_TOKEN;
   const isObfuscated = localStorage.getItem('wb_token_obfuscated') === 'true';
   
   if (!token) {
     console.warn("⚠️ API токен отсутствует!");
-    return UNIFIED_API_TOKEN;
+    return '';
   }
   
   const resultToken = isObfuscated ? deobfuscateToken(token) : token;
@@ -197,7 +198,6 @@ const getApiToken = (): string => {
     toast.warning("Проблема с API токеном", {
       description: "Токен может быть просрочен или иметь неверный формат"
     });
-    return UNIFIED_API_TOKEN;
   }
   
   return resultToken;
@@ -212,6 +212,11 @@ const getHeaderName = (): string => {
 const addAuthHeaders = (headers: Record<string, string> = {}, apiUrl?: string): Record<string, string> => {
   const token = getApiToken();
   const headerName = getHeaderName();
+  
+  if (!token) {
+    console.warn("⚠️ Невозможно добавить заголовок авторизации - токен отсутствует!");
+    return headers;
+  }
   
   // Проверяем совместимость токена с API, если URL предоставлен
   if (apiUrl && !isTokenCompatibleWithApi(token, apiUrl)) {
@@ -309,7 +314,7 @@ const getTokenDetails = (token: string): {
     result.category = payload.ent;
   }
   
-  // Детализация токена - удаляем пустые данные
+  // Детализация токена
   let details = "";
   if (result.expiresAt) {
     details += `Истекает: ${result.expiresAt.toLocaleDateString()} ${result.expiresAt.toLocaleTimeString()}\n`;
@@ -319,15 +324,6 @@ const getTokenDetails = (token: string): {
   }
   if (payload.id) {
     details += `ID: ${payload.id}\n`;
-  }
-  if (payload.oid) {
-    details += `OID: ${payload.oid}\n`;
-  }
-  if (payload.s) {
-    details += `S: ${payload.s}\n`;
-  }
-  if (payload.sid) {
-    details += `SID: ${payload.sid}\n`;
   }
   
   result.details = details.trim();
@@ -346,6 +342,5 @@ export {
   saveSecuritySettings,
   decodeJWT,
   isTokenValid,
-  getTokenDetails,
-  UNIFIED_API_TOKEN
+  getTokenDetails
 };
