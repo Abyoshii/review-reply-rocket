@@ -17,7 +17,10 @@ const obfuscateToken = (token: string): string => {
 
 // Функция для деобфускации токенов
 const deobfuscateToken = (encodedToken: string): string => {
-  if (!encodedToken) return '';
+  if (!encodedToken) {
+    console.warn("Ошибка: encodedToken пустой или undefined");
+    return UNIFIED_API_TOKEN;
+  }
   
   try {
     // Декодирование Base64
@@ -183,12 +186,17 @@ const addAuthHeaders = (headers: Record<string, string> = {}, apiUrl?: string): 
   const token = getApiToken();
   const headerName = getHeaderName();
   
-  // Проверяем совместимость токена с API, если URL предоставлен
-  if (apiUrl && !isTokenCompatibleWithApi(token, apiUrl)) {
-    console.warn(`⚠️ Токен может быть несовместим с API: ${apiUrl}`);
-  }
-  
   console.log(`Добавление заголовка ${headerName} к запросу ${apiUrl || ''}`);
+  console.log(`Длина токена: ${token?.length || 0} символов`);
+  
+  if (!token) {
+    console.warn("⚠️ Токен отсутствует! Используем UNIFIED_API_TOKEN");
+    return {
+      ...headers,
+      [headerName]: `Bearer ${UNIFIED_API_TOKEN}`,
+      'Content-Type': 'application/json'
+    };
+  }
   
   // ВАЖНО: API Wildberries требует формат "Bearer токен" и Content-Type
   return {

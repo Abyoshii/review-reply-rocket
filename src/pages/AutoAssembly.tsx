@@ -105,9 +105,10 @@ const AutoAssembly = () => {
       const token = getApiToken();
       const headerName = getHeaderName();
       
-      console.log("Используемый токен для запроса:", token);
-      console.log("Текущий единый токен:", UNIFIED_API_TOKEN);
+      console.log("Используемый токен для запроса:", token ? `${token.substring(0, 15)}...` : 'отсутствует');
+      console.log("Текущий единый токен (первые 15 символов):", UNIFIED_API_TOKEN.substring(0, 15) + '...');
       console.log("Токены совпадают:", token === UNIFIED_API_TOKEN);
+      console.log("Длина токена:", token?.length || 0);
       
       if (!isTokenValid(token)) {
         logError("Проблема с токеном авторизации", "Токен может быть просрочен или неправильного формата");
@@ -136,25 +137,57 @@ const AutoAssembly = () => {
       
       setOrders(ordersWithSupplyStatus);
       
-      const suppliesResponse = await SuppliesAPI.getSupplies();
-      console.log("Loaded supplies via SuppliesAPI:", suppliesResponse);
-      
-      if (suppliesResponse && suppliesResponse.supplies) {
-        suppliesResponse.supplies.forEach((supply, index) => {
-          console.log(`Supply ${index}:`, supply);
-        });
+      try {
+        console.log("Загрузка поставок через SuppliesAPI...");
+        const suppliesResponse = await SuppliesAPI.getSupplies(100);
+        console.log("Loaded supplies via SuppliesAPI:", suppliesResponse);
         
-        setSupplies(suppliesResponse.supplies);
-      } else {
-        console.error("Supplies response is undefined or missing supplies array");
-        
-        const backupSupplies = await AutoAssemblyAPI.getSupplies();
-        console.log("Loaded supplies via backup method:", backupSupplies);
-        
-        if (backupSupplies && backupSupplies.length > 0) {
-          setSupplies(backupSupplies);
+        if (suppliesResponse && suppliesResponse.supplies && suppliesResponse.supplies.length > 0) {
+          console.log(`Получены ${suppliesResponse.supplies.length} поставок через SuppliesAPI`);
+          setSupplies(suppliesResponse.supplies);
         } else {
-          toast.error("Не удалось загрузить данные о поставках");
+          console.log("SuppliesAPI вернул пустой массив, пробуем резервный метод");
+          
+          // Резервный метод через AutoAssemblyAPI
+          console.log("Загрузка поставок через AutoAssemblyAPI...");
+          const backupSupplies = await AutoAssemblyAPI.getSupplies();
+          
+          if (backupSupplies && backupSupplies.length > 0) {
+            console.log(`Получены ${backupSupplies.length} поставок через AutoAssemblyAPI`);
+            setSupplies(backupSupplies);
+          } else {
+            console.warn("Не удалось загрузить поставки ни через один из методов");
+            toast.warning("Поставки не найдены или API недоступно", {
+              description: "Попробуйте создать новую поставку или проверьте токен API",
+              action: {
+                label: "Диагностика",
+                onClick: () => setShowTokenDiagnostics(true)
+              }
+            });
+          }
+        }
+      } catch (suppliesError) {
+        console.error("Error loading supplies:", suppliesError);
+        
+        // Резервный метод через AutoAssemblyAPI
+        try {
+          console.log("Ошибка при загрузке через SuppliesAPI, пробуем через AutoAssemblyAPI");
+          const backupSupplies = await AutoAssemblyAPI.getSupplies();
+          
+          if (backupSupplies && backupSupplies.length > 0) {
+            console.log(`Получены ${backupSupplies.length} поставок через AutoAssemblyAPI`);
+            setSupplies(backupSupplies);
+          } else {
+            console.warn("Резервный метод тоже не вернул поставок");
+            toast.error("Не удалось загрузить данные о поставках", {
+              description: "Возможно проблема с API или правами доступа"
+            });
+          }
+        } catch (backupError) {
+          console.error("Backup supplies loading error:", backupError);
+          toast.error("Не удалось загрузить данные о поставках", {
+            description: "Оба метода загрузки поставок не сработали"
+          });
         }
       }
       

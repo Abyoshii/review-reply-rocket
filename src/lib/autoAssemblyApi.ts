@@ -174,7 +174,10 @@ export const AutoAssemblyAPI = {
       console.log("Запрос поставок с заголовками:", addAuthHeaders());
       
       const response = await axios.get(`${WB_API_BASE_URL}/supplies`, {
-        headers: addAuthHeaders()
+        headers: addAuthHeaders(),
+        params: {
+          limit: 100 // Обязательный параметр согласно документации
+        }
       });
       
       console.log("Supplies response:", response.data);
@@ -190,6 +193,8 @@ export const AutoAssemblyAPI = {
           name: supply.name || "",
           createdAt: supply.createdAt || "",
           done: supply.done || false,
+          scanDt: supply.scanDt,
+          closedAt: supply.closedAt,
           status: supply.status || "NEW",
           ordersCount: supply.ordersCount || 0,
           cargoType: supply.cargoType || 0
@@ -200,10 +205,32 @@ export const AutoAssemblyAPI = {
         
         if (response.data.data && Array.isArray(response.data.data.supplies)) {
           console.log("Нашли массив поставок в response.data.data.supplies");
-          return response.data.data.supplies;
+          return response.data.data.supplies.map((supply: any) => ({
+            id: supply.id,
+            supplyId: supply.id,
+            name: supply.name || "",
+            createdAt: supply.createdAt || "",
+            done: supply.done || false,
+            scanDt: supply.scanDt,
+            closedAt: supply.closedAt,
+            status: supply.status || "NEW",
+            ordersCount: supply.ordersCount || 0,
+            cargoType: supply.cargoType || 0
+          }));
         } else if (response.data.supplies && Array.isArray(response.data.supplies)) {
           console.log("Нашли массив поставок в response.data.supplies");
-          return response.data.supplies;
+          return response.data.supplies.map((supply: any) => ({
+            id: supply.id,
+            supplyId: supply.id,
+            name: supply.name || "",
+            createdAt: supply.createdAt || "",
+            done: supply.done || false,
+            scanDt: supply.scanDt,
+            closedAt: supply.closedAt,
+            status: supply.status || "NEW",
+            ordersCount: supply.ordersCount || 0,
+            cargoType: supply.cargoType || 0
+          }));
         } else if (response.data.orders && Array.isArray(response.data.orders)) {
           console.log("Нашли массив поставок в response.data.orders");
           return response.data.orders.map((supply: any) => ({
@@ -212,6 +239,8 @@ export const AutoAssemblyAPI = {
             name: supply.name || "",
             createdAt: supply.createdAt || "",
             done: supply.done || false,
+            scanDt: supply.scanDt,
+            closedAt: supply.closedAt,
             status: supply.status || "NEW",
             ordersCount: 0,
             cargoType: supply.cargoType || 0
@@ -225,6 +254,8 @@ export const AutoAssemblyAPI = {
       return [];
     } catch (error) {
       console.error("Error fetching supplies:", error);
+      console.log("Error response:", error?.response?.data);
+      console.log("Error request config:", error?.config);
       logObjectStructure(error, "Детальная ошибка при получении поставок");
       toast.error("Ошибка при загрузке списка поставок");
       return [];

@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { toast } from "sonner";
 import { addAuthHeaders } from "./securityUtils";
@@ -8,23 +9,27 @@ const WB_MARKETPLACE_API_BASE_URL = "https://marketplace-api.wildberries.ru/api/
 
 export const SuppliesAPI = {
   // Получение списка поставок
-  getSupplies: async (limit: number = 50, next: string = ""): Promise<{ supplies: Supply[], hasMore: boolean, next?: string }> => {
+  getSupplies: async (limit: number = 100, next: string = ""): Promise<{ supplies: Supply[], hasMore: boolean, next?: string }> => {
     try {
-      console.log("Запрос поставок");
+      console.log("Запрос поставок с параметрами:", { limit, next });
       
-      const params = new URLSearchParams();
-      if (limit) params.append("limit", limit.toString());
-      if (next) params.append("next", next);
+      const params: Record<string, string | number> = {
+        limit: limit
+      };
+      
+      if (next) params.next = next;
+      
+      const headers = addAuthHeaders();
+      console.log("Используемые заголовки:", headers);
       
       const response = await axios.get(`${WB_MARKETPLACE_API_BASE_URL}/supplies`, {
-        headers: addAuthHeaders(),
+        headers,
         params
       });
       
       console.log("Supplies API raw response:", response.data);
       
       // Обработка ответа в соответствии с документацией API
-      // Согласно документации, API возвращает массив объектов поставок
       if (Array.isArray(response.data)) {
         console.log("Detected array format for supplies data");
         const suppliesData = response.data.map((supply: any) => ({
@@ -33,8 +38,11 @@ export const SuppliesAPI = {
           name: supply.name || "",
           createdAt: supply.createdAt || "",
           done: supply.done || false,
+          scanDt: supply.scanDt,
+          closedAt: supply.closedAt,
           status: supply.status || "NEW",
-          ordersCount: 0 // Будет обновлено при необходимости
+          ordersCount: 0, // Будет обновлено при необходимости
+          cargoType: supply.cargoType || 0
         }));
         
         console.log(`Processed ${suppliesData.length} supplies from array format`);
@@ -54,8 +62,31 @@ export const SuppliesAPI = {
             name: supply.name || "",
             createdAt: supply.createdAt || "",
             done: supply.done || false,
+            scanDt: supply.scanDt,
+            closedAt: supply.closedAt,
             status: supply.status || "NEW",
-            ordersCount: 0
+            ordersCount: 0,
+            cargoType: supply.cargoType || 0
+          })),
+          hasMore: !!response.data.next,
+          next: response.data.next
+        };
+      } else if (response.data && response.data.supplies) {
+        // Формат с полем supplies
+        console.log("Detected object with supplies format");
+        const suppliesData = Array.isArray(response.data.supplies) ? response.data.supplies : [];
+        return {
+          supplies: suppliesData.map((supply: any) => ({
+            id: supply.id,
+            supplyId: supply.id, 
+            name: supply.name || "",
+            createdAt: supply.createdAt || "",
+            done: supply.done || false,
+            scanDt: supply.scanDt,
+            closedAt: supply.closedAt,
+            status: supply.status || "NEW",
+            ordersCount: 0,
+            cargoType: supply.cargoType || 0
           })),
           hasMore: !!response.data.next,
           next: response.data.next
@@ -68,6 +99,13 @@ export const SuppliesAPI = {
       }
     } catch (error: any) {
       console.error("Error fetching supplies:", error);
+      console.log("Error response data:", error.response?.data);
+      console.log("Error request config:", {
+        url: error.config?.url,
+        headers: error.config?.headers,
+        params: error.config?.params
+      });
+      
       const errorMessage = error.response?.data?.message || error.message || 'Неизвестная ошибка';
       toast.error(`Ошибка получения поставок: ${errorMessage}`);
       return { supplies: [], hasMore: false };
