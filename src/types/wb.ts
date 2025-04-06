@@ -1,3 +1,4 @@
+
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -185,6 +186,7 @@ export interface Supply {
   createdAt: string;
   done: boolean;
   scanDt?: string;
+  closedAt?: string; // Added the closedAt property
   status: string;
   supplyId: string;
   ordersCount: number;
