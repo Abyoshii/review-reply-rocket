@@ -9,6 +9,7 @@ import Reviews from "./pages/Reviews";
 import NotFound from "./pages/NotFound";
 import { Toaster } from "./components/ui/toaster";
 import AutoAssembly from "./pages/AutoAssembly";
+import Passes from "./pages/Passes";
 import { useState } from "react";
 
 function App() {
@@ -40,7 +41,7 @@ function App() {
                   <Route path="/auto-assembly" element={<AutoAssembly />} />
                   <Route path="/supplies" element={<NotFound />} />
                   <Route path="/boxes" element={<NotFound />} />
-                  <Route path="/passes" element={<NotFound />} />
+                  <Route path="/passes" element={<Passes />} />
                   <Route path="/settings" element={<NotFound />} />
                   <Route path="/help" element={<NotFound />} />
                   <Route path="*" element={<NotFound />} />
