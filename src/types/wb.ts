@@ -1,3 +1,4 @@
+
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -185,7 +186,7 @@ export interface Supply {
   createdAt: string;
   done: boolean;
   scanDt?: string;
-  closedAt?: string;
+  closedAt?: string; // Added the closedAt property
   status: string;
   supplyId: string;
   ordersCount: number;
@@ -240,11 +241,11 @@ export interface ProductCardInfo {
   name: string;
   brand: string;
   image: string;
-  category?: string;
-  productCategory?: ProductCategory;
+  category?: string; // Добавляем поле для категории товара (subjectName)
+  productCategory?: ProductCategory; // Добавляем поле для определенной категории товара
 }
 
-// Тип для сборочного задания (заказа)
+// Типы для заказов автосборки
 export interface AssemblyOrder {
   id: number;
   orderUid: string;
@@ -252,36 +253,97 @@ export interface AssemblyOrder {
   ddate: string;
   price: number;
   salePrice: number;
-  supplierArticle: string;
+  supplierArticle?: string;
   productName: string;
   warehouseId: number;
   cargoType: number;
-  inSupply: boolean;
-  nmId?: number;
+  selected?: boolean;
   category?: ProductCategory;
-  productInfo?: ProductCardInfo;
+  inSupply?: boolean;
+  nmId?: number;  // Добавлен nmId для связи с данными карточки товара
+  productInfo?: ProductCardInfo;  // Информация о товаре из карточки
 }
 
-// Типы для запросов и ответов API
-export interface CreateSupplyRequest {
+// Фильтры
+export interface WarehouseFilter {
+  id: number;
   name: string;
 }
 
-export interface CreateSupplyResponse {
+export interface CargoTypeFilter {
   id: number;
+  name: string;
+}
+
+// API запросы для поставок
+export interface CreateSupplyRequest {
+  name?: string;
+}
+
+export interface CreateSupplyResponse {
+  data: {
+    supplyId: number;
+  };
+  error: boolean;
+  errorText: string;
 }
 
 export interface GetSuppliesResponse {
-  supplies: Supply[];
-  hasMore: boolean;
-  next?: string;
+  data: {
+    supplies: Supply[];
+  };
+  error: boolean;
+  errorText: string;
 }
 
 export interface GetOrdersResponse {
-  orders: AssemblyOrder[];
+  data: {
+    orders: AssemblyOrder[];
+  };
+  error: boolean;
+  errorText: string;
+}
+
+export interface AddOrderToSupplyRequest {
+  supplyId: number;
+  orderId: number;
 }
 
 export interface AddOrderToSupplyResponse {
+  error: boolean;
+  errorText: string;
+}
+
+export interface AutoAssemblyResult {
+  perfumeCount: number;
+  clothingCount: number;
+  miscCount: number;
+  perfumeSupplyId?: number;
+  clothingSupplyId?: number;
+  miscSupplyId?: number;
+}
+
+// Интерфейс для ответа API карточки товара
+export interface ProductCardResponse {
+  data: {
+    products: ProductCardData[];
+  };
+}
+
+export interface ProductCardData {
   id: number;
-  orderId: number;
+  name: string;
+  brand: string;
+  brandId: number;
+  images: string[];
+  subjectName?: string; // Категория товара
+  subject?: string; // Альтернативное поле для категории товара
+  category?: string; // Дополнительное поле для категории
+  // другие поля из API карточки товара...
+}
+
+// Add SortConfig interface for OrdersTable component
+export interface SortConfig {
+  key: keyof AssemblyOrder | null;
+  direction: 'asc' | 'desc' | null;
 }
