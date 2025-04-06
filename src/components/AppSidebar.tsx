@@ -1,60 +1,30 @@
 
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar
-} from "@/components/ui/sidebar";
-import { 
-  Package, 
-  MessageSquare, 
-  Box, 
-  LayoutDashboard, 
-  ChevronLeft, 
-  ChevronRight, 
-  Truck, 
-  Settings, 
-  HelpCircle,
-  PackageCheck 
-} from "lucide-react";
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
+import { Package, MessageSquare, Box, LayoutDashboard, ChevronLeft, ChevronRight, Settings, HelpCircle, PackageCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-
 const AppSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
-  const { state, toggleSidebar } = useSidebar();
-  
+  const {
+    state,
+    toggleSidebar
+  } = useSidebar();
+
   // Определение активной страницы
   const isActive = (path: string) => {
     return currentPath === path;
   };
-
-  return (
-    <Sidebar>
+  return <Sidebar variant="floating">
       <SidebarHeader className="flex items-center justify-between py-2 px-2">
-        <div 
-          onClick={toggleSidebar}
-          className={`text-xl font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2 transition-all duration-300 cursor-pointer hover:opacity-80 select-none ${state === 'collapsed' ? 'opacity-0' : 'opacity-100'}`}
-        >
+        <div onClick={toggleSidebar} className={`text-xl font-bold text-purple-700 dark:text-purple-400 flex items-center gap-2 transition-all duration-300 cursor-pointer hover:opacity-80 select-none ${state === 'collapsed' ? 'opacity-0' : 'opacity-100'}`}>
           <Box className="h-6 w-6" />
           <span>Asterion</span>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={toggleSidebar}
-          className="hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-200"
-        >
+        <Button variant="ghost" size="icon" onClick={toggleSidebar} className="hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all duration-200">
           {state === 'expanded' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
         </Button>
       </SidebarHeader>
@@ -68,11 +38,7 @@ const AppSidebar = () => {
                 <SidebarMenuItem>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={isActive("/")} 
-                        onClick={() => navigate("/")}
-                        className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-                      >
+                      <SidebarMenuButton isActive={isActive("/")} onClick={() => navigate("/")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <LayoutDashboard size={18} />
                         <span>Главная</span>
                       </SidebarMenuButton>
@@ -86,11 +52,7 @@ const AppSidebar = () => {
                 <SidebarMenuItem>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={isActive("/reviews")} 
-                        onClick={() => navigate("/reviews")}
-                        className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-                      >
+                      <SidebarMenuButton isActive={isActive("/reviews")} onClick={() => navigate("/reviews")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <MessageSquare size={18} />
                         <span>Отзывы</span>
                       </SidebarMenuButton>
@@ -113,11 +75,7 @@ const AppSidebar = () => {
                 <SidebarMenuItem>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={isActive("/auto-assembly")} 
-                        onClick={() => navigate("/auto-assembly")}
-                        className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-                      >
+                      <SidebarMenuButton isActive={isActive("/auto-assembly")} onClick={() => navigate("/auto-assembly")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <Package size={18} />
                         <span>Автосборка</span>
                       </SidebarMenuButton>
@@ -131,29 +89,7 @@ const AppSidebar = () => {
                 <SidebarMenuItem>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={isActive("/supplies")} 
-                        onClick={() => navigate("/supplies")}
-                        className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-                      >
-                        <Truck size={18} />
-                        <span>Поставки</span>
-                      </SidebarMenuButton>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Управление поставками
-                    </TooltipContent>
-                  </Tooltip>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={isActive("/boxes")} 
-                        onClick={() => navigate("/boxes")}
-                        className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-                      >
+                      <SidebarMenuButton isActive={isActive("/boxes")} onClick={() => navigate("/boxes")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <PackageCheck size={18} />
                         <span>Короба</span>
                       </SidebarMenuButton>
@@ -176,11 +112,7 @@ const AppSidebar = () => {
                 <SidebarMenuItem>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={isActive("/passes")} 
-                        onClick={() => navigate("/passes")}
-                        className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-                      >
+                      <SidebarMenuButton isActive={isActive("/passes")} onClick={() => navigate("/passes")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <Box size={18} />
                         <span>Пропуска</span>
                       </SidebarMenuButton>
@@ -194,11 +126,7 @@ const AppSidebar = () => {
                 <SidebarMenuItem>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={isActive("/settings")} 
-                        onClick={() => navigate("/settings")}
-                        className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-                      >
+                      <SidebarMenuButton isActive={isActive("/settings")} onClick={() => navigate("/settings")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <Settings size={18} />
                         <span>Настройки</span>
                       </SidebarMenuButton>
@@ -212,11 +140,7 @@ const AppSidebar = () => {
                 <SidebarMenuItem>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <SidebarMenuButton 
-                        isActive={isActive("/help")} 
-                        onClick={() => navigate("/help")}
-                        className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200"
-                      >
+                      <SidebarMenuButton isActive={isActive("/help")} onClick={() => navigate("/help")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <HelpCircle size={18} />
                         <span>Помощь</span>
                       </SidebarMenuButton>
@@ -231,8 +155,6 @@ const AppSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-    </Sidebar>
-  );
+    </Sidebar>;
 };
-
 export default AppSidebar;

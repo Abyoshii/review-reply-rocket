@@ -13,9 +13,10 @@ import FloatingActionButtons from "@/components/FloatingActionButtons";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import HeaderAutoResponse from "@/components/HeaderAutoResponse";
-import { ReviewListParams, WbReview, WbQuestion } from "@/types/wb";
+import { ReviewListParams, WbReview, WbQuestion, QuestionListParams } from "@/types/wb";
 import { WbAPI } from "@/lib/api";
 import { Loader2 } from "lucide-react";
+import { logObjectStructure } from "@/lib/imageUtils";
 
 const Reviews = () => {
   const [activeTab, setActiveTab] = useState("new");
@@ -32,13 +33,11 @@ const Reviews = () => {
   });
   const [error, setError] = useState<string | null>(null);
 
-  // Функция для обновления данных
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Получаем новые отзывы
       const reviewsParams: ReviewListParams = { 
         isAnswered: false, 
         take: 10, 
@@ -48,8 +47,10 @@ const Reviews = () => {
       
       const reviewsResponse = await WbAPI.getReviews(reviewsParams);
       
-      // Получаем вопросы
-      const questionsParams = { 
+      // Log the data structure to see what we're getting from the API
+      logObjectStructure(reviewsResponse, "WB API Reviews Response");
+      
+      const questionsParams: QuestionListParams = { 
         isAnswered: false, 
         take: 10, 
         skip: 0,
@@ -58,7 +59,6 @@ const Reviews = () => {
       
       const questionsResponse = await WbAPI.getQuestions(questionsParams);
       
-      // Получаем архивные отзывы
       const archiveParams: ReviewListParams = { 
         isAnswered: true, 
         take: 10, 
@@ -68,7 +68,9 @@ const Reviews = () => {
       
       const archiveResponse = await WbAPI.getArchiveReviews(archiveParams);
       
-      // Устанавливаем полученные данные
+      // Log the archive response to see what we're getting
+      logObjectStructure(archiveResponse, "WB API Archive Response");
+      
       setReviews(reviewsResponse.data.feedbacks || []);
       setQuestions(questionsResponse.data.questions || []);
       setArchiveReviews(archiveResponse.data.feedbacks || []);
@@ -86,7 +88,6 @@ const Reviews = () => {
     fetchData();
   }, []);
 
-  // Обработчик выбора отзывов
   const handleSelectReview = (reviewId: string, isSelected: boolean) => {
     if (isSelected) {
       setSelectedReviews([...selectedReviews, reviewId]);
@@ -95,12 +96,10 @@ const Reviews = () => {
     }
   };
 
-  // Обработчик множественного выбора отзывов
   const handleSelectAllReviews = (ids: string[]) => {
     setSelectedReviews(ids);
   };
 
-  // Обработчик ответа на отзывы
   const handleReplyToReviews = () => {
     if (selectedReviews.length === 0) {
       toast.error("Выберите хотя бы один отзыв для ответа");
@@ -114,12 +113,10 @@ const Reviews = () => {
     fetchData();
   };
 
-  // Получаем выбранные отзывы
   const getSelectedReviewObjects = () => {
     return reviews.filter(review => selectedReviews.includes(review.id));
   };
 
-  // Обработчик успешного автоответа
   const handleAutoResponseSuccess = () => {
     toast.success("Автоответы успешно отправлены");
     setAutoResponderOpen(false);
@@ -127,12 +124,10 @@ const Reviews = () => {
     fetchData();
   };
 
-  // Обработчик изменения фильтров для отзывов
   const handleFilterChange = (filters: ReviewListParams) => {
     console.log("Применяем фильтры:", filters);
     setLoading(true);
     
-    // Запрашиваем отзывы с новыми фильтрами
     WbAPI.getReviews(filters)
       .then(response => {
         setReviews(response.data.feedbacks || []);
@@ -146,12 +141,10 @@ const Reviews = () => {
       });
   };
 
-  // Обработчик изменения фильтров для вопросов
-  const handleQuestionsFilterChange = (filters: any) => {
+  const handleQuestionsFilterChange = (filters: QuestionListParams) => {
     console.log("Применяем фильтры для вопросов:", filters);
     setLoading(true);
     
-    // Запрашиваем вопросы с новыми фильтрами
     WbAPI.getQuestions(filters)
       .then(response => {
         setQuestions(response.data.questions || []);
@@ -165,17 +158,14 @@ const Reviews = () => {
       });
   };
 
-  // Обработчик для генерации ответов на отзывы с использованием FloatingActionButtons
   const handleGenerateAnswers = () => {
     console.log("Генерируем ответы для", selectedReviews.length, "отзывов");
   };
 
-  // Обработчик для отправки ответов на отзывы с использованием FloatingActionButtons
   const handleSendAnswers = () => {
     console.log("Отправляем ответы для", selectedReviews.length, "отзывов");
   };
 
-  // Обработчик для очистки выбранных отзывов
   const handleClearSelection = () => {
     setSelectedReviews([]);
   };

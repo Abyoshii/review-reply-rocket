@@ -46,6 +46,8 @@ export interface WbReview {
     supplierName: string;
     brandName: string;
     size: string;
+    image?: string; 
+    category?: string; 
   };
   wasViewed?: boolean;
   userName?: string;
@@ -194,7 +196,7 @@ export interface SupplyOrder {
   id: number;
   supplierArticle: string;
   nmId: number;
-  chrtId: number;
+  chrtId: string;
   barcode: string;
   quantity: number;
   rid: string;
@@ -231,6 +233,16 @@ export enum ProductCategory {
   MISC = "Мелочёвка"
 }
 
+// Новый тип для информации о товаре из карточки
+export interface ProductCardInfo {
+  nmId: number;
+  name: string;
+  brand: string;
+  image: string;
+  category?: string; // Добавляем поле для категории товара (subjectName)
+  productCategory?: ProductCategory; // Добавляем поле для определенной категории товара
+}
+
 // Типы для заказов автосборки
 export interface AssemblyOrder {
   id: number;
@@ -246,6 +258,8 @@ export interface AssemblyOrder {
   selected?: boolean;
   category?: ProductCategory;
   inSupply?: boolean;
+  nmId?: number;  // Добавлен nmId для связи с данными карточки товара
+  productInfo?: ProductCardInfo;  // Информация о товаре из карточки
 }
 
 // Фильтры
@@ -305,4 +319,29 @@ export interface AutoAssemblyResult {
   perfumeSupplyId?: number;
   clothingSupplyId?: number;
   miscSupplyId?: number;
+}
+
+// Интерфейс для ответа API карточки товара
+export interface ProductCardResponse {
+  data: {
+    products: ProductCardData[];
+  };
+}
+
+export interface ProductCardData {
+  id: number;
+  name: string;
+  brand: string;
+  brandId: number;
+  images: string[];
+  subjectName?: string; // Категория товара
+  subject?: string; // Альтернативное поле для категории товара
+  category?: string; // Дополнительное поле для категории
+  // другие поля из API карточки товара...
+}
+
+// Add SortConfig interface for OrdersTable component
+export interface SortConfig {
+  key: keyof AssemblyOrder | null;
+  direction: 'asc' | 'desc' | null;
 }

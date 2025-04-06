@@ -356,7 +356,7 @@ const ReviewsTable = ({
     setSendProgress({ sent: 0, total: reviewsWithAnswers.length, failed: 0 });
 
     toast({
-      title: "Начата отправка",
+      title: "Нача��а отправка",
       description: `Отправка ${reviewsWithAnswers.length} ответов...`,
       important: true
     });
@@ -418,6 +418,18 @@ const ReviewsTable = ({
 
   const hasValidPhotoLinks = (photoLinks: any): photoLinks is PhotoLink[] => {
     return Array.isArray(photoLinks) && photoLinks.length > 0 && photoLinks[0]?.miniSize;
+  };
+
+  const getProductImage = (review: WbReview): string => {
+    if (hasValidPhotoLinks(review.photoLinks)) {
+      return review.photoLinks[0].miniSize;
+    }
+    
+    if (review.productDetails?.image) {
+      return review.productDetails.image;
+    }
+    
+    return "https://via.placeholder.com/100?text=Нет+фото";
   };
 
   const filteredReviews = reviews?.filter(review => 
@@ -574,13 +586,29 @@ const ReviewsTable = ({
                       </h3>
                     </div>
                     
-                    {hasValidPhotoLinks(review.photoLinks) && (
-                      <div className="w-20 h-20 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300 flex-shrink-0">
+                    <div className="w-20 h-20 rounded overflow-hidden border dark:border-gray-600 transition-colors duration-300 flex-shrink-0">
+                      {hasValidPhotoLinks(review.photoLinks) ? (
                         <a href={review.photoLinks[0].fullSize} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                          <img src={review.photoLinks[0].miniSize} alt="Фото товара" className="w-full h-full object-cover" />
+                          <img 
+                            src={review.photoLinks[0].miniSize} 
+                            alt="Фото товара" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://via.placeholder.com/100?text=Нет+фото";
+                            }} 
+                          />
                         </a>
-                      </div>
-                    )}
+                      ) : (
+                        <img 
+                          src={getProductImage(review)} 
+                          alt="Фото товара" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://via.placeholder.com/100?text=Нет+фото";
+                          }}
+                        />
+                      )}
+                    </div>
                     
                     <div className="flex flex-wrap gap-2 mt-2">
                       {hasValidPhotoLinks(review.photoLinks) && 
@@ -716,7 +744,7 @@ const ReviewsTable = ({
                         {modelUsed[review.id] && (
                           <div className="text-xs text-gray-500 mt-1 flex items-center">
                             <Cpu size={12} className="mr-1" /> 
-                            Сгене��ировано: {modelUsed[review.id].includes('gpt-4') ? 'GPT-4' : 'GPT-3.5'}
+                            Сгенерировано: {modelUsed[review.id].includes('gpt-4') ? 'GPT-4' : 'GPT-3.5'}
                           </div>
                         )}
                       </div>
