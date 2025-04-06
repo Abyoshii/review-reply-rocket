@@ -125,7 +125,7 @@ export const AutoAssemblyAPI = {
     try {
       console.log(`Создание поставки с именем "${name}" с заголовками:`, addAuthHeaders());
       
-      const response = await axios.post<CreateSupplyResponse>(`${WB_API_BASE_URL}/supplies`, {
+      const response = await axios.post(`${WB_API_BASE_URL}/supplies`, {
         name
       }, {
         headers: addAuthHeaders()
@@ -133,12 +133,18 @@ export const AutoAssemblyAPI = {
       
       console.log("Ответ API при создании поставки:", response.data);
       
-      if (response.data && response.data.data && response.data.data.supplyId) {
-        toast.success(`Поставка "${name}" создана`);
-        return response.data.data.supplyId;
-      } else {
-        throw new Error("API не вернуло ID поставки");
+      if (response.data) {
+        const supplyId = response.data.id || 
+                        response.data.data?.supplyId || 
+                        response.data.data?.id;
+        
+        if (supplyId) {
+          toast.success(`Поставка "${name}" со��дана`);
+          return typeof supplyId === 'number' ? supplyId : parseInt(supplyId);
+        }
       }
+      
+      throw new Error("API не вернуло ID поставки");
     } catch (error) {
       console.error("Error creating supply:", error);
       logObjectStructure(error, "Детальная ошибка при создании поставки");
@@ -166,15 +172,29 @@ export const AutoAssemblyAPI = {
     try {
       console.log("Запрос поставок с заголовками:", addAuthHeaders());
       
-      const response = await axios.get<GetSuppliesResponse>(`${WB_API_BASE_URL}/supplies`, {
+      const response = await axios.get(`${WB_API_BASE_URL}/supplies`, {
         headers: addAuthHeaders()
       });
       
       console.log("Supplies response:", response.data);
       logObjectStructure(response.data, "Полная структура ответа API поставок");
       
-      if (response.data && response.data.data && Array.isArray(response.data.data.supplies)) {
-        return response.data.data.supplies;
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          return response.data.map((supply: any) => ({
+            id: supply.id,
+            supplyId: supply.id,
+            name: supply.name,
+            createdAt: supply.createdAt,
+            done: supply.done || false,
+            status: supply.status || "NEW",
+            ordersCount: supply.ordersCount || 0
+          }));
+        } else if (response.data.data && Array.isArray(response.data.data.supplies)) {
+          return response.data.data.supplies;
+        } else if (response.data.supplies && Array.isArray(response.data.supplies)) {
+          return response.data.supplies;
+        }
       }
       
       toast.error("API вернуло неожиданный формат данных для поставок");

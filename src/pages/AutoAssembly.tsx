@@ -137,8 +137,26 @@ const AutoAssembly = () => {
       setOrders(ordersWithSupplyStatus);
       
       const suppliesResponse = await SuppliesAPI.getSupplies();
-      console.log("Loaded supplies:", suppliesResponse);
-      setSupplies(suppliesResponse.supplies);
+      console.log("Loaded supplies via SuppliesAPI:", suppliesResponse);
+      
+      if (suppliesResponse && suppliesResponse.supplies) {
+        suppliesResponse.supplies.forEach((supply, index) => {
+          console.log(`Supply ${index}:`, supply);
+        });
+        
+        setSupplies(suppliesResponse.supplies);
+      } else {
+        console.error("Supplies response is undefined or missing supplies array");
+        
+        const backupSupplies = await AutoAssemblyAPI.getSupplies();
+        console.log("Loaded supplies via backup method:", backupSupplies);
+        
+        if (backupSupplies && backupSupplies.length > 0) {
+          setSupplies(backupSupplies);
+        } else {
+          toast.error("Не удалось загрузить данные о поставках");
+        }
+      }
       
     } catch (error) {
       console.error("Error loading data:", error);
@@ -211,7 +229,7 @@ const AutoAssembly = () => {
       const result = await AutoAssemblyAPI.printStickers(selectedOrders);
       console.log("Print stickers result:", result);
       toast.success("Задания на печать стикеров отправлены", {
-        description: `Выбрано ${selectedOrders.length} ��аказов`
+        description: `Выбрано ${selectedOrders.length} заказов`
       });
     } catch (error) {
       console.error("Error printing stickers:", error);

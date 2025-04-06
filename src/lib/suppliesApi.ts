@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { toast } from "sonner";
 import { addAuthHeaders } from "./securityUtils";
@@ -23,16 +24,51 @@ export const SuppliesAPI = {
       
       console.log("Supplies API response:", response.data);
       
-      // Проверяем формат ответа API
-      if (response.data && Array.isArray(response.data.supplies)) {
+      // Обработка ответа в соответствии с документацией API
+      if (response.data && Array.isArray(response.data)) {
+        // Прямой массив поставок (как в документации)
+        return {
+          supplies: response.data.map((supply: any) => ({
+            id: supply.id,
+            supplyId: supply.id,
+            name: supply.name,
+            createdAt: supply.createdAt,
+            done: supply.done || false,
+            status: "NEW",
+            ordersCount: 0 // Будет обновлено позже при необходимости
+          })),
+          hasMore: false,
+          next: undefined
+        };
+      } else if (response.data && Array.isArray(response.data.supplies)) {
+        // Формат с вложенным массивом supplies
         return {
           supplies: response.data.supplies,
           hasMore: !!response.data.next,
           next: response.data.next
         };
+      } else if (response.data && typeof response.data === 'object') {
+        // Попытка анализа структуры ответа
+        console.log("Анализ структуры ответа API поставок:", Object.keys(response.data));
+        
+        // Проверка различных возможных путей к данным поставок
+        const possibleSupplies = response.data.supplies || 
+                               response.data.data?.supplies || 
+                               response.data.items ||
+                               response.data.data?.items ||
+                               [];
+        
+        if (Array.isArray(possibleSupplies)) {
+          return {
+            supplies: possibleSupplies,
+            hasMore: !!(response.data.next || response.data.data?.next),
+            next: response.data.next || response.data.data?.next
+          };
+        }
       }
       
       // Если API вернул неожиданный формат
+      console.error("Неожиданный формат ответа API:", response.data);
       toast.error("API вернул неожиданный формат данных");
       return { supplies: [], hasMore: false };
     } catch (error: any) {
