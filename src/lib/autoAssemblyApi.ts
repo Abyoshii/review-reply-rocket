@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { 
   AssemblyOrder, 
@@ -9,17 +8,144 @@ import {
   AddOrderToSupplyResponse,
   ProductCategory,
   Supply,
+  ProductCardResponse,
+  ProductCardInfo
 } from "@/types/wb";
 import { addAuthHeaders } from "./securityUtils";
 import { toast } from "sonner";
 import { logObjectStructure } from "./imageUtils";
-import { determineCategory, determineProductCategory } from "./utils/categoryUtils";
-import { formatTimeAgo } from "./utils/formatUtils";
-import { getProductCardInfo } from "./utils/productUtils";
 
+// Обновленный базовый URL для Marketplace API
 const WB_API_BASE_URL = "https://marketplace-api.wildberries.ru/api/v3";
+// URL для API карточек товаров
+const WB_CARD_API_URL = "https://card.wb.ru/cards/detail";
 
+// Ключевые слова для определения категории товара
+const PERFUME_KEYWORDS = [
+  "духи", "туалетная вода", "парфюмерная вода", "аромат", 
+  "eau de parfum", "eau de toilette", "edp", "edt", "парфюм"
+];
+
+const CLOTHING_KEYWORDS = [
+  "куртка", "брюки", "спортивные", "платье", "футболка", "джинсы", 
+  "шорты", "юбка", "бейсболка", "толстовка", "жилет", "рубашка", 
+  "свитер", "пальто", "худи", "джемпер", "костюм", "кофта", "майка"
+];
+
+// Функция для определения категории товара по названию
+export const determineProductCategory = (productName: string): ProductCategory => {
+  if (!productName) return ProductCategory.MISC;
+  
+  const nameLower = productName.toLowerCase();
+  
+  // Проверяем по ключевым словам для парфюмерии
+  if (PERFUME_KEYWORDS.some(keyword => nameLower.includes(keyword))) {
+    return ProductCategory.PERFUME;
+  }
+  
+  // Проверяем по ключевым словам для одежды
+  if (CLOTHING_KEYWORDS.some(keyword => nameLower.includes(keyword))) {
+    return ProductCategory.CLOTHING;
+  }
+  
+  // По умолчанию - мелочёвка
+  return ProductCategory.MISC;
+};
+
+// Функция для получения информации о товаре по nmId
+export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo | null> => {
+  try {
+    const cardUrl = `${WB_CARD_API_URL}?appType=1&curr=rub&dest=12345&nm=${nmId}`;
+    console.log(`🔍 Запрос данных карточки товара: ${cardUrl}`);
+    
+    const response = await axios.get<ProductCardResponse>(cardUrl);
+    
+    console.log(`Ответ API карточки товара для nmId=${nmId}:`, response.data);
+    
+    if (response.data && response.data.data && response.data.data.products && response.data.data.products.length > 0) {
+      const product = response.data.data.products[0];
+      
+      // Формируем URL изображения согласно запросу
+      // https://basket-01.wb.ru/vol{nmId // 100000}/part{nmId // 1000}/{nmId}/images/c246x328/1.jpg
+      const vol = Math.floor(product.id / 100000);
+      const part = Math.floor(product.id / 1000);
+      const imageBaseUrl = `https://basket-01.wb.ru/vol${vol}/part${part}/${product.id}/images/c246x328/1.jpg`;
+      
+      console.log(`Сформирован URL изображения: ${imageBaseUrl}`);
+      
+      return {
+        nmId: product.id,
+        name: product.name,
+        brand: product.brand || "",
+        image: imageBaseUrl,
+        category: product.subjectName || product.subject || ""
+      };
+    }
+    
+    console.log(`Не найдены данные товара для nmId=${nmId}`);
+    return null;
+  } catch (error) {
+    console.error(`Ошибка при получении данных карточки товара для nmId=${nmId}:`, error);
+    return null;
+  }
+};
+
+// Функция для форматирования времени в человекочитаемый вид
+export const formatTimeAgo = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  
+  if (days > 0) {
+    if (days === 1) return 'вчера';
+    if (days < 7) return `${days} ${getDaysText(days)}`;
+    
+    return date.toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  }
+  
+  if (hours > 0) return `${hours} ${getHoursText(hours)}`;
+  if (minutes > 0) return `${minutes} ${getMinutesText(minutes)}`;
+  
+  return 'только что';
+};
+
+// Вспомогательные функции для склонения слов
+const getDaysText = (days: number): string => {
+  if (days >= 5 && days <= 20) return 'дней';
+  const remainder = days % 10;
+  if (remainder === 1) return 'день';
+  if (remainder >= 2 && remainder <= 4) return 'дня';
+  return 'дней';
+};
+
+const getHoursText = (hours: number): string => {
+  if (hours >= 5 && hours <= 20) return 'часов';
+  const remainder = hours % 10;
+  if (remainder === 1) return 'час';
+  if (remainder >= 2 && remainder <= 4) return 'часа';
+  return 'часов';
+};
+
+const getMinutesText = (minutes: number): string => {
+  if (minutes >= 5 && minutes <= 20) return 'минут';
+  const remainder = minutes % 10;
+  if (remainder === 1) return 'минута';
+  if (remainder >= 2 && remainder <= 4) return 'минуты';
+  return 'минут';
+};
+
+// API для работы с автосборкой
 export const AutoAssemblyAPI = {
+  // Получение списка заказов для сборки
   getNewOrders: async (): Promise<AssemblyOrder[]> => {
     try {
       const response = await axios.get(`${WB_API_BASE_URL}/orders/new`, {
@@ -29,6 +155,7 @@ export const AutoAssemblyAPI = {
       console.log("New orders response:", response.data);
       logObjectStructure(response.data, "Полная структура ответа API заказов");
       
+      // Проверяем ответ API с учетом новой структуры ответа
       if (response.data && Array.isArray(response.data.orders)) {
         const orders = response.data.orders.map((order: any) => ({
           id: order.id,
@@ -45,6 +172,7 @@ export const AutoAssemblyAPI = {
           nmId: order.nmId || null
         }));
         
+        // Получаем информацию о товарах для каждого заказа
         const ordersWithProductInfo = await Promise.all(
           orders.map(async (order: AssemblyOrder) => {
             if (order.nmId) {
@@ -55,13 +183,14 @@ export const AutoAssemblyAPI = {
                     ...order,
                     productInfo,
                     productName: productInfo.name,
-                    category: productInfo.productCategory || determineProductCategory(productInfo.name)
+                    category: determineProductCategory(productInfo.name)
                   };
                 }
               } catch (error) {
                 console.error(`Error fetching product info for nmId=${order.nmId}:`, error);
               }
             }
+            // Если не удалось получить информацию о товаре
             return {
               ...order,
               productName: order.supplierArticle ? `Товар ${order.supplierArticle}` : "Неизвестный товар",
@@ -73,6 +202,7 @@ export const AutoAssemblyAPI = {
         return ordersWithProductInfo;
       }
       
+      // Если API не вернуло данные или вернуло в неожиданном формате, используем тестовыми данными
       console.log("API returned unexpected format, using mock data");
       
       const mockOrders: AssemblyOrder[] = [
@@ -106,6 +236,7 @@ export const AutoAssemblyAPI = {
         }
       ];
       
+      // Определяем категорию для каждого товара
       return mockOrders.map(order => ({
         ...order,
         category: determineProductCategory(order.productName)
@@ -115,6 +246,7 @@ export const AutoAssemblyAPI = {
       logObjectStructure(error, "Детальная ошибка при получении заказов");
       toast.error("Ошибка при загрузке новых заказов");
       
+      // В случае ошибки возвращаем тестовые данные
       const mockOrders: AssemblyOrder[] = [
         {
           id: 3194125865,
@@ -153,8 +285,10 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Отмена заказа
   cancelOrder: async (orderId: number): Promise<boolean> => {
     try {
+      // Используем правильный URL для отмены заказа
       await axios.patch(`${WB_API_BASE_URL}/orders/${orderId}/cancel`, {}, {
         headers: addAuthHeaders()
       });
@@ -168,10 +302,11 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Печать стикеров для заказов
   printStickers: async (orderIds: number[]): Promise<string | null> => {
     try {
       const response = await axios.post(`${WB_API_BASE_URL}/orders/stickers`, {
-        orders: orderIds,
+        orders: orderIds, // Обновлено согласно документации API
         type: "png",
         width: 58,
         height: 40
@@ -180,6 +315,7 @@ export const AutoAssemblyAPI = {
         responseType: 'blob'
       });
       
+      // Создаем URL для скачивания
       const blob = new Blob([response.data], { type: 'image/png' });
       const downloadUrl = URL.createObjectURL(blob);
       
@@ -192,17 +328,14 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Создание новой поставки
   createSupply: async (name: string): Promise<number | null> => {
     try {
-      console.log(`Создание поставки с именем "${name}" с заголовками:`, addAuthHeaders());
-      
       const response = await axios.post<CreateSupplyResponse>(`${WB_API_BASE_URL}/supplies`, {
         name
       }, {
         headers: addAuthHeaders()
       });
-      
-      console.log("Ответ API при создании поставки:", response.data);
       
       if (response.data && response.data.data && response.data.data.supplyId) {
         toast.success(`Поставка "${name}" создана`);
@@ -212,12 +345,12 @@ export const AutoAssemblyAPI = {
       }
     } catch (error) {
       console.error("Error creating supply:", error);
-      logObjectStructure(error, "Детальная ошибка при создании поставки");
       toast.error("Ошибка при создании поставки");
       return null;
     }
   },
   
+  // Добавление заказа в поставку
   addOrderToSupply: async (supplyId: number, orderId: number): Promise<boolean> => {
     try {
       await axios.patch(`${WB_API_BASE_URL}/supplies/${supplyId}/orders/${orderId}`, {}, {
@@ -233,6 +366,7 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Получение списка поставок
   getSupplies: async (): Promise<Supply[]> => {
     try {
       console.log("Запрос поставок с заголовками:", addAuthHeaders());
@@ -248,6 +382,7 @@ export const AutoAssemblyAPI = {
         return response.data.data.supplies;
       }
       
+      // В случае неожиданной структуры ответа возвращаем тестовые данные
       console.log("API returned unexpected supplies format, using mock data");
       
       return [
@@ -287,6 +422,7 @@ export const AutoAssemblyAPI = {
       logObjectStructure(error, "Детальная ошибка при получении поставок");
       toast.error("Ошибка при загрузке списка поставок");
       
+      // В случае ошибки возвращаем тестовые данные
       return [
         {
           id: 1001,
@@ -322,6 +458,7 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Получение информации о конкретной поставке
   getSupplyDetails: async (supplyId: number): Promise<Supply | null> => {
     try {
       const response = await axios.get(`${WB_API_BASE_URL}/supplies/${supplyId}`, {
@@ -341,6 +478,7 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Получение списка заказов в поставке
   getSupplyOrders: async (supplyId: number): Promise<AssemblyOrder[]> => {
     try {
       const response = await axios.get(`${WB_API_BASE_URL}/supplies/${supplyId}/orders`, {
@@ -348,6 +486,7 @@ export const AutoAssemblyAPI = {
       });
       
       if (response.data && Array.isArray(response.data)) {
+        // Преобразуем данные API в наш формат
         return response.data.map((order: any) => ({
           id: order.id,
           orderUid: order.orderUid,
@@ -367,12 +506,13 @@ export const AutoAssemblyAPI = {
       return [];
     } catch (error) {
       console.error(`Error fetching orders for supply ${supplyId}:`, error);
-      logObjectStructure(error, "Детальная ошибка при получении заказов для поставки");
+      logObjectStructure(error, "Дета��ьная ошибка при получении заказов для поставки");
       toast.error(`Ошибка при загрузке заказов для поставки ${supplyId}`);
       return [];
     }
   },
   
+  // Удаление поставки
   deleteSupply: async (supplyId: number): Promise<boolean> => {
     try {
       await axios.delete(`${WB_API_BASE_URL}/supplies/${supplyId}`, {
@@ -389,6 +529,7 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Передача поставки в доставку
   deliverSupply: async (supplyId: number): Promise<boolean> => {
     try {
       await axios.patch(`${WB_API_BASE_URL}/supplies/${supplyId}/deliver`, {}, {
@@ -405,6 +546,7 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Получение QR-кода поставки
   getSupplyBarcode: async (supplyId: number): Promise<string | null> => {
     try {
       const response = await axios.get(`${WB_API_BASE_URL}/supplies/${supplyId}/barcode`, {
@@ -425,6 +567,7 @@ export const AutoAssemblyAPI = {
     }
   },
   
+  // Формирование поставок по категориям товаров
   createCategorizedSupplies: async (orders: AssemblyOrder[]): Promise<{
     success: boolean;
     perfumeCount: number;
@@ -434,6 +577,7 @@ export const AutoAssemblyAPI = {
     clothingSupplyId?: number;
     miscSupplyId?: number;
   }> => {
+    // Группируем заказы по категориям
     const perfumeOrders = orders.filter(order => order.category === ProductCategory.PERFUME);
     const clothingOrders = orders.filter(order => order.category === ProductCategory.CLOTHING);
     const miscOrders = orders.filter(order => order.category === ProductCategory.MISC);
@@ -445,10 +589,12 @@ export const AutoAssemblyAPI = {
     let miscSupplyId: number | undefined = undefined;
     
     try {
+      // Создаем поставку для парфюмерии, если есть товары
       if (perfumeOrders.length > 0) {
         perfumeSupplyId = await AutoAssemblyAPI.createSupply(`Поставка: Парфюмерия – ${currentDate}`);
         
         if (perfumeSupplyId) {
+          // Добавляем товары в поставку
           for (const order of perfumeOrders) {
             await AutoAssemblyAPI.addOrderToSupply(perfumeSupplyId, order.id);
           }
@@ -457,10 +603,12 @@ export const AutoAssemblyAPI = {
         }
       }
       
+      // Создаем поставку для одежды, если есть товары
       if (clothingOrders.length > 0) {
         clothingSupplyId = await AutoAssemblyAPI.createSupply(`Поставка: Одежда – ${currentDate}`);
         
         if (clothingSupplyId) {
+          // Добавляем товары в поставку
           for (const order of clothingOrders) {
             await AutoAssemblyAPI.addOrderToSupply(clothingSupplyId, order.id);
           }
@@ -469,10 +617,12 @@ export const AutoAssemblyAPI = {
         }
       }
       
+      // Создаем поставку для мелочёвки, если есть товары
       if (miscOrders.length > 0) {
         miscSupplyId = await AutoAssemblyAPI.createSupply(`Поставка: Мелочёвка – ${currentDate}`);
         
         if (miscSupplyId) {
+          // Добавляем товары в поставку
           for (const order of miscOrders) {
             await AutoAssemblyAPI.addOrderToSupply(miscSupplyId, order.id);
           }
@@ -490,6 +640,7 @@ export const AutoAssemblyAPI = {
         clothingSupplyId,
         miscSupplyId
       };
+      
     } catch (error) {
       console.error("Error creating categorized supplies:", error);
       logObjectStructure(error, "Детальная ошибка при создании поставок по категориям");
@@ -504,5 +655,3 @@ export const AutoAssemblyAPI = {
     }
   }
 };
-
-export { determineProductCategory, formatTimeAgo };

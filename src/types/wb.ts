@@ -1,3 +1,4 @@
+
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -196,7 +197,7 @@ export interface SupplyOrder {
   id: number;
   supplierArticle: string;
   nmId: number;
-  chrtId: string;
+  chrtId: number;
   barcode: string;
   quantity: number;
   rid: string;
@@ -239,8 +240,7 @@ export interface ProductCardInfo {
   name: string;
   brand: string;
   image: string;
-  category?: string; // Добавляем поле для категории товара (subjectName)
-  productCategory?: ProductCategory; // Добавляем поле для определенной категории товара
+  category?: string; // Добавляем поле для категории товара
 }
 
 // Типы для заказов автосборки
