@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Truck, Loader2, RefreshCw, Shield } from "lucide-react";
+import { Package, Truck, Loader2, RefreshCw, Shield, Database } from "lucide-react";
 import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply, SortConfig } from "@/types/wb";
 import { AutoAssemblyAPI } from "@/lib/autoAssemblyApi";
 import { SuppliesAPI } from "@/lib/suppliesApi";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { getApiToken, getHeaderName, isTokenValid } from "@/lib/securityUtils";
 import { logAuthStatus, logError } from "@/lib/logUtils";
 import TokenDiagnostics from "@/components/TokenDiagnostics";
+import { getProductCacheStats, clearProductInfoCache, markProductAsInSupply } from "@/lib/utils/productUtils";
 
 // Импорт компонентов
 import OrdersTable from "@/components/autoAssembly/OrdersTable";
@@ -72,6 +73,10 @@ const AutoAssembly = () => {
 
   // Define filteredOrders before its usage
   const filteredOrders = orders.filter((order) => {
+    if (order.inSupply) {
+      return false;
+    }
+    
     if (filterState.warehouseId && order.warehouseId !== filterState.warehouseId.id) {
       return false;
     }
@@ -113,7 +118,19 @@ const AutoAssembly = () => {
       
       const newOrders = await AutoAssemblyAPI.getNewOrders();
       console.log("Loaded orders:", newOrders);
-      setOrders(newOrders);
+      
+      // Помечаем заказы, которые уже в поставке
+      const ordersWithSupplyStatus = newOrders.map(order => {
+        if (order.inSupply) {
+          // Помечаем товар в кэше как перемещенный в поставку
+          if (order.nmId) {
+            markProductAsInSupply(order.nmId);
+          }
+        }
+        return order;
+      });
+      
+      setOrders(ordersWithSupplyStatus);
       
       // Загрузка поставок через SuppliesAPI
       const suppliesResponse = await SuppliesAPI.getSupplies();
@@ -241,7 +258,25 @@ const AutoAssembly = () => {
       let successCount = 0;
       for (const orderId of selectedOrders) {
         const success = await SuppliesAPI.addOrderToSupply(targetSupplyId, orderId);
-        if (success) successCount++;
+        if (success) {
+          successCount++;
+          
+          // Находим заказ по ID и получаем его nmId
+          const assembledOrder = orders.find(order => order.id === orderId);
+          if (assembledOrder?.nmId) {
+            // Помечаем товар в кэше как перемещенный в поставку
+            markProductAsInSupply(assembledOrder.nmId);
+          }
+          
+          // Помечаем заказ как добавленный в поставку
+          setOrders(prevOrders => 
+            prevOrders.map(order => 
+              order.id === orderId 
+                ? { ...order, inSupply: true } 
+                : order
+            )
+          );
+        }
       }
       
       // Обновляем данные
@@ -321,6 +356,14 @@ const AutoAssembly = () => {
     }
   };
 
+  const handleClearCache = useCallback(() => {
+    clearProductInfoCache();
+    // Обновляем данные, чтобы перезагрузить товары
+    loadData();
+  }, []);
+
+  const cacheStats = getProductCacheStats();
+
   return (
     <div className="container mx-auto py-6 max-w-7xl">
       {/* Заголовок и кнопки управления */}
@@ -332,6 +375,30 @@ const AutoAssembly = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="border-dashed flex items-center gap-1" 
+                  onClick={handleClearCache}
+                >
+                  <Database className="h-4 w-4" />
+                  Кэш: {cacheStats.total}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">
+                  <p className="font-medium">Статистика кэша товаров:</p>
+                  <p>Успешно загружено: {cacheStats.success}</p>
+                  <p>С ошибками: {cacheStats.failed}</p>
+                  <p>В поставках: {cacheStats.inSupply}</p>
+                  <p className="mt-1">Нажмите для очистки кэша</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Button 
             variant="outline" 
             className="border-dashed flex items-center gap-1" 

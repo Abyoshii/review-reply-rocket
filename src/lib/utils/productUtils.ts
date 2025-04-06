@@ -8,8 +8,21 @@ import { getApiToken } from "../securityUtils";
 // API URL для получения информации о товаре
 const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards/list";
 
+// Улучшенный кэш для хранения информации о товарах
+interface ProductCacheEntry {
+  info: ProductCardInfo;
+  loadedAt: number;
+  failed?: boolean;
+  failReason?: string;
+  retryAt?: number;
+  inSupply?: boolean; // Флаг для товаров, перемещенных в поставки
+}
+
 // Кэш для хранения информации о товарах
-const productInfoCache: Record<number, ProductCardInfo> = {};
+const productInfoCache: Record<number, ProductCacheEntry> = {};
+
+// Интервал в мс, после которого разрешено повторить запрос для неудачных карточек
+const RETRY_INTERVAL = 5000; // 5 секунд
 
 // Функция для получения информации о товаре по nmId
 export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo | null> => {
@@ -17,13 +30,24 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     // Начинаем отслеживание времени запроса для измерения производительности
     const startTime = performance.now();
     
-    // 1. Проверяем кэш
-    if (productInfoCache[nmId]) {
-      console.log(`Информация о товаре nmId=${nmId} взята из кэша:`, productInfoCache[nmId]);
-      return productInfoCache[nmId];
+    // 1. Проверяем кэш на успешно загруженные товары
+    if (productInfoCache[nmId] && !productInfoCache[nmId].failed) {
+      console.log(`Информация о товаре nmId=${nmId} взята из кэша:`, productInfoCache[nmId].info);
+      return productInfoCache[nmId].info;
+    }
+    
+    // 2. Проверяем, не является ли запись в кэше неудачной загрузкой, требующей ожидания
+    const currentTime = Date.now();
+    if (productInfoCache[nmId] && productInfoCache[nmId].failed && productInfoCache[nmId].retryAt) {
+      if (currentTime < productInfoCache[nmId].retryAt) {
+        console.log(`Пропуск запроса для nmId=${nmId}: слишком рано для повторной попытки (до ${new Date(productInfoCache[nmId].retryAt!).toLocaleTimeString()})`);
+        return null; // Еще не время для повторной попытки
+      } else {
+        console.log(`Повторная попытка загрузки для nmId=${nmId} после неудачи: ${productInfoCache[nmId].failReason}`);
+      }
     }
 
-    // 2. Формируем запрос к API
+    // 3. Формируем запрос к API
     const requestBody = {
       settings: {
         cursor: { limit: 1 },
@@ -58,11 +82,11 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     const requestTime = Math.round(performance.now() - startTime);
     console.log(`✓ Ответ получен за ${requestTime}мс для nmId=${nmId}`);
     
-    // 3. Вывод полного ответа для отладки
+    // 4. Вывод полного ответа для отладки
     console.log(`📦 Полный ответ API карточки товара для nmId=${nmId}:`);
     console.log(JSON.stringify(response.data, null, 2));
     
-    // 4. Проверяем наличие карточек в ответе
+    // 5. Проверяем наличие карточек в ответе
     const cards = response.data.cards;
     if (!cards || cards.length === 0) {
       console.warn(`⚠️ [WARN] Не найдены данные товара для nmId=${nmId}. API вернул пустой результат.`);
@@ -70,44 +94,83 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       toast.warning(`Товар ${nmId} не найден в каталоге WB`, {
         description: "Данные не загружены, возможно проблемы с API"
       });
+      
+      // Сохраняем в кэше информацию о неудачной попытке
+      productInfoCache[nmId] = {
+        info: null as any,
+        loadedAt: currentTime,
+        failed: true,
+        failReason: "Товар не найден в каталоге",
+        retryAt: currentTime + RETRY_INTERVAL
+      };
+      
       return null;
     }
     
     const product = cards[0];
     console.log(`📋 Найдена карточка товара для nmId=${nmId}:`, product.title || "Без названия");
     
-    // 5. Проверка обязательного поля "title"
+    // 6. Проверка обязательного поля "title"
     if (!product.title) {
       console.warn(`⚠️ [WARN] У товара nmId=${nmId} отсутствует поле title (наименование).`);
       toast.warning(`Ошибка данных товара ${nmId}`, {
         description: "Отсутствует название товара, данные не загружены"
       });
+      
+      // Сохраняем в кэше информацию о неудачной попытке
+      productInfoCache[nmId] = {
+        info: null as any,
+        loadedAt: currentTime,
+        failed: true,
+        failReason: "Отсутствует название товара",
+        retryAt: currentTime + RETRY_INTERVAL
+      };
+      
       return null;
     }
     
-    // 6. Проверка наличия фото и URL изображения
+    // 7. Проверка наличия фото и URL изображения
     const hasImages = product.photos && product.photos.length > 0 && product.photos[0].big;
     if (!hasImages) {
       console.warn(`⚠️ [WARN] У товара nmId=${nmId} отсутствуют фотографии или URL фотографии.`);
       toast.warning(`Ошибка данных товара ${nmId}`, {
         description: "Отсутствуют изображения товара, данные неполные"
       });
+      
+      // Сохраняем в кэше информацию о неудачной попытке, но не требуем повторной загрузки
+      productInfoCache[nmId] = {
+        info: null as any,
+        loadedAt: currentTime,
+        failed: true,
+        failReason: "Отсутствуют изображения товара"
+      };
+      
       return null;
     }
     
     // Выводим информацию о найденном изображении
     console.log(`🖼️ Изображение для nmId=${nmId}:`, product.photos[0].big);
     
-    // 7. Проверка обязательного поля "subjectName"
+    // 8. Проверка обязательного поля "subjectName"
     if (!product.subjectName) {
       console.warn(`⚠️ [WARN] У товара nmId=${nmId} отсутствует поле subjectName (категория).`);
       toast.warning(`Ошибка данных товара ${nmId}`, {
         description: "Отсутствует категория товара, данные неполные"
       });
+      
+      // Сохраняем в кэше информацию о неудачной попытке
+      productInfoCache[nmId] = {
+        info: null as any,
+        loadedAt: currentTime,
+        failed: true,
+        failReason: "Отсутствует категория товара",
+        retryAt: currentTime + RETRY_INTERVAL
+      };
+      
       return null;
     }
     
-    // 8. Формирование объекта с информацией о товаре
+    // 9. Формирование объекта с информацией о товаре
     const productInfo: ProductCardInfo = {
       nmId: nmId,
       name: product.title,
@@ -119,25 +182,47 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     
     console.log(`✅ Успешно сформирована информация о товаре nmId=${nmId}:`, productInfo);
     
-    // 9. Сохраняем корректную карточку в кэш
-    productInfoCache[nmId] = productInfo;
+    // 10. Сохраняем успешно загруженную карточку в кэш
+    productInfoCache[nmId] = {
+      info: productInfo,
+      loadedAt: currentTime,
+      failed: false
+    };
     
     return productInfo;
   } catch (error) {
     console.error(`❌ Ошибка при получении данных карточки товара для nmId=${nmId}:`, error);
+    
+    // Текущее время для расчета интервала повторной попытки
+    const currentTime = Date.now();
+    let retryDelay = RETRY_INTERVAL; // Стандартная задержка для повторной попытки
     
     // Выводим детальную информацию об ошибке для диагностики
     if (axios.isAxiosError(error)) {
       console.error(`Статус ошибки: ${error.response?.status}`);
       console.error(`Данные ошибки:`, error.response?.data);
       
+      // Специальная обработка для ошибки 429 (Too Many Requests)
+      if (error.response?.status === 429) {
+        console.error(`❌ Превышен лимит запросов (429) при запросе данных товара. Установлена увеличенная задержка!`);
+        toast.error(`Превышен лимит запросов API для товара ${nmId}`, {
+          description: `Повторный запрос будет выполнен через некоторое время`,
+          important: true
+        });
+        
+        // Увеличиваем задержку для повторной попытки при ошибке 429
+        retryDelay = 10000; // 10 секунд для ошибки 429
+      } 
       // Специальная обработка для ошибки 401
-      if (error.response?.status === 401) {
+      else if (error.response?.status === 401) {
         console.error(`❌ Ошибка авторизации (401) при запросе данных товара. Проверьте токен API!`);
         toast.error(`Ошибка авторизации при получении данных товара ${nmId}`, {
           description: `Токен API недействителен или просрочен`,
           important: true
         });
+        
+        // Для ошибки 401 не имеет смысла делать повторную попытку без обновления токена
+        retryDelay = 0; // Не пытаемся повторять
       } else {
         // Уведомляем пользователя о проблеме с API
         toast.error(`Ошибка получения данных товара ${nmId}`, {
@@ -146,11 +231,22 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       }
     }
     
+    // Сохраняем в кэш информацию о неудачной попытке
+    productInfoCache[nmId] = {
+      info: null as any,
+      loadedAt: currentTime,
+      failed: true,
+      failReason: axios.isAxiosError(error) 
+        ? `Ошибка ${error.response?.status || "сети"}: ${error.message}`
+        : `Неизвестная ошибка: ${error instanceof Error ? error.message : String(error)}`,
+      retryAt: retryDelay > 0 ? currentTime + retryDelay : undefined
+    };
+    
     return null;
   }
 };
 
-// Функция для очистки кэша при необходимости
+// Функция для очистки кэша
 export const clearProductInfoCache = () => {
   const cacheSize = Object.keys(productInfoCache).length;
   Object.keys(productInfoCache).forEach(key => {
@@ -160,4 +256,68 @@ export const clearProductInfoCache = () => {
   toast.success(`Кэш товаров очищен`, {
     description: `Удалено ${cacheSize} записей из кэша`
   });
+};
+
+// Функция для удаления карточки из кэша при перемещении в поставку
+export const markProductAsInSupply = (nmId: number) => {
+  if (productInfoCache[nmId]) {
+    productInfoCache[nmId].inSupply = true;
+    console.log(`🏷️ Товар nmId=${nmId} помечен как перемещенный в поставку`);
+  }
+};
+
+// Функция для повторной попытки загрузки карточки товара
+export const retryLoadProductInfo = async (nmId: number) => {
+  // Удаляем запись о неудачной попытке из кэша
+  if (productInfoCache[nmId]) {
+    delete productInfoCache[nmId];
+  }
+  
+  console.log(`🔄 Запуск повторной загрузки информации о товаре nmId=${nmId}`);
+  // Выполняем запрос к API заново
+  return await getProductCardInfo(nmId);
+};
+
+// Функция для автоматического повторения загрузки неудачных запросов
+export const retryFailedProductInfoRequests = async (maxRetries: number = 3) => {
+  const currentTime = Date.now();
+  const failedItems = Object.entries(productInfoCache)
+    .filter(([_, entry]) => entry.failed && entry.retryAt && entry.retryAt <= currentTime)
+    .map(([nmId]) => Number(nmId));
+  
+  if (failedItems.length > 0) {
+    console.log(`🔄 Автоматическая повторная попытка загрузки ${failedItems.length} товаров с ошибками`);
+    
+    // Ограничиваем количество одновременных запросов
+    const maxConcurrent = Math.min(3, failedItems.length);
+    let processed = 0;
+    
+    while (processed < failedItems.length) {
+      // Выбираем до maxConcurrent элементов для параллельной загрузки
+      const batch = failedItems.slice(processed, processed + maxConcurrent);
+      processed += batch.length;
+      
+      // Запускаем параллельные запросы
+      await Promise.all(batch.map(nmId => getProductCardInfo(nmId)));
+      
+      // Если есть еще элементы для загрузки, добавляем паузу между батчами
+      if (processed < failedItems.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+};
+
+// Экспортируем функции для проверки состояния кэша
+export const getProductCacheStats = () => {
+  const allEntries = Object.keys(productInfoCache).length;
+  const failedEntries = Object.values(productInfoCache).filter(entry => entry.failed).length;
+  const inSupplyEntries = Object.values(productInfoCache).filter(entry => entry.inSupply).length;
+  
+  return {
+    total: allEntries,
+    success: allEntries - failedEntries,
+    failed: failedEntries,
+    inSupply: inSupplyEntries
+  };
 };

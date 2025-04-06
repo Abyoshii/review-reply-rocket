@@ -1,14 +1,15 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Box, Loader2, RefreshCw, ImageOff, Droplets, Shirt, Paperclip } from "lucide-react";
+import { Box, Loader2, RefreshCw, ImageOff, Droplets, Shirt, Paperclip, AlertTriangle } from "lucide-react";
 import { AssemblyOrder, ProductCategory, SortConfig } from "@/types/wb";
 import { formatTimeAgo, formatPrice } from "@/lib/utils/formatUtils";
+import { retryLoadProductInfo, retryFailedProductInfoRequests } from "@/lib/utils/productUtils";
 
 interface OrdersTableProps {
   filteredOrders: AssemblyOrder[];
@@ -31,6 +32,15 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   sortConfig,
   handleSort
 }) => {
+  // Настраиваем автоматическую повторную загрузку неудачных запросов каждые 10 секунд
+  useEffect(() => {
+    const interval = setInterval(() => {
+      retryFailedProductInfoRequests(2); // Максимум 2 попытки за раз
+    }, 10000); // Проверяем каждые 10 секунд
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const getCategoryDisplay = (category?: ProductCategory) => {
     if (!category) return {
       icon: <Paperclip className="h-4 w-4" />,
@@ -72,6 +82,13 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
       default:
         return <Badge variant="outline">Неизвестно</Badge>;
     }
+  };
+
+  // Функция для повторной загрузки данных товара
+  const handleRetryProductInfo = async (nmId: number) => {
+    if (!nmId) return;
+    
+    await retryLoadProductInfo(nmId);
   };
 
   return (
@@ -149,7 +166,27 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                         <AvatarImage src={order.productInfo.image} alt={order.productInfo.name} className="object-contain" />
                       ) : (
                         <AvatarFallback className="rounded-md bg-muted">
-                          <ImageOff className="h-4 w-4 text-muted-foreground" />
+                          {order.nmId ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => handleRetryProductInfo(order.nmId!)}
+                                  >
+                                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Не удалось загрузить информацию о товаре</p>
+                                  <p className="text-xs">Нажмите для повтора</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <ImageOff className="h-4 w-4 text-muted-foreground" />
+                          )}
                         </AvatarFallback>
                       )}
                     </Avatar>
@@ -159,7 +196,9 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                           <TooltipTrigger asChild>
                             <div className="text-left font-medium text-sm truncate w-full cursor-default">
                               {order.productInfo?.name || (
-                                <span className="italic text-muted-foreground">Данные недоступны</span>
+                                <span className="italic text-muted-foreground">
+                                  {order.nmId ? "Загрузка данных..." : "Данные недоступны"}
+                                </span>
                               )}
                             </div>
                           </TooltipTrigger>
@@ -183,8 +222,20 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                                   </p>
                                 )}
                               </>
+                            ) : order.nmId ? (
+                              <>
+                                <p>Информация о товаре загружается</p>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="mt-2" 
+                                  onClick={() => handleRetryProductInfo(order.nmId!)}
+                                >
+                                  <RefreshCw className="h-3 w-3 mr-1" /> Загрузить сейчас
+                                </Button>
+                              </>
                             ) : (
-                              <p>Информация о товаре не найдена</p>
+                              <p>Информация о товаре недоступна</p>
                             )}
                           </TooltipContent>
                         </Tooltip>
@@ -195,7 +246,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                         </span>
                       ) : (
                         <span className="text-xs italic text-muted-foreground">
-                          Нет данных о бренде
+                          {order.nmId ? "Загрузка информации..." : "Нет данных о бренде"}
                         </span>
                       )}
                     </div>
