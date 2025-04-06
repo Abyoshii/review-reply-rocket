@@ -8,9 +8,9 @@ export interface ReviewsTableProps {
   reviews: any[];
   loading: boolean;
   onRefresh: () => void;
-  selectedReviews?: any[];  // Added missing prop
-  onSelectReview?: (reviewId: number, isSelected: boolean) => void;  // Added missing prop
-  onSelectAll?: (ids: number[]) => void;  // Added missing prop
+  selectedReviews?: any[];  
+  onSelectReview?: (reviewId: number, isSelected: boolean) => void;  
+  onSelectAll?: (ids: number[]) => void;  
 }
 
 const ReviewsTable: React.FC<ReviewsTableProps> = ({ 
@@ -31,6 +31,18 @@ const ReviewsTable: React.FC<ReviewsTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px] text-center">
+                <Checkbox 
+                  checked={reviews.length > 0 && selectedReviews.length === reviews.length}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      onSelectAll(reviews.map(review => review.id));
+                    } else {
+                      onSelectAll([]);
+                    }
+                  }}
+                />
+              </TableHead>
               <TableHead>Дата</TableHead>
               <TableHead>Товар</TableHead>
               <TableHead>Вопрос</TableHead>
@@ -40,11 +52,17 @@ const ReviewsTable: React.FC<ReviewsTableProps> = ({
           <TableBody>
             {reviews.map((review, index) => (
               <TableRow key={index}>
+                <TableCell className="text-center">
+                  <Checkbox 
+                    checked={selectedReviews.includes(review.id)}
+                    onCheckedChange={(checked) => onSelectReview(review.id, !!checked)}
+                  />
+                </TableCell>
                 <TableCell>{review.date || "Н/Д"}</TableCell>
                 <TableCell>{review.productName || "Н/Д"}</TableCell>
                 <TableCell>{review.question || "Н/Д"}</TableCell>
                 <TableCell>
-                  <Button size="sm">Ответить</Button>
+                  <Button size="sm" onClick={onRefresh}>Ответить</Button>
                 </TableCell>
               </TableRow>
             ))}
