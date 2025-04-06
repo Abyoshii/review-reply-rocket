@@ -1,12 +1,14 @@
 
 import React from 'react';
-import Header, { HeaderProps } from './Header';
-import { Sidebar } from './ui/sidebar';
+import Header from './Header';
 import AppSidebar from './AppSidebar';
 
-// Создаем интерфейс для Layout, который наследует все пропсы от Header
-interface LayoutProps extends HeaderProps {
+// Интерфейс для Layout
+interface LayoutProps {
   children: React.ReactNode;
+  unansweredCount?: number;
+  unansweredQuestionsCount?: number;
+  onRefresh?: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
