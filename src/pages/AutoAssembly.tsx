@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +13,12 @@ import { getApiToken, getHeaderName, isTokenValid } from "@/lib/securityUtils";
 import { logAuthStatus, logError } from "@/lib/logUtils";
 import TokenDiagnostics from "@/components/TokenDiagnostics";
 import { getProductCacheStats, clearProductInfoCache, markProductAsInSupply } from "@/lib/utils/productUtils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Импорт компонентов
 import OrdersTable from "@/components/autoAssembly/OrdersTable";
