@@ -47,8 +47,6 @@ export interface WbReview {
     supplierName: string;
     brandName: string;
     size: string;
-    image?: string; 
-    category?: string; 
   };
   wasViewed?: boolean;
   userName?: string;
@@ -179,68 +177,13 @@ export interface WbQuestionAnswerResponse {
   };
 }
 
-// Новые типы для работы с поставками
-export interface Supply {
-  id: number;
-  name: string;
-  createdAt: string;
-  done: boolean;
-  scanDt?: string;
-  status: string;
-  supplyId: string;
-  ordersCount: number;
-  cargoType?: number;
-  category?: ProductCategory;
-}
-
-export interface SupplyOrder {
-  id: number;
-  supplierArticle: string;
-  nmId: number;
-  chrtId: number;
-  barcode: string;
-  quantity: number;
-  rid: string;
-  price: number;
-  salePrice: number;
-  convertedPrice: number;
-  convertedSalePrice: number;
-  isSupply: boolean;
-  isReturn: boolean;
-  cargoType: number;
-  isLargeCargo?: boolean;
-}
-
-// Типы для коробов
-export interface TrbxBox {
-  id: string;
-  name: string;
-  supplyId: number;
-  createdAt: string;
-  orders: TrbxOrder[];
-}
-
-export interface TrbxOrder {
-  id: number;
-  rid: string;
-}
-
-// Типы для работы с Автосборкой
+// Новые типы для работы с Автосборкой
 
 // Тип товара для категоризации
 export enum ProductCategory {
   PERFUME = "Парфюмерия",
   CLOTHING = "Одежда",
   MISC = "Мелочёвка"
-}
-
-// Новый тип для информации о товаре из карточки
-export interface ProductCardInfo {
-  nmId: number;
-  name: string;
-  brand: string;
-  image: string;
-  category?: string; // Добавляем поле для категории товара
 }
 
 // Типы для заказов автосборки
@@ -258,8 +201,6 @@ export interface AssemblyOrder {
   selected?: boolean;
   category?: ProductCategory;
   inSupply?: boolean;
-  nmId?: number;  // Добавлен nmId для связи с данными карточки товара
-  productInfo?: ProductCardInfo;  // Информация о товаре из карточки
 }
 
 // Фильтры
@@ -271,6 +212,16 @@ export interface WarehouseFilter {
 export interface CargoTypeFilter {
   id: number;
   name: string;
+}
+
+// Поставка
+export interface Supply {
+  id: number;
+  name: string;
+  createdAt: string;
+  status: "new" | "in_delivery" | "delivered" | "cancelled";
+  category: ProductCategory;
+  ordersCount: number;
 }
 
 // API запросы для поставок
@@ -319,23 +270,4 @@ export interface AutoAssemblyResult {
   perfumeSupplyId?: number;
   clothingSupplyId?: number;
   miscSupplyId?: number;
-}
-
-// Интерфейс для ответа API карточки товара
-export interface ProductCardResponse {
-  data: {
-    products: ProductCardData[];
-  };
-}
-
-export interface ProductCardData {
-  id: number;
-  name: string;
-  brand: string;
-  brandId: number;
-  images: string[];
-  subjectName?: string; // Категория товара
-  subject?: string; // Альтернативное поле для категории товара
-  category?: string; // Дополнительное поле для категории
-  // другие поля из API карточки товара...
 }

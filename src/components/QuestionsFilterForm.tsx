@@ -50,7 +50,9 @@ const QuestionsFilterForm = ({ onFilterChange, loading }: QuestionsFilterFormPro
 
   // Handle take value change
   const handleTakeChange = (value: string) => {
-    form.setValue("take", parseInt(value));
+    if (value) { // Guard against empty string values
+      form.setValue("take", parseInt(value));
+    }
   };
   
   // Handle date range change

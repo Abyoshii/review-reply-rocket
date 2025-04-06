@@ -1,842 +1,880 @@
-import { useState, useEffect, useMemo } from "react";
+
+import React, { useState, useEffect } from "react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Truck, Box, Filter, Search, ArrowDownWideNarrow, CheckCheck, Loader2, RefreshCw, Droplets, Shirt, Paperclip, Edit, Download, Send, Trash2, Image, ImageOff } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply } from "@/types/wb";
-import { AutoAssemblyAPI, determineProductCategory, formatTimeAgo } from "@/lib/autoAssemblyApi";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { logObjectStructure } from "@/lib/imageUtils";
-import { SuppliesAPI } from "@/lib/suppliesApi";
-import { useNavigate } from "react-router-dom";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "@/hooks/use-toast";
+import { Package, Search, RefreshCw, Droplets, ShirtIcon, Paperclip, ChevronDown, PenLine, Truck, Ticket, Trash } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { autoAssemblyApi } from "@/lib/autoAssemblyApi";
 
+// Типы для данных
+interface Order {
+  id: string;
+  orderId: string;
+  article: string;
+  name: string;
+  barcode: string;
+  count: number;
+  date: string;
+  warehouse: string;
+  cargoType: string;
+  category?: "Парфюмерия" | "Одежда" | "Мелочёвка";
+}
+
+interface Supply {
+  id: string;
+  name: string;
+  count: number;
+  date: string;
+  category: string;
+  orders: Order[];
+}
+
+// Функция определения категории товара по названию
+const detectCategory = (name: string): "Парфюмерия" | "Одежда" | "Мелочёвка" => {
+  const perfumeKeywords = ["духи", "туалетная вода", "парфюмерная вода", "аромат", "eau de parfum", "eau de toilette"];
+  const clothingKeywords = ["куртка", "брюки", "спортивные", "платье", "футболка", "джинсы", "шорты", "юбка", "бейсболка", "толстовка", "жилет"];
+  
+  const nameLower = name.toLowerCase();
+  
+  if (perfumeKeywords.some(keyword => nameLower.includes(keyword))) {
+    return "Парфюмерия";
+  }
+  
+  if (clothingKeywords.some(keyword => nameLower.includes(keyword))) {
+    return "Одежда";
+  }
+  
+  return "Мелочёвка";
+};
+
+// Главный компонент
 const AutoAssembly = () => {
-  const navigate = useNavigate();
+  // Состояния
   const [activeTab, setActiveTab] = useState("orders");
-  const [isLoading, setIsLoading] = useState(true);
-  const [orders, setOrders] = useState<AssemblyOrder[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [supplies, setSupplies] = useState<Supply[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<AssemblyOrder[]>([]);
-  const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set());
-  const [warehouses, setWarehouses] = useState<WarehouseFilter[]>([]);
-  const [cargoTypes, setCargoTypes] = useState<CargoTypeFilter[]>([]);
-  const [filters, setFilters] = useState({
-    warehouse: '',
-    cargoType: '',
-    search: '',
-    sortBy: 'createdAt',
-    sortDirection: 'desc' as 'asc' | 'desc',
-    category: ''
-  });
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isAutoAssembling, setIsAutoAssembling] = useState(false);
-  const [showResultDialog, setShowResultDialog] = useState(false);
-  const [autoAssemblyResult, setAutoAssemblyResult] = useState<{
-    success: boolean;
-    perfumeCount: number;
-    clothingCount: number;
-    miscCount: number;
-    perfumeSupplyId?: number;
-    clothingSupplyId?: number;
-    miscSupplyId?: number;
+  const [selectedWarehouse, setSelectedWarehouse] = useState("all");
+  const [selectedCargoType, setSelectedCargoType] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("date");
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [showCreateSupplyModal, setShowCreateSupplyModal] = useState(false);
+  const [newSupplyName, setNewSupplyName] = useState("");
+  const [currentSupply, setCurrentSupply] = useState<Supply | null>(null);
+  const [showSupplyDetailsModal, setShowSupplyDetailsModal] = useState(false);
+  const [showAutoCreateDialog, setShowAutoCreateDialog] = useState(false);
+  const [autoCreateResult, setAutoCreateResult] = useState<{
+    perfume: number;
+    clothing: number;
+    other: number;
   } | null>(null);
-
-  const loadData = async () => {
+  const [editSupplyId, setEditSupplyId] = useState<string | null>(null);
+  const [editSupplyName, setEditSupplyName] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [supplyToDelete, setSupplyToDelete] = useState<string | null>(null);
+  
+  // Загрузка данных
+  useEffect(() => {
+    fetchOrders();
+    fetchSupplies();
+  }, []);
+  
+  // Получение заказов
+  const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const newOrders = await AutoAssemblyAPI.getNewOrders();
-      console.log("Loaded orders:", newOrders);
-      setOrders(newOrders);
-      setFilteredOrders(newOrders);
-      setWarehouses([{
-        id: 1,
-        name: "Коледино"
-      }, {
-        id: 2,
-        name: "Электросталь"
-      }, {
-        id: 3,
-        name: "Санкт-Петербург"
-      }, {
-        id: 4,
-        name: "Казань"
-      }, {
-        id: 5,
-        name: "Краснодар"
-      }]);
-      setCargoTypes([{
-        id: 0,
-        name: "Обычный"
-      }, {
-        id: 1,
-        name: "Крупногабаритный"
-      }, {
-        id: 2,
-        name: "Тяжеловесный"
-      }]);
-      
-      const suppliesList = await SuppliesAPI.getSupplies();
-      console.log("Loaded supplies:", suppliesList);
-      setSupplies(suppliesList.supplies || []);
+      const data = await autoAssemblyApi.getOrders();
+      // Добавляем категорию к каждому заказу
+      const processedOrders = data.map((order: Order) => ({
+        ...order,
+        category: detectCategory(order.name)
+      }));
+      setOrders(processedOrders);
     } catch (error) {
-      console.error("Ошибка загрузки данных:", error);
-      toast.error("Не удалось загрузить данные по сборочным заданиям");
+      console.error("Failed to fetch orders:", error);
+      toast({
+        title: "Ошибка загрузки заданий",
+        description: "Не удалось загрузить сборочные задания",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    let result = [...orders];
-    if (filters.warehouse) {
-      const warehouseId = parseInt(filters.warehouse);
-      result = result.filter(order => order.warehouseId === warehouseId);
-    }
-    if (filters.cargoType) {
-      const cargoType = parseInt(filters.cargoType);
-      result = result.filter(order => order.cargoType === cargoType);
-    }
-    if (filters.category) {
-      result = result.filter(order => order.category === filters.category);
-    }
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      result = result.filter(order => order.productName.toLowerCase().includes(searchLower) || order.orderUid.toLowerCase().includes(searchLower) || order.supplierArticle && order.supplierArticle.toLowerCase().includes(searchLower));
-    }
-    result.sort((a, b) => {
-      let compareA, compareB;
-      switch (filters.sortBy) {
-        case 'createdAt':
-          compareA = new Date(a.createdAt).getTime();
-          compareB = new Date(b.createdAt).getTime();
-          break;
-        case 'price':
-          compareA = a.salePrice;
-          compareB = b.salePrice;
-          break;
-        case 'ddate':
-          compareA = new Date(a.ddate).getTime();
-          compareB = new Date(b.ddate).getTime();
-          break;
-        case 'name':
-          compareA = a.productName;
-          compareB = b.productName;
-          break;
-        case 'category':
-          compareA = a.category || '';
-          compareB = b.category || '';
-          break;
-        default:
-          compareA = a.id;
-          compareB = b.id;
-      }
-      if (typeof compareA === 'string' && typeof compareB === 'string') {
-        return filters.sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
-      }
-      return filters.sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
-    });
-    setFilteredOrders(result);
-  }, [filters, orders]);
-
-  const handleFilterChange = (field: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const toggleOrderSelection = (orderId: number) => {
-    const newSelectedOrders = new Set(selectedOrders);
-    if (selectedOrders.has(orderId)) {
-      newSelectedOrders.delete(orderId);
-    } else {
-      newSelectedOrders.add(orderId);
-    }
-    setSelectedOrders(newSelectedOrders);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedOrders.size === filteredOrders.length) {
-      setSelectedOrders(new Set());
-    } else {
-      setSelectedOrders(new Set(filteredOrders.map(order => order.id)));
-    }
-  };
-
-  const handleAssembleOrders = async () => {
-    if (selectedOrders.size === 0) {
-      toast.error("Выберите хотя бы одно сборочное задание");
-      return;
-    }
-    setIsProcessing(true);
+  
+  // Получение поставок
+  const fetchSupplies = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success(`Создана поставка с ${selectedOrders.size} сборочными заданиями`);
-      const updatedOrders = orders.map(order => {
-        if (selectedOrders.has(order.id)) {
-          return {
-            ...order,
-            inSupply: true
-          };
-        }
-        return order;
+      const data = await autoAssemblyApi.getSupplies();
+      setSupplies(data);
+    } catch (error) {
+      console.error("Failed to fetch supplies:", error);
+      toast({
+        title: "Ошибка загрузки поставок",
+        description: "Не удалось загрузить список поставок",
+        variant: "destructive"
       });
-      setOrders(updatedOrders);
-      setSelectedOrders(new Set());
-    } catch (error) {
-      console.error("Ошибка создания поставки:", error);
-      toast.error("Не удалось создать поставку");
-    } finally {
-      setIsProcessing(false);
     }
   };
-
-  const handleAutoAssemble = async () => {
-    const availableOrders = orders.filter(order => !order.inSupply);
-    if (availableOrders.length === 0) {
-      toast.error("Нет доступных заказов для автосборки");
+  
+  // Фильтрация заказов
+  const filteredOrders = orders.filter(order => {
+    // Фильтр по складу
+    if (selectedWarehouse !== "all" && order.warehouse !== selectedWarehouse) {
+      return false;
+    }
+    
+    // Фильтр по типу груза
+    if (selectedCargoType !== "all" && order.cargoType !== selectedCargoType) {
+      return false;
+    }
+    
+    // Фильтр по категории
+    if (selectedCategory !== "all" && order.category !== selectedCategory) {
+      return false;
+    }
+    
+    // Поиск по ID или артикулу
+    if (searchQuery && 
+        !order.orderId.toLowerCase().includes(searchQuery.toLowerCase()) && 
+        !order.article.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  // Сортировка заказов
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    switch (sortBy) {
+      case "date":
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      case "name":
+        return a.name.localeCompare(b.name);
+      case "category":
+        return (a.category || "").localeCompare(b.category || "");
+      default:
+        return 0;
+    }
+  });
+  
+  // Создание поставки
+  const createSupply = async () => {
+    if (!newSupplyName.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Название поставки не может быть пустым",
+        variant: "destructive"
+      });
       return;
     }
-    setIsAutoAssembling(true);
+    
     try {
-      const result = await AutoAssemblyAPI.createCategorizedSupplies(availableOrders);
-      if (result.success) {
-        const updatedOrders = orders.map(order => {
-          const category = order.category;
-          let shouldBeInSupply = false;
-          if (category === ProductCategory.PERFUME && result.perfumeSupplyId) {
-            shouldBeInSupply = true;
-          } else if (category === ProductCategory.CLOTHING && result.clothingSupplyId) {
-            shouldBeInSupply = true;
-          } else if (category === ProductCategory.MISC && result.miscSupplyId) {
-            shouldBeInSupply = true;
-          }
-          if (shouldBeInSupply) {
-            return {
-              ...order,
-              inSupply: true
-            };
-          }
-          return order;
+      const supply = await autoAssemblyApi.createSupply({ name: newSupplyName });
+      
+      // Добавление выбранных заказов в поставку
+      await Promise.all(selectedOrders.map(orderId => 
+        autoAssemblyApi.addOrderToSupply(supply.id, orderId)
+      ));
+      
+      toast({
+        title: "Поставка создана",
+        description: `Поставка "${newSupplyName}" успешно создана с ${selectedOrders.length} товарами`
+      });
+      
+      // Обновляем списки
+      fetchOrders();
+      fetchSupplies();
+      
+      // Сбрасываем состояние
+      setSelectedOrders([]);
+      setNewSupplyName("");
+      setShowCreateSupplyModal(false);
+    } catch (error) {
+      console.error("Failed to create supply:", error);
+      toast({
+        title: "Ошибка создания поставки",
+        description: "Не удалось создать поставку",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Автоматическое создание поставок по категориям
+  const autoCreateSupplies = async () => {
+    try {
+      const date = new Date().toLocaleDateString('ru-RU');
+      
+      // Группируем заказы по категориям
+      const perfumeOrders = orders.filter(order => order.category === "Парфюмерия").map(order => order.id);
+      const clothingOrders = orders.filter(order => order.category === "Одежда").map(order => order.id);
+      const otherOrders = orders.filter(order => order.category === "Мелочёвка").map(order => order.id);
+      
+      const results = {
+        perfume: perfumeOrders.length,
+        clothing: clothingOrders.length,
+        other: otherOrders.length
+      };
+      
+      // Создаем поставки для каждой категории
+      if (perfumeOrders.length > 0) {
+        const perfumeSupply = await autoAssemblyApi.createSupply({ 
+          name: `Поставка: Парфюмерия – ${date}` 
         });
-        setOrders(updatedOrders);
-        setAutoAssemblyResult(result);
-        setShowResultDialog(true);
-        if (!result.perfumeSupplyId && !result.clothingSupplyId && !result.miscSupplyId) {
-          toast.error("Не удалось создать ни одной поставки");
-        }
-      } else {
-        toast.error("Ошибка при автоматическом формировании поставок");
+        
+        await Promise.all(perfumeOrders.map(orderId => 
+          autoAssemblyApi.addOrderToSupply(perfumeSupply.id, orderId)
+        ));
       }
+      
+      if (clothingOrders.length > 0) {
+        const clothingSupply = await autoAssemblyApi.createSupply({ 
+          name: `Поставка: Одежда – ${date}` 
+        });
+        
+        await Promise.all(clothingOrders.map(orderId => 
+          autoAssemblyApi.addOrderToSupply(clothingSupply.id, orderId)
+        ));
+      }
+      
+      if (otherOrders.length > 0) {
+        const otherSupply = await autoAssemblyApi.createSupply({ 
+          name: `Поставка: Мелочёвка – ${date}` 
+        });
+        
+        await Promise.all(otherOrders.map(orderId => 
+          autoAssemblyApi.addOrderToSupply(otherSupply.id, orderId)
+        ));
+      }
+      
+      // Обновляем данные и показываем результат
+      fetchOrders();
+      fetchSupplies();
+      setAutoCreateResult(results);
+      setShowAutoCreateDialog(false);
+      
+      toast({
+        title: "Поставки созданы",
+        description: `Создано: Парфюмерия (${results.perfume}), Одежда (${results.clothing}), Мелочёвка (${results.other})`,
+      });
     } catch (error) {
-      console.error("Ошибка автосборки:", error);
-      toast.error("Произошла ошибка при автоматическом формировании поставок");
-    } finally {
-      setIsAutoAssembling(false);
+      console.error("Failed to auto-create supplies:", error);
+      toast({
+        title: "Ошибка создания поставок",
+        description: "Не удалось автоматически создать поставки",
+        variant: "destructive"
+      });
+      setShowAutoCreateDialog(false);
     }
   };
-
-  const handleRefreshOrders = async () => {
-    await loadData();
-    toast.success("Список заданий обновлен");
+  
+  // Обработка выбора заказа
+  const handleOrderSelect = (orderId: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedOrders([...selectedOrders, orderId]);
+    } else {
+      setSelectedOrders(selectedOrders.filter(id => id !== orderId));
+    }
   };
-
-  const handleCancelOrder = async (orderId: number) => {
+  
+  // Выбор всех отфильтрованных заказов
+  const handleSelectAll = (isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedOrders(sortedOrders.map(order => order.id));
+    } else {
+      setSelectedOrders([]);
+    }
+  };
+  
+  // Просмотр деталей поставки
+  const viewSupplyDetails = (supply: Supply) => {
+    setCurrentSupply(supply);
+    setShowSupplyDetailsModal(true);
+  };
+  
+  // Редактирование названия поставки
+  const startEditSupply = (supplyId: string, currentName: string) => {
+    setEditSupplyId(supplyId);
+    setEditSupplyName(currentName);
+  };
+  
+  const saveSupplyName = async () => {
+    if (!editSupplyId || !editSupplyName.trim()) return;
+    
     try {
-      const success = await AutoAssemblyAPI.cancelOrder(orderId);
-      if (success) {
-        setOrders(orders.filter(order => order.id !== orderId));
-        setFilteredOrders(filteredOrders.filter(order => order.id !== orderId));
-        toast.success(`Заказ ${orderId} успешно отменен`);
-      }
+      await autoAssemblyApi.updateSupply(editSupplyId, { name: editSupplyName });
+      toast({
+        title: "Название обновлено",
+        description: "Название поставки успешно обновлено"
+      });
+      fetchSupplies();
+      setEditSupplyId(null);
     } catch (error) {
-      console.error(`Ошибка при отмене заказа ${orderId}:`, error);
-      toast.error(`Не удалось отменить заказ ${orderId}`);
+      console.error("Failed to update supply name:", error);
+      toast({
+        title: "Ошибка обновления",
+        description: "Не удалось обновить название поставки",
+        variant: "destructive"
+      });
     }
   };
-
-  const handlePrintStickers = async () => {
-    if (selectedOrders.size === 0) {
-      toast.error("Выберите хотя бы одно сборочное задание");
-      return;
-    }
-    setIsProcessing(true);
+  
+  // Удаление поставки
+  const confirmDeleteSupply = (supplyId: string) => {
+    setSupplyToDelete(supplyId);
+    setShowDeleteConfirm(true);
+  };
+  
+  const deleteSupply = async () => {
+    if (!supplyToDelete) return;
+    
     try {
-      const orderIds = Array.from(selectedOrders);
-      const downloadUrl = await AutoAssemblyAPI.printStickers(orderIds);
-      if (downloadUrl) {
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `stickers_${new Date().toISOString().slice(0, 10)}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success(`Стикеры для ${selectedOrders.size} заказов созданы`);
-      } else {
-        toast.error("Не удалось создать стикеры");
-      }
+      await autoAssemblyApi.deleteSupply(supplyToDelete);
+      toast({
+        title: "Поставка удалена",
+        description: "Поставка успешно удалена"
+      });
+      fetchSupplies();
+      fetchOrders(); // Обновляем и заказы, так как они могут быть освобождены
+      setShowDeleteConfirm(false);
+      setSupplyToDelete(null);
     } catch (error) {
-      console.error("Ошибка при создании стикеров:", error);
-      toast.error("Произошла ошибка при создании стикеров");
-    } finally {
-      setIsProcessing(false);
+      console.error("Failed to delete supply:", error);
+      toast({
+        title: "Ошибка удаления",
+        description: "Не удалось удалить поставку",
+        variant: "destructive"
+      });
     }
   };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const formatPrice = (price: number): string => {
-    return (price / 100).toFixed(2);
-  };
-
-  const getCategoryDisplay = (category?: ProductCategory) => {
+  
+  // Функция получения иконки для категории
+  const getCategoryIcon = (category: string) => {
     switch (category) {
-      case ProductCategory.PERFUME:
-        return {
-          icon: <Droplets className="h-4 w-4" />,
-          badge: <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300 flex items-center gap-1">
-                  <Droplets className="h-3 w-3" /> {category}
-                </Badge>
-        };
-      case ProductCategory.CLOTHING:
-        return {
-          icon: <Shirt className="h-4 w-4" />,
-          badge: <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 flex items-center gap-1">
-                  <Shirt className="h-3 w-3" /> {category}
-                </Badge>
-        };
-      case ProductCategory.MISC:
+      case "Парфюмерия":
+        return <Droplets className="h-4 w-4" />;
+      case "Одежда":
+        return <ShirtIcon className="h-4 w-4" />;
+      case "Мелочёвка":
+        return <Paperclip className="h-4 w-4" />;
       default:
-        return {
-          icon: <Paperclip className="h-4 w-4" />,
-          badge: <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-300 flex items-center gap-1">
-                  <Paperclip className="h-3 w-3" /> {category || "Мелочёвка"}
-                </Badge>
-        };
+        return <Package className="h-4 w-4" />;
     }
   };
-
-  const renderCargoTypeBadge = (cargoType: number) => {
-    const type = cargoTypes.find(t => t.id === cargoType);
-    switch (cargoType) {
-      case 0:
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
-          {type?.name || "Обычный"}
-        </Badge>;
-      case 1:
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
-          {type?.name || "Крупногабаритный"}
-        </Badge>;
-      case 2:
-        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
-          {type?.name || "Тяжеловесный"}
-        </Badge>;
+  
+  // Функция получения цвета для бейджа категории
+  const getCategoryBadgeVariant = (category: string): "default" | "destructive" | "secondary" | "outline" => {
+    switch (category) {
+      case "Парфюмерия":
+        return "secondary"; // фиолетовый цвет заменен на secondary
+      case "Одежда":
+        return "secondary"; // зеленый цвет заменен на secondary
+      case "Мелочёвка":
       default:
-        return <Badge variant="outline">Неизвестно</Badge>;
-    }
-  };
-
-  const filteredSupplies = useMemo(() => {
-    return supplies;
-  }, [supplies]);
-
-  const deliverSupply = async (supplyId: number) => {
-    const success = await SuppliesAPI.deliverSupply(supplyId);
-    if (success) {
-      await loadData();
-    }
-  };
-
-  const getSupplyBarcode = async (supplyId: number) => {
-    const url = await SuppliesAPI.getSupplyBarcode(supplyId);
-    if (url) {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `qrcode_${supplyId}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        return "outline";
     }
   };
 
   return (
-    <div className="container mx-auto py-6 max-w-7xl">
-      <div className="flex flex-wrap justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Автосборка</h1>
-          <p className="text-muted-foreground">
-            Управление сборочными заданиями и создание поставок
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="border-dashed" onClick={handleRefreshOrders} disabled={isLoading}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Обновить задания
-          </Button>
-          
-          <Button variant="purple" size="lg" onClick={handleAutoAssemble} disabled={isLoading || isAutoAssembling}>
-            {isAutoAssembling ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Формирование поставок...
-              </>
-            ) : (
-              <>
-                <Package className="mr-2 h-4 w-4" />
-                Автосформировать поставки
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Автосборка</h1>
       
-      <Dialog open={showResultDialog} onOpenChange={setShowResultDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Поставки сформированы</DialogTitle>
-            <DialogDescription>
-              Автоматическое формирование поставок завершено
-            </DialogDescription>
-          </DialogHeader>
-          
-          {autoAssemblyResult && (
-            <div className="py-4 space-y-4">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center">
-                  <Droplets className="text-purple-500 h-5 w-5 mr-2" />
-                  <span className="font-medium">Парфюмерия:</span>
-                  <span className="ml-2">{autoAssemblyResult.perfumeCount} товаров</span>
-                  {autoAssemblyResult.perfumeSupplyId && <Badge variant="outline" className="ml-2 bg-green-50 text-green-700">Создана</Badge>}
-                </div>
-                
-                <div className="flex items-center">
-                  <Shirt className="text-green-500 h-5 w-5 mr-2" />
-                  <span className="font-medium">Одежда:</span>
-                  <span className="ml-2">{autoAssemblyResult.clothingCount} товаров</span>
-                  {autoAssemblyResult.clothingSupplyId && <Badge variant="outline" className="ml-2 bg-green-50 text-green-700">Создана</Badge>}
-                </div>
-                
-                <div className="flex items-center">
-                  <Paperclip className="text-gray-500 h-5 w-5 mr-2" />
-                  <span className="font-medium">Мелочёвка:</span>
-                  <span className="ml-2">{autoAssemblyResult.miscCount} товаров</span>
-                  {autoAssemblyResult.miscSupplyId && <Badge variant="outline" className="ml-2 bg-green-50 text-green-700">Создана</Badge>}
-                </div>
-              </div>
-              
-              <p className="text-sm text-muted-foreground">
-                Поставки созданы и готовы к дальнейшей обработке. Вы можете просмотреть их на вкладке "Поставки".
-              </p>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button onClick={() => setShowResultDialog(false)}>Закрыть</Button>
-            <Button 
-              onClick={() => {
-                setShowResultDialog(false);
-                setActiveTab("supplies");
-              }} 
-              variant="outline"
-            >
-              Перейти к поставкам
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Tabs defaultValue="orders" value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList>
-          <TabsTrigger value="orders">
-            <Box className="mr-2 h-4 w-4" />
-            Сборочные задания
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4 overflow-x-auto flex w-auto">
+          <TabsTrigger value="orders" className="flex items-center gap-1">
+            <Package className="w-4 h-4" />
+            <span>Сборочные задания</span>
           </TabsTrigger>
-          <TabsTrigger value="supplies">
-            <Truck className="mr-2 h-4 w-4" />
-            Поставки
+          <TabsTrigger value="supplies" className="flex items-center gap-1">
+            <Package className="w-4 h-4" />
+            <span>Поставки</span>
           </TabsTrigger>
         </TabsList>
         
+        {/* Вкладка со сборочными заданиями */}
         <TabsContent value="orders" className="space-y-4">
+          {/* Фильтры */}
+          <div className="flex flex-col md:flex-row gap-2 mb-4 flex-wrap">
+            <div className="w-full md:w-auto">
+              <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Выберите склад" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все склады</SelectItem>
+                  <SelectItem value="Moscow">Москва</SelectItem>
+                  <SelectItem value="SPb">Санкт-Петербург</SelectItem>
+                  <SelectItem value="Kazan">Казань</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="w-full md:w-auto">
+              <Select value={selectedCargoType} onValueChange={setSelectedCargoType}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Тип груза" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все типы</SelectItem>
+                  <SelectItem value="standard">Обычный</SelectItem>
+                  <SelectItem value="large">Крупногабарит</SelectItem>
+                  <SelectItem value="heavy">Тяжеловес</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="w-full md:w-auto">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Тип товара" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все типы</SelectItem>
+                  <SelectItem value="Парфюмерия">Парфюмерия</SelectItem>
+                  <SelectItem value="Одежда">Одежда</SelectItem>
+                  <SelectItem value="Мелочёвка">Мелочёвка</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="w-full md:w-auto">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Сортировка" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">По дате</SelectItem>
+                  <SelectItem value="name">По наименованию</SelectItem>
+                  <SelectItem value="category">По категории</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="w-full md:flex-1">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  placeholder="Поиск по ID или артикулу"
+                  className="w-full pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              className="md:w-auto"
+              onClick={fetchOrders}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Обновить
+            </Button>
+            
+            <Button 
+              className="md:w-auto bg-purple-600 hover:bg-purple-700"
+              onClick={() => setShowAutoCreateDialog(true)}
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Автосформировать поставки
+            </Button>
+          </div>
+          
+          {/* Таблица заданий */}
           <Card>
-            <CardHeader>
-              <CardTitle>Фильтры</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Сборочные задания</CardTitle>
+              <CardDescription>
+                Всего: {sortedOrders.length} заданий {selectedOrders.length > 0 && `(выбрано: ${selectedOrders.length})`}
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div>
-                  <Label htmlFor="warehouse">Склад</Label>
-                  <Select value={filters.warehouse} onValueChange={value => handleFilterChange('warehouse', value)}>
-                    <SelectTrigger id="warehouse">
-                      <SelectValue placeholder="Все склады" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Все склады</SelectItem>
-                      {warehouses.map(warehouse => (
-                        <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                          {warehouse.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="cargoType">Тип груза</Label>
-                  <Select value={filters.cargoType} onValueChange={value => handleFilterChange('cargoType', value)}>
-                    <SelectTrigger id="cargoType">
-                      <SelectValue placeholder="Все типы" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Все типы</SelectItem>
-                      {cargoTypes.map(cargoType => (
-                        <SelectItem key={cargoType.id} value={cargoType.id.toString()}>
-                          {cargoType.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="category">Категория товара</Label>
-                  <Select value={filters.category} onValueChange={value => handleFilterChange('category', value)}>
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Все категории" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Все категории</SelectItem>
-                      <SelectItem value={ProductCategory.PERFUME}>
-                        <div className="flex items-center gap-2">
-                          <Droplets className="h-4 w-4" />
-                          Парфюмерия
-                        </div>
-                      </SelectItem>
-                      <SelectItem value={ProductCategory.CLOTHING}>
-                        <div className="flex items-center gap-2">
-                          <Shirt className="h-4 w-4" />
-                          Одежда
-                        </div>
-                      </SelectItem>
-                      <SelectItem value={ProductCategory.MISC}>
-                        <div className="flex items-center gap-2">
-                          <Paperclip className="h-4 w-4" />
-                          Мелочёвка
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="sortBy">Сортировка</Label>
-                  <Select value={filters.sortBy} onValueChange={value => handleFilterChange('sortBy', value)}>
-                    <SelectTrigger id="sortBy">
-                      <SelectValue placeholder="Сортировка" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="createdAt">По дате создания</SelectItem>
-                      <SelectItem value="price">По цене</SelectItem>
-                      <SelectItem value="ddate">По сроку доставки</SelectItem>
-                      <SelectItem value="name">По наименованию</SelectItem>
-                      <SelectItem value="category">По категории</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="search">Поиск</Label>
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input id="search" placeholder="Артикул, номер заказа..." className="pl-8" value={filters.search} onChange={e => handleFilterChange('search', e.target.value)} />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between mt-4">
-                <div className="flex items-center space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setFilters({
-                      warehouse: '',
-                      cargoType: '',
-                      search: '',
-                      sortBy: 'createdAt',
-                      sortDirection: 'desc',
-                      category: ''
-                    })}
-                  >
-                    Сбросить фильтры
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Найдено: {filteredOrders.length}
-                  </span>
-                </div>
-                
-                <Button variant="outline" size="sm" onClick={() => handleFilterChange('sortDirection', filters.sortDirection === 'asc' ? 'desc' : 'asc')}>
-                  <ArrowDownWideNarrow className={`h-4 w-4 mr-1 ${filters.sortDirection === 'asc' ? 'rotate-180' : ''}`} />
-                  {filters.sortDirection === 'asc' ? 'По убыванию' : 'По возрастанию'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-0">
-              <div className="relative overflow-x-auto">
+              <div className="border rounded-md overflow-hidden">
                 <Table>
-                  <TableCaption>
-                    {isLoading ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Загрузка сборочных заданий...
-                      </div>
-                    ) : filteredOrders.length === 0 ? (
-                      "Нет доступных сборочных заданий"
-                    ) : (
-                      `Всего сборочных заданий: ${filteredOrders.length}`
-                    )}
-                  </TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">
-                        <Checkbox checked={selectedOrders.size > 0 && selectedOrders.size === filteredOrders.length} onCheckedChange={toggleSelectAll} />
+                      <TableHead className="w-[40px] text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={sortedOrders.length > 0 && selectedOrders.length === sortedOrders.length}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
                       </TableHead>
-                      <TableHead>Задание</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Артикул</TableHead>
-                      <TableHead className="w-[250px]">Наименование</TableHead>
-                      <TableHead className="hidden lg:table-cell">Создан</TableHead>
-                      <TableHead className="hidden md:table-cell">Доставка до</TableHead>
-                      {/* Скрываем склад, если warehouseId отсутствует */}
-                      {filteredOrders.some(order => order.warehouseId !== undefined) && (
-                        <TableHead className="hidden lg:table-cell">Склад</TableHead>
-                      )}
-                      <TableHead className="hidden md:table-cell">Категория</TableHead>
-                      <TableHead className="hidden sm:table-cell">Тип груза</TableHead>
-                      <TableHead>Цена</TableHead>
+                      <TableHead className="hidden md:table-cell">Наименование</TableHead>
+                      <TableHead className="hidden md:table-cell">Кол-во</TableHead>
+                      <TableHead>Категория</TableHead>
+                      <TableHead className="hidden md:table-cell">Склад</TableHead>
+                      <TableHead className="hidden md:table-cell">Тип груза</TableHead>
+                      <TableHead className="hidden md:table-cell">Дата</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={10} className="h-24 text-center">
-                          <div className="flex items-center justify-center">
-                            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                            Загрузка сборочных заданий...
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredOrders.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={10} className="h-24 text-center">
-                          <div className="flex flex-col items-center justify-center space-y-3">
-                            <Box className="h-12 w-12 text-muted-foreground/50" />
-                            <div>Нет сборочных заданий по заданным фильтрам</div>
-                            <Button variant="outline" onClick={handleRefreshOrders} className="mt-2">
-                              <RefreshCw className="mr-2 h-4 w-4" />
-                              Обновить данные
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredOrders.map(order => (
-                        <TableRow key={order.id} className="cursor-pointer">
-                          <TableCell>
-                            <Checkbox 
-                              checked={selectedOrders.has(order.id)} 
-                              onCheckedChange={() => toggleOrderSelection(order.id)} 
+                    {sortedOrders.length > 0 ? (
+                      sortedOrders.map(order => (
+                        <TableRow key={order.id}>
+                          <TableCell className="text-center">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedOrders.includes(order.id)}
+                              onChange={(e) => handleOrderSelect(order.id, e.target.checked)}
+                              className="rounded border-gray-300"
                             />
                           </TableCell>
-                          <TableCell>{order.id}</TableCell>
-                          <TableCell>{order.supplierArticle || "-"}</TableCell>
-                          <TableCell className="max-w-[250px]">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8 rounded-md">
-                                {order.productInfo?.image ? (
-                                  <AvatarImage src={order.productInfo.image} alt={order.productInfo.name} className="object-contain" />
-                                ) : (
-                                  <AvatarFallback className="rounded-md bg-muted">
-                                    <ImageOff className="h-4 w-4 text-muted-foreground" />
-                                  </AvatarFallback>
-                                )}
-                              </Avatar>
-                              <div className="flex flex-col w-full">
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="text-left font-medium text-sm truncate w-full cursor-default">
-                                        {order.productInfo?.name || order.productName || "Неизвестный товар"}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-xs">
-                                      <p className="font-medium">{order.productInfo?.name || order.productName || "Неизвестный товар"}</p>
-                                      {order.productInfo?.category && (
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                          Категория: {order.productInfo.category}
-                                        </p>
-                                      )}
-                                      {order.productInfo?.brand && (
-                                        <p className="text-xs text-muted-foreground">
-                                          Бренд: {order.productInfo.brand}
-                                        </p>
-                                      )}
-                                      {order.supplierArticle && (
-                                        <p className="text-xs text-muted-foreground">
-                                          Артикул: {order.supplierArticle}
-                                        </p>
-                                      )}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                                {order.productInfo?.brand && (
-                                  <span className="text-xs text-muted-foreground truncate w-full">
-                                    {order.productInfo.brand}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            {formatTimeAgo(order.createdAt)}
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            {new Date(order.ddate).toLocaleDateString('ru-RU')}
-                          </TableCell>
-                          {filteredOrders.some(o => o.warehouseId !== undefined) && (
-                            <TableCell className="hidden lg:table-cell">
-                              {order.warehouseId ? warehouses.find(w => w.id === order.warehouseId)?.name || "-" : "-"}
-                            </TableCell>
-                          )}
-                          <TableCell className="hidden md:table-cell">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  {getCategoryDisplay(order.category).badge}
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Автоматически определено по названию
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            {renderCargoTypeBadge(order.cargoType)}
-                          </TableCell>
+                          <TableCell className="font-medium">{order.orderId}</TableCell>
+                          <TableCell>{order.article}</TableCell>
+                          <TableCell className="hidden md:table-cell max-w-[200px] truncate">{order.name}</TableCell>
+                          <TableCell className="hidden md:table-cell">{order.count}</TableCell>
                           <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{formatPrice(order.salePrice)} ₽</span>
-                              {order.price !== order.salePrice && (
-                                <span className="text-sm text-muted-foreground line-through">
-                                  {formatPrice(order.price)} ₽
-                                </span>
-                              )}
-                            </div>
+                            <Badge 
+                              variant={getCategoryBadgeVariant(order.category || "")}
+                              className="flex items-center gap-1"
+                            >
+                              {getCategoryIcon(order.category || "")}
+                              <span className="hidden sm:inline">{order.category}</span>
+                            </Badge>
                           </TableCell>
+                          <TableCell className="hidden md:table-cell">{order.warehouse}</TableCell>
+                          <TableCell className="hidden md:table-cell">{order.cargoType}</TableCell>
+                          <TableCell className="hidden md:table-cell">{new Date(order.date).toLocaleDateString()}</TableCell>
                         </TableRow>
                       ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-4">
+                          {isLoading ? "Загрузка заданий..." : "Нет заданий для отображения"}
+                        </TableCell>
+                      </TableRow>
                     )}
                   </TableBody>
                 </Table>
               </div>
-              
-              {selectedOrders.size > 0 && (
-                <div className="p-4 flex flex-wrap items-center justify-between bg-muted/50 gap-2">
-                  <span>Выбрано заказов: <strong>{selectedOrders.size}</strong></span>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button variant="outline" onClick={handlePrintStickers} disabled={isProcessing}>
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Подготовка стикеров...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="mr-2 h-4 w-4" />
-                          Распечатать стикеры
-                        </>
-                      )}
-                    </Button>
-                    
-                    <Button onClick={handleAssembleOrders} disabled={isProcessing}>
-                      {isProcessing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Создание поставки...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCheck className="mr-2 h-4 w-4" />
-                          Создать поставку из выбранных
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
             </CardContent>
+            <CardFooter className="justify-end">
+              {selectedOrders.length > 0 && (
+                <Button onClick={() => setShowCreateSupplyModal(true)}>
+                  Создать поставку ({selectedOrders.length})
+                </Button>
+              )}
+            </CardFooter>
           </Card>
         </TabsContent>
         
+        {/* Вкладка с поставками */}
         <TabsContent value="supplies" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Поставки</CardTitle>
-              <Button variant="outline" className="border-dashed" onClick={() => loadData()}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Обновить список
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Загрузка поставок...
-                </div>
-              ) : supplies.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="flex justify-center">
-                    <Truck className="h-12 w-12 text-muted-foreground/50" />
-                  </div>
-                  <h3 className="mt-4 text-lg font-medium">Нет созданных поставок</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Создайте поставки вручную или используйте автоматическое формирование
-                  </p>
-                  <Button className="mt-4" onClick={() => setActiveTab("orders")}>
-                    Перейти к сборочным заданиям
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  {/* Supply list implementation */}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <Button 
+            variant="outline"
+            className="mb-2"
+            onClick={fetchSupplies}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Обновить список
+          </Button>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {supplies.length > 0 ? (
+              supplies.map((supply) => (
+                <Card key={supply.id}>
+                  <CardHeader className="pb-2">
+                    {editSupplyId === supply.id ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          value={editSupplyName}
+                          onChange={(e) => setEditSupplyName(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button size="sm" onClick={saveSupplyName}>Сохранить</Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => setEditSupplyId(null)}
+                        >
+                          Отмена
+                        </Button>
+                      </div>
+                    ) : (
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        {supply.name}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => startEditSupply(supply.id, supply.name)}
+                        >
+                          <PenLine className="h-4 w-4" />
+                        </Button>
+                      </CardTitle>
+                    )}
+                    <CardDescription>
+                      {supply.count} товаров • {new Date(supply.date).toLocaleDateString()}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <Badge 
+                      variant={getCategoryBadgeVariant(supply.category)}
+                      className="flex items-center gap-1"
+                    >
+                      {getCategoryIcon(supply.category)}
+                      {supply.category}
+                    </Badge>
+                  </CardContent>
+                  <CardFooter className="flex gap-2 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => viewSupplyDetails(supply)}
+                    >
+                      Содержимое
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Truck className="h-4 w-4" />
+                      <span>В доставку</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <Ticket className="h-4 w-4" />
+                      <span>Стикеры</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1 text-red-500 hover:text-red-700"
+                      onClick={() => confirmDeleteSupply(supply.id)}
+                    >
+                      <Trash className="h-4 w-4" />
+                      <span>Удалить</span>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))
+            ) : (
+              <Card className="col-span-full">
+                <CardContent className="pt-6 text-center">
+                  Нет созданных поставок
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Модальное окно для создания поставки вручную */}
+      <Dialog open={showCreateSupplyModal} onOpenChange={setShowCreateSupplyModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Создание поставки</DialogTitle>
+            <DialogDescription>
+              Будет создана новая поставка с выбранными товарами ({selectedOrders.length}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="supply-name" className="text-sm font-medium">
+                Название поставки
+              </label>
+              <Input
+                id="supply-name"
+                value={newSupplyName}
+                onChange={(e) => setNewSupplyName(e.target.value)}
+                placeholder="Введите название поставки"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateSupplyModal(false)}>
+              Отмена
+            </Button>
+            <Button onClick={createSupply}>Создать поставку</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Модальное окно для просмотра деталей поставки */}
+      <Dialog open={showSupplyDetailsModal} onOpenChange={setShowSupplyDetailsModal}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{currentSupply?.name}</DialogTitle>
+            <DialogDescription>
+              Категория: {currentSupply?.category} • {currentSupply?.count} товаров
+            </DialogDescription>
+          </DialogHeader>
+          <div className="border rounded-md overflow-hidden mt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Артикул</TableHead>
+                  <TableHead>Наименование</TableHead>
+                  <TableHead>Кол-во</TableHead>
+                  <TableHead>Категория</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentSupply?.orders?.length ? (
+                  currentSupply.orders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>{order.orderId}</TableCell>
+                      <TableCell>{order.article}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{order.name}</TableCell>
+                      <TableCell>{order.count}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={getCategoryBadgeVariant(order.category || "")}
+                          className="flex items-center gap-1"
+                        >
+                          {getCategoryIcon(order.category || "")}
+                          <span>{order.category}</span>
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4">
+                      Нет товаров в поставке
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Диалог для автоматического создания поставок */}
+      <AlertDialog open={showAutoCreateDialog} onOpenChange={setShowAutoCreateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Автоформирование поставок</AlertDialogTitle>
+            <AlertDialogDescription>
+              Система автоматически распределит товары по категориям и создаст отдельные поставки для каждой категории (Парфюмерия, Одежда, Мелочёвка).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={autoCreateSupplies}>
+              Создать поставки
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Диалог для подтверждения удаления */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Подтверждение удаления</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы действительно хотите удалить поставку? Все товары в ней будут освобождены.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteSupply} className="bg-red-600 hover:bg-red-700">
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Результат автоматического создания */}
+      {autoCreateResult && (
+        <Dialog open={!!autoCreateResult} onOpenChange={() => setAutoCreateResult(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Поставки успешно созданы</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <Alert>
+                <AlertTitle className="flex items-center gap-1">
+                  <Droplets className="h-4 w-4" /> Парфюмерия
+                </AlertTitle>
+                <AlertDescription>
+                  Создана поставка с {autoCreateResult.perfume} товарами
+                </AlertDescription>
+              </Alert>
+              
+              <Alert>
+                <AlertTitle className="flex items-center gap-1">
+                  <ShirtIcon className="h-4 w-4" /> Одежда
+                </AlertTitle>
+                <AlertDescription>
+                  Создана поставка с {autoCreateResult.clothing} товарами
+                </AlertDescription>
+              </Alert>
+              
+              <Alert>
+                <AlertTitle className="flex items-center gap-1">
+                  <Paperclip className="h-4 w-4" /> Мелочёвка
+                </AlertTitle>
+                <AlertDescription>
+                  Создана поставка с {autoCreateResult.other} товарами
+                </AlertDescription>
+              </Alert>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => {
+                setAutoCreateResult(null);
+                setActiveTab("supplies"); // Переключение на вкладку с поставками
+              }}>
+                Перейти к поставкам
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };
