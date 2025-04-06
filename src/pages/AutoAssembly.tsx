@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -194,7 +193,7 @@ const AutoAssembly = () => {
       const result = await AutoAssemblyAPI.printStickers(selectedOrders);
       console.log("Print stickers result:", result);
       toast.success("Задания на печать стикеров отправлены", {
-        description: `Выбрано ${selectedOrders.length} заказов`
+        description: `Выбрано ${selectedOrders.length} ��аказов`
       });
     } catch (error) {
       console.error("Error printing stickers:", error);
@@ -316,6 +315,12 @@ const AutoAssembly = () => {
     setShowTokenDiagnostics(true);
   }, []);
   
+  const handleSetActiveTab = (tab: string) => {
+    if (tab === "orders" || tab === "supplies") {
+      setActiveTab(tab);
+    }
+  };
+
   return (
     <div className="container mx-auto py-6 max-w-7xl">
       {/* Заголовок и кнопки управления */}
@@ -352,7 +357,7 @@ const AutoAssembly = () => {
         showResultDialog={showResultDialog} 
         setShowResultDialog={setShowResultDialog} 
         autoAssemblyResult={autoAssemblyResult} 
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSetActiveTab}
       />
       
       <TokenDiagnostics 
