@@ -285,19 +285,3 @@ export interface AddOrderToSupplyResponse {
   id: number;
   orderId: number;
 }
-
-// Новые типы для фильтров и сортировки
-export interface WarehouseFilter {
-  id: number;
-  name: string;
-}
-
-export interface CargoTypeFilter {
-  id: number;
-  name: string;
-}
-
-export interface SortConfig {
-  key: keyof AssemblyOrder;
-  direction: 'asc' | 'desc';
-}
