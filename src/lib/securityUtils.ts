@@ -63,7 +63,7 @@ const addAuthHeaders = (headers: Record<string, string> = {}): Record<string, st
   if (token) {
     return {
       ...headers,
-      [headerName]: token
+      [headerName]: `Bearer ${token}`
     };
   }
   

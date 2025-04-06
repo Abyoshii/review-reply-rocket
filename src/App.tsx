@@ -38,6 +38,11 @@ function App() {
                   <Route path="/" element={<Index />} />
                   <Route path="/reviews" element={<Reviews />} />
                   <Route path="/auto-assembly" element={<AutoAssembly />} />
+                  <Route path="/supplies" element={<NotFound />} />
+                  <Route path="/boxes" element={<NotFound />} />
+                  <Route path="/passes" element={<NotFound />} />
+                  <Route path="/settings" element={<NotFound />} />
+                  <Route path="/help" element={<NotFound />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
