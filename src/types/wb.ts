@@ -339,9 +339,3 @@ export interface ProductCardData {
   category?: string; // Дополнительное поле для категории
   // другие поля из API карточки товара...
 }
-
-// Add SortConfig interface for OrdersTable component
-export interface SortConfig {
-  key: keyof AssemblyOrder | null;
-  direction: 'asc' | 'desc' | null;
-}

@@ -1,9 +1,10 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, Truck, Box, Loader2, RefreshCw, Shield } from "lucide-react";
-import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply, SortConfig } from "@/types/wb";
+import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply } from "@/types/wb";
 import { AutoAssemblyAPI } from "@/lib/autoAssemblyApi";
 import { formatPrice } from "@/lib/utils/formatUtils";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +26,11 @@ interface FilterState {
   cargoType: CargoTypeFilter | null;
   dateFrom: Date | null;
   dateTo: Date | null;
+}
+
+interface SortConfig {
+  key: keyof AssemblyOrder | null;
+  direction: 'asc' | 'desc' | null;
 }
 
 const AutoAssembly = () => {
@@ -70,7 +76,7 @@ const AutoAssembly = () => {
     { id: 2, name: "Пакет" },
   ];
 
-  // Define filteredOrders before its usage
+  // Определение filteredOrders ПЕРЕД его использованием
   const filteredOrders = orders.filter((order) => {
     if (filterState.warehouseId && order.warehouseId !== filterState.warehouseId.id) {
       return false;
@@ -288,6 +294,11 @@ const AutoAssembly = () => {
     setShowTokenDiagnostics(true);
   }, []);
   
+  // Функции для конвертирования между типами для соответствия интерфейсам компонентов
+  const handleSetActiveTab = useCallback((tab: "orders" | "supplies") => {
+    setActiveTab(tab);
+  }, []);
+  
   return (
     <div className="container mx-auto py-6 max-w-7xl">
       {/* Заголовок и кнопки управления */}
@@ -324,7 +335,7 @@ const AutoAssembly = () => {
         showResultDialog={showResultDialog} 
         setShowResultDialog={setShowResultDialog} 
         autoAssemblyResult={autoAssemblyResult} 
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSetActiveTab}
       />
       
       <TokenDiagnostics 
@@ -375,7 +386,8 @@ const AutoAssembly = () => {
             isLoading={isLoading}
             supplies={supplies}
             loadData={loadData}
-            setActiveTab={setActiveTab}
+            setActiveTab={handleSetActiveTab}
+            navigate={navigate}
           />
         </TabsContent>
       </Tabs>

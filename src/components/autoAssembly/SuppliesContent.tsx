@@ -9,7 +9,7 @@ interface SuppliesContentProps {
   isLoading: boolean;
   supplies: Supply[];
   loadData: () => Promise<void>;
-  setActiveTab: (tab: "orders" | "supplies") => void;
+  setActiveTab: (tab: string) => void;
 }
 
 const SuppliesContent: React.FC<SuppliesContentProps> = ({
@@ -48,6 +48,7 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* TODO: Implement supplies list with cards */}
             {supplies.map(supply => (
               <div key={supply.id} className="p-4 border rounded-lg">
                 {supply.name}

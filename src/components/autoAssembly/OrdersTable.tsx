@@ -7,73 +7,37 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Box, Loader2, RefreshCw, ImageOff, Droplets, Shirt, Paperclip } from "lucide-react";
-import { AssemblyOrder, ProductCategory, SortConfig } from "@/types/wb";
-import { formatTimeAgo, formatPrice } from "@/lib/utils/formatUtils";
+import { AssemblyOrder, ProductCategory, WarehouseFilter } from "@/types/wb";
+import { formatTimeAgo } from "@/lib/utils/formatUtils";
 
 interface OrdersTableProps {
   filteredOrders: AssemblyOrder[];
   isLoading: boolean;
-  selectedOrders: number[];
+  selectedOrders: Set<number>;
+  warehouses: WarehouseFilter[];
   toggleOrderSelection: (orderId: number) => void;
   toggleSelectAll: () => void;
-  allSelected: boolean;
-  sortConfig: SortConfig;
-  handleSort: (key: keyof AssemblyOrder) => void;
+  handleRefreshOrders: () => void;
+  formatPrice: (price: number) => string;
+  getCategoryDisplay: (category?: ProductCategory) => { 
+    icon: JSX.Element; 
+    badge: JSX.Element;
+  };
+  renderCargoTypeBadge: (cargoType: number) => JSX.Element;
 }
 
 const OrdersTable: React.FC<OrdersTableProps> = ({
   filteredOrders,
   isLoading,
   selectedOrders,
+  warehouses,
   toggleOrderSelection,
   toggleSelectAll,
-  allSelected,
-  sortConfig,
-  handleSort
+  handleRefreshOrders,
+  formatPrice,
+  getCategoryDisplay,
+  renderCargoTypeBadge
 }) => {
-  const getCategoryDisplay = (category?: ProductCategory) => {
-    if (!category) return {
-      icon: <Paperclip className="h-4 w-4" />,
-      badge: <Badge variant="outline">Нет категории</Badge>
-    };
-
-    switch (category) {
-      case ProductCategory.PERFUME:
-        return {
-          icon: <Droplets className="h-4 w-4" />,
-          badge: <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-            <Droplets className="h-3 w-3 mr-1" />Парфюмерия
-          </Badge>
-        };
-      case ProductCategory.CLOTHING:
-        return {
-          icon: <Shirt className="h-4 w-4" />,
-          badge: <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-            <Shirt className="h-3 w-3 mr-1" />Одежда
-          </Badge>
-        };
-      case ProductCategory.MISC:
-      default:
-        return {
-          icon: <Paperclip className="h-4 w-4" />,
-          badge: <Badge variant="secondary" className="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
-            <Paperclip className="h-3 w-3 mr-1" />Мелочёвка
-          </Badge>
-        };
-    }
-  };
-
-  const renderCargoTypeBadge = (cargoType: number) => {
-    switch (cargoType) {
-      case 1:
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">Короб</Badge>;
-      case 2:
-        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">Пакет</Badge>;
-      default:
-        return <Badge variant="outline">Неизвестно</Badge>;
-    }
-  };
-
   return (
     <div className="relative overflow-x-auto">
       <Table>
@@ -93,7 +57,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
           <TableRow>
             <TableHead className="w-12">
               <Checkbox 
-                checked={allSelected && filteredOrders.length > 0} 
+                checked={selectedOrders.size > 0 && selectedOrders.size === filteredOrders.length} 
                 onCheckedChange={toggleSelectAll} 
               />
             </TableHead>
@@ -102,7 +66,10 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
             <TableHead className="w-[250px]">Наименование</TableHead>
             <TableHead className="hidden lg:table-cell">Создан</TableHead>
             <TableHead className="hidden md:table-cell">Доставка до</TableHead>
-            <TableHead className="hidden lg:table-cell">Склад</TableHead>
+            {/* Скрываем склад, если warehouseId отсутствует */}
+            {filteredOrders.some(order => order.warehouseId !== undefined) && (
+              <TableHead className="hidden lg:table-cell">Склад</TableHead>
+            )}
             <TableHead className="hidden md:table-cell">Категория</TableHead>
             <TableHead className="hidden sm:table-cell">Тип груза</TableHead>
             <TableHead>Цена</TableHead>
@@ -124,7 +91,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                 <div className="flex flex-col items-center justify-center space-y-3">
                   <Box className="h-12 w-12 text-muted-foreground/50" />
                   <div>Нет сборочных заданий по заданным фильтрам</div>
-                  <Button variant="outline" onClick={() => console.log('refresh')}>
+                  <Button variant="outline" onClick={handleRefreshOrders} className="mt-2">
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Обновить данные
                   </Button>
@@ -136,7 +103,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
               <TableRow key={order.id} className="cursor-pointer">
                 <TableCell>
                   <Checkbox 
-                    checked={selectedOrders.includes(order.id)} 
+                    checked={selectedOrders.has(order.id)} 
                     onCheckedChange={() => toggleOrderSelection(order.id)} 
                   />
                 </TableCell>
@@ -207,9 +174,11 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                 <TableCell className="hidden md:table-cell">
                   {new Date(order.ddate).toLocaleDateString('ru-RU')}
                 </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  {order.warehouseId ? order.warehouseId : "-"}
-                </TableCell>
+                {filteredOrders.some(o => o.warehouseId !== undefined) && (
+                  <TableCell className="hidden lg:table-cell">
+                    {order.warehouseId ? warehouses.find(w => w.id === order.warehouseId)?.name || "-" : "-"}
+                  </TableCell>
+                )}
                 <TableCell className="hidden md:table-cell">
                   {order.category ? (
                     <TooltipProvider>
