@@ -10,7 +10,7 @@ export const SuppliesAPI = {
   // Получение списка поставок
   getSupplies: async (limit: number = 50, next: string = ""): Promise<{ supplies: Supply[], hasMore: boolean, next?: string }> => {
     try {
-      console.log("Запрос поставок с заголовками:", addAuthHeaders());
+      console.log("Запрос поставок");
       
       const params = new URLSearchParams();
       if (limit) params.append("limit", limit.toString());
@@ -23,7 +23,7 @@ export const SuppliesAPI = {
       
       console.log("Supplies API response:", response.data);
       
-      // Проверяем формат ответа API согласно новой документации
+      // Проверяем формат ответа API
       if (response.data && Array.isArray(response.data.supplies)) {
         return {
           supplies: response.data.supplies,
@@ -32,55 +32,13 @@ export const SuppliesAPI = {
         };
       }
       
+      // Если API вернул неожиданный формат
+      toast.error("API вернул неожиданный формат данных");
       return { supplies: [], hasMore: false };
     } catch (error: any) {
       console.error("Error fetching supplies:", error);
-      console.log("Детальная ошибка при получении поставок:", {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-        config: error.config,
-        code: error.code,
-        status: error.status
-      });
-      
-      // Пока API не работает корректно, вернем моковые данные
-      const mockSupplies: Supply[] = [
-        {
-          id: 1001,
-          name: "Поставка: Парфюмерия – 04.04.2025",
-          createdAt: "2025-04-03T20:02:29.725Z",
-          done: false,
-          status: "new",
-          supplyId: "WB-GI-10001",
-          ordersCount: 5,
-          category: ProductCategory.PERFUME
-        },
-        {
-          id: 1002,
-          name: "Поставка: Одежда – 04.04.2025",
-          createdAt: "2025-04-02T20:02:29.725Z",
-          done: false,
-          status: "new",
-          supplyId: "WB-GI-10002",
-          ordersCount: 8,
-          category: ProductCategory.CLOTHING
-        },
-        {
-          id: 1003,
-          name: "Поставка: Мелочёвка – 03.04.2025",
-          createdAt: "2025-04-01T20:02:29.725Z",
-          done: true,
-          status: "in_delivery",
-          supplyId: "WB-GI-10003",
-          ordersCount: 12,
-          category: ProductCategory.MISC
-        }
-      ];
-      
-      console.log("Loaded supplies:", mockSupplies);
-      
-      return { supplies: mockSupplies, hasMore: false };
+      toast.error(`Ошибка получения поставок: ${error.message || 'Неизвестная ошибка'}`);
+      return { supplies: [], hasMore: false };
     }
   },
   

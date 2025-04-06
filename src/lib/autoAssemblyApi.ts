@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { 
   AssemblyOrder, 
@@ -73,83 +72,13 @@ export const AutoAssemblyAPI = {
         return ordersWithProductInfo;
       }
       
-      console.log("API returned unexpected format, using mock data");
-      
-      const mockOrders: AssemblyOrder[] = [
-        {
-          id: 3194125865,
-          orderUid: "WB-GI-1122334455",
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 3).toISOString(),
-          price: 38000,
-          salePrice: 35300,
-          supplierArticle: "UI-girodдез-1",
-          productName: "Товар UI-girodдез-1",
-          warehouseId: 1,
-          cargoType: 1,
-          inSupply: false,
-          nmId: 320314850
-        },
-        {
-          id: 3194123163,
-          orderUid: "WB-GI-1122334456",
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 2).toISOString(),
-          price: 245000,
-          salePrice: 230300,
-          supplierArticle: "UI-AmberMystery",
-          productName: "Товар UI-AmberMystery",
-          warehouseId: 2,
-          cargoType: 1,
-          inSupply: false,
-          nmId: 320314851
-        }
-      ];
-      
-      return mockOrders.map(order => ({
-        ...order,
-        category: determineProductCategory(order.productName)
-      }));
+      toast.error("API вернуло неожиданный формат данных для заказов");
+      return [];
     } catch (error) {
       console.error("Error fetching new orders:", error);
       logObjectStructure(error, "Детальная ошибка при получении заказов");
       toast.error("Ошибка при загрузке новых заказов");
-      
-      const mockOrders: AssemblyOrder[] = [
-        {
-          id: 3194125865,
-          orderUid: "WB-GI-1122334455",
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 3).toISOString(),
-          price: 38000,
-          salePrice: 35300,
-          supplierArticle: "UI-girodдез-1",
-          productName: "Товар UI-girodдез-1",
-          warehouseId: 1,
-          cargoType: 1,
-          inSupply: false,
-          nmId: 320314850
-        },
-        {
-          id: 3194123163,
-          orderUid: "WB-GI-1122334456",
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          ddate: new Date(Date.now() + 86400000 * 2).toISOString(),
-          price: 245000,
-          salePrice: 230300,
-          supplierArticle: "UI-AmberMystery",
-          productName: "Товар UI-AmberMystery",
-          warehouseId: 2,
-          cargoType: 1,
-          inSupply: false,
-          nmId: 320314851
-        }
-      ];
-      
-      return mockOrders.map(order => ({
-        ...order,
-        category: determineProductCategory(order.productName)
-      }));
+      return [];
     }
   },
   
@@ -248,77 +177,13 @@ export const AutoAssemblyAPI = {
         return response.data.data.supplies;
       }
       
-      console.log("API returned unexpected supplies format, using mock data");
-      
-      return [
-        {
-          id: 1001,
-          name: "Поставка: Парфюмерия – 04.04.2025",
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          done: false,
-          status: "new",
-          supplyId: "WB-GI-10001",
-          ordersCount: 5,
-          category: ProductCategory.PERFUME
-        },
-        {
-          id: 1002,
-          name: "Поставка: Одежда – 04.04.2025",
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-          done: false,
-          status: "new",
-          supplyId: "WB-GI-10002",
-          ordersCount: 8,
-          category: ProductCategory.CLOTHING
-        },
-        {
-          id: 1003,
-          name: "Поставка: Мелочёвка – 03.04.2025",
-          createdAt: new Date(Date.now() - 259200000).toISOString(),
-          done: true,
-          status: "in_delivery",
-          supplyId: "WB-GI-10003",
-          ordersCount: 12,
-          category: ProductCategory.MISC
-        }
-      ];
+      toast.error("API вернуло неожиданный формат данных для поставок");
+      return [];
     } catch (error) {
       console.error("Error fetching supplies:", error);
       logObjectStructure(error, "Детальная ошибка при получении поставок");
       toast.error("Ошибка при загрузке списка поставок");
-      
-      return [
-        {
-          id: 1001,
-          name: "Поставка: Парфюмерия – 04.04.2025",
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          done: false,
-          status: "new",
-          supplyId: "WB-GI-10001",
-          ordersCount: 5,
-          category: ProductCategory.PERFUME
-        },
-        {
-          id: 1002,
-          name: "Поставка: Одежда – 04.04.2025",
-          createdAt: new Date(Date.now() - 172800000).toISOString(),
-          done: false,
-          status: "new",
-          supplyId: "WB-GI-10002",
-          ordersCount: 8,
-          category: ProductCategory.CLOTHING
-        },
-        {
-          id: 1003,
-          name: "Поставка: Мелочёвка – 03.04.2025",
-          createdAt: new Date(Date.now() - 259200000).toISOString(),
-          done: true,
-          status: "in_delivery",
-          supplyId: "WB-GI-10003",
-          ordersCount: 12,
-          category: ProductCategory.MISC
-        }
-      ];
+      return [];
     }
   },
   
