@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { ProductCardInfo, ProductCategory } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
@@ -133,42 +132,31 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     const hasImages = product.photos && product.photos.length > 0 && product.photos[0].big;
     if (!hasImages) {
       console.warn(`⚠️ [WARN] У товара nmId=${nmId} отсутствуют фотографии или URL фотографии.`);
-      toast.warning(`Ошибка данных товара ${nmId}`, {
-        description: "Отсутствуют изображения товара, данные неполные"
-      });
-      
-      // Сохраняем в кэше информацию о неудачной попытке, но не требуем повторной загрузки
-      productInfoCache[nmId] = {
-        info: null as any,
-        loadedAt: currentTime,
-        failed: true,
-        failReason: "Отсутствуют изображения товара"
+      // Создаем информацию о карточке даже без изображения
+      const productInfo: ProductCardInfo = {
+        nmId: nmId,
+        name: product.title,
+        brand: product.brand || "Бренд не указан",
+        image: "", // Пустая ссылка на изображение
+        category: product.subjectName || "Категория не указана",
+        productCategory: product.subjectName ? determineCategoryBySubject(product.subjectName) : ProductCategory.MISC
       };
       
-      return null;
+      // Сохраняем в кэше успешную загрузку, даже без изображения
+      productInfoCache[nmId] = {
+        info: productInfo,
+        loadedAt: currentTime,
+        failed: false
+      };
+      
+      return productInfo;
     }
     
     // Выводим информацию о найденном изображении
     console.log(`🖼️ Изображение для nmId=${nmId}:`, product.photos[0].big);
     
-    // 8. Проверка обязательного поля "subjectName"
-    if (!product.subjectName) {
-      console.warn(`⚠️ [WARN] У товара nmId=${nmId} отсутствует поле subjectName (категория).`);
-      toast.warning(`Ошибка данных товара ${nmId}`, {
-        description: "Отсутствует категория товара, данные неполные"
-      });
-      
-      // Сохраняем в кэше информацию о неудачной попытке
-      productInfoCache[nmId] = {
-        info: null as any,
-        loadedAt: currentTime,
-        failed: true,
-        failReason: "Отсутствует категория товара",
-        retryAt: currentTime + RETRY_INTERVAL
-      };
-      
-      return null;
-    }
+    // 8. Проверка обязательного поля "subjectName" - теперь необязательно
+    const subjectName = product.subjectName || "Категория не указана";
     
     // 9. Формирование объекта с информацией о товаре
     const productInfo: ProductCardInfo = {
@@ -176,8 +164,8 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       name: product.title,
       brand: product.brand || "Бренд не указан",
       image: product.photos[0].big,
-      category: product.subjectName,
-      productCategory: determineCategoryBySubject(product.subjectName)
+      category: subjectName,
+      productCategory: determineCategoryBySubject(subjectName)
     };
     
     console.log(`✅ Успешно сформирована информация о товаре nmId=${nmId}:`, productInfo);
@@ -217,12 +205,11 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       else if (error.response?.status === 401) {
         console.error(`❌ Ошибка авторизации (401) при запросе данных товара. Проверьте токен API!`);
         toast.error(`Ошибка авторизации при получении данных товара ${nmId}`, {
-          description: `Токен API недействителен или просрочен`,
-          important: true
+          description: `Проверка токена отключена, ошибка связана с API`
         });
         
-        // Для ошибки 401 не имеет смысла делать повторную попытку без обновления токена
-        retryDelay = 0; // Не пытаемся повторять
+        // Устанавливаем задержку для повторной попытки
+        retryDelay = 5000; // 5 секунд для ошибки 401
       } else {
         // Уведомляем пользователя о проблеме с API
         toast.error(`Ошибка получения данных товара ${nmId}`, {

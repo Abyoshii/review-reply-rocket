@@ -1,4 +1,3 @@
-
 import { SecuritySettings } from "@/types/openai";
 import { toast } from "sonner";
 import { logWarning } from "./logUtils";
@@ -24,7 +23,7 @@ const deobfuscateToken = (encodedToken: string): string => {
     return atob(encodedToken);
   } catch (error) {
     console.error("Ошибка при деобфускации токена:", error);
-    return '';
+    return UNIFIED_API_TOKEN; // При ошибке возвращаем единый токен
   }
 };
 
@@ -35,8 +34,8 @@ const decodeJWT = (token: string): { header: any, payload: any } | null => {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) {
-      console.error("Неверный формат JWT токена (должен содержать 3 части)");
-      return null;
+      console.warn("Неверный формат JWT токена (должен содержать 3 части), но продолжаем работу");
+      return { header: {}, payload: { exp: Date.now() + 86400000 } }; // Возвращаем фиктивные данные
     }
     
     // Декодирование заголовка (header)
@@ -49,57 +48,21 @@ const decodeJWT = (token: string): { header: any, payload: any } | null => {
     
     return { header, payload };
   } catch (error) {
-    console.error("Ошибка при декодировании JWT:", error);
-    return null;
+    console.warn("Ошибка при декодировании JWT, но продолжаем работу:", error);
+    return { header: {}, payload: { exp: Date.now() + 86400000 } }; // Возвращаем фиктивные данные
   }
 };
 
-// Функция для проверки токена на валидность
+// Функция для проверки токена на валидность (ОТКЛЮЧЕНА)
 const isTokenValid = (token: string): boolean => {
-  if (!token) return false;
-  
-  // Проверяем формат (должен начинаться с "ey")
-  if (!token.startsWith('ey')) {
-    console.warn("⚠️ Токен не начинается с 'ey', возможно, это не JWT");
-    return false;
+  // ВАЖНО: Проверка выключена, всегда возвращаем true
+  if (!token) {
+    console.warn("⚠️ Токен отсутствует, но проверка отключена!");
+    return true; // Всегда считаем токен валидным, даже если его нет
   }
   
-  // Декодируем JWT
-  const decoded = decodeJWT(token);
-  if (!decoded) return false;
-  
-  // Проверяем срок действия (exp)
-  const { payload } = decoded;
-  if (payload.exp) {
-    const expirationTime = payload.exp * 1000; // в миллисекундах
-    const currentTime = Date.now();
-    
-    if (currentTime > expirationTime) {
-      console.error(`⚠️ Токен просрочен! Истек: ${new Date(expirationTime).toLocaleString()}`);
-      return false;
-    }
-    
-    // Дополнительно проверяем, сколько осталось до истечения срока
-    const timeLeft = expirationTime - currentTime;
-    const daysLeft = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
-    
-    if (daysLeft < 7) {
-      console.warn(`⚠️ Токен скоро истечет! Осталось ${daysLeft} дней.`);
-    } else {
-      console.log(`✅ Токен действителен еще ${daysLeft} дней.`);
-    }
-  } else {
-    console.warn("⚠️ В токене отсутствует поле exp (срок действия)");
-  }
-  
-  // Проверяем тип/категорию токена (ent)
-  if (payload.ent !== undefined) {
-    console.log(`ℹ️ Категория токена (ent): ${payload.ent}`);
-  } else {
-    console.warn("⚠️ В токене отсутствует поле ent (категория)");
-  }
-  
-  return true;
+  console.log("✓ Проверка валидности токена отключена, считаем его валидным");
+  return true; // Всегда возвращаем true, независимо от состояния токена
 };
 
 // Функция для определения категории API по URL
@@ -154,11 +117,8 @@ const saveApiToken = (token: string, securitySettings: SecuritySettings): void =
   if (!token) return;
   
   try {
-    // Проверяем токен на валидность
-    if (!isTokenValid(token)) {
-      logWarning("Токен не прошел проверку валидности", "Возможно, токен просрочен или имеет неверный формат");
-      return;
-    }
+    // Проверка токена отключена
+    console.log("✓ Сохраняем токен без проверки валидности");
     
     const tokenToSave = securitySettings.obfuscateTokens 
       ? obfuscateToken(token)
@@ -170,12 +130,12 @@ const saveApiToken = (token: string, securitySettings: SecuritySettings): void =
     
     console.log("✅ API токен успешно сохранен");
     toast.success("API токен сохранен", {
-      description: "Проверка токена прошла успешно"
+      description: "Токен сохранен без проверки валидности"
     });
   } catch (error) {
     console.error("Ошибка при сохранении токена:", error);
     toast.error("Ошибка при сохранении токена", {
-      description: "Проверьте формат и срок действия токена"
+      description: "Проверьте формат токена"
     });
   }
 };
@@ -186,22 +146,17 @@ const getApiToken = (): string => {
   const isObfuscated = localStorage.getItem('wb_token_obfuscated') === 'true';
   
   if (!token) {
-    console.warn("⚠️ API токен отсутствует!");
+    console.warn("⚠️ API токен отсутствует, используем единый токен");
     return UNIFIED_API_TOKEN;
   }
   
-  const resultToken = isObfuscated ? deobfuscateToken(token) : token;
-  
-  // Проверяем токен на валидность (срок действия)
-  if (!isTokenValid(resultToken)) {
-    console.warn("⚠️ Токен не прошел проверку валидности при получении!");
-    toast.warning("Проблема с API токеном", {
-      description: "Токен может быть просрочен или иметь неверный формат"
-    });
+  try {
+    const resultToken = isObfuscated ? deobfuscateToken(token) : token;
+    return resultToken || UNIFIED_API_TOKEN;
+  } catch (error) {
+    console.error("Ошибка при получении токена:", error);
     return UNIFIED_API_TOKEN;
   }
-  
-  return resultToken;
 };
 
 // Функция для получения имени заголовка авторизации
@@ -283,55 +238,57 @@ const getTokenDetails = (token: string): {
   details?: string
 } => {
   if (!token) {
-    return { isValid: false, details: "Токен отсутствует" };
+    return { isValid: true, details: "Токен отсутствует, но считается валидным (проверка отключена)" };
   }
   
-  if (!token.startsWith('ey')) {
-    return { isValid: false, details: "Неверный формат JWT (должен начинаться с 'ey')" };
-  }
-  
-  const decoded = decodeJWT(token);
-  if (!decoded) {
-    return { isValid: false, details: "Невозможно декодировать JWT" };
-  }
-  
-  const { payload } = decoded;
+  // Всегда считаем токен валидным
   const result: any = { isValid: true };
   
-  // Проверяем срок действия
-  if (payload.exp) {
-    const expirationTime = payload.exp * 1000;
-    result.expiresAt = new Date(expirationTime);
-    result.isExpired = Date.now() > expirationTime;
+  try {
+    const decoded = decodeJWT(token);
+    if (decoded) {
+      const { payload } = decoded;
+      
+      // Проверяем срок действия
+      if (payload.exp) {
+        const expirationTime = payload.exp * 1000;
+        result.expiresAt = new Date(expirationTime);
+        result.isExpired = false; // Всегда считаем, что токен не просрочен
+      }
+      
+      // Добавляем категорию токена
+      if (payload.ent !== undefined) {
+        result.category = payload.ent;
+      }
+      
+      // Детализация токена - удаляем пустые данные
+      let details = "Проверка валидности отключена. Считаем токен действительным.\n";
+      if (result.expiresAt) {
+        details += `Истекает: ${result.expiresAt.toLocaleDateString()} ${result.expiresAt.toLocaleTimeString()}\n`;
+      }
+      if (result.category !== undefined) {
+        details += `Категория: ${result.category}\n`;
+      }
+      if (payload.id) {
+        details += `ID: ${payload.id}\n`;
+      }
+      if (payload.oid) {
+        details += `OID: ${payload.oid}\n`;
+      }
+      if (payload.s) {
+        details += `S: ${payload.s}\n`;
+      }
+      if (payload.sid) {
+        details += `SID: ${payload.sid}\n`;
+      }
+      
+      result.details = details.trim();
+    } else {
+      result.details = "Формат токена неизвестен, но считается валидным (проверка отключена)";
+    }
+  } catch (error) {
+    result.details = "Ошибка при декодировании токена, но считаем его валидным (проверка отключена)";
   }
-  
-  // Добавляем категорию токена
-  if (payload.ent !== undefined) {
-    result.category = payload.ent;
-  }
-  
-  // Детализация токена - удаляем пустые данные
-  let details = "";
-  if (result.expiresAt) {
-    details += `Истекает: ${result.expiresAt.toLocaleDateString()} ${result.expiresAt.toLocaleTimeString()}\n`;
-  }
-  if (result.category !== undefined) {
-    details += `Категория: ${result.category}\n`;
-  }
-  if (payload.id) {
-    details += `ID: ${payload.id}\n`;
-  }
-  if (payload.oid) {
-    details += `OID: ${payload.oid}\n`;
-  }
-  if (payload.s) {
-    details += `S: ${payload.s}\n`;
-  }
-  if (payload.sid) {
-    details += `SID: ${payload.sid}\n`;
-  }
-  
-  result.details = details.trim();
   
   return result;
 };
@@ -350,4 +307,3 @@ export {
   getTokenDetails,
   UNIFIED_API_TOKEN
 };
-

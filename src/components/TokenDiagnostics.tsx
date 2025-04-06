@@ -36,7 +36,7 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
       logAuthStatus(token, headerName);
       
       toast.success("Информация о токене обновлена", {
-        description: "Токен успешно проверен"
+        description: "Проверка токена отключена, считаем его действительным"
       });
     } catch (error) {
       toast.error("Ошибка при обновлении информации о токене", {
@@ -97,21 +97,9 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
                 {isLoading ? (
                   <Skeleton className="h-6 w-24" />
                 ) : (
-                  tokenDetails.isValid ? (
-                    tokenDetails.isExpired ? (
-                      <Badge variant="destructive" className="flex items-center gap-1">
-                        <XCircle className="w-4 h-4" /> Просрочен
-                      </Badge>
-                    ) : (
-                      <Badge variant="default" className="bg-green-600 flex items-center gap-1">
-                        <CheckCircle className="w-4 h-4" /> Действителен
-                      </Badge>
-                    )
-                  ) : (
-                    <Badge variant="destructive" className="flex items-center gap-1">
-                      <XCircle className="w-4 h-4" /> Недействителен
-                    </Badge>
-                  )
+                  <Badge variant="default" className="bg-green-600 flex items-center gap-1">
+                    <CheckCircle className="w-4 h-4" /> Действителен
+                  </Badge>
                 )}
                 <span className="ml-2">Текущий токен</span>
               </CardTitle>
@@ -128,55 +116,29 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
                     {currentToken || "Токен не установлен"}
                   </div>
                   
-                  {tokenDetails.isValid ? (
-                    <div className="text-sm space-y-1 mt-2">
-                      {tokenDetails.expiresAt && (
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          <span>
-                            {tokenDetails.isExpired ? (
-                              <span className="text-destructive font-semibold">
-                                Истек: {tokenDetails.expiresAt.toLocaleDateString()} {tokenDetails.expiresAt.toLocaleTimeString()}
-                              </span>
-                            ) : (
-                              <span>
-                                Действителен до: {tokenDetails.expiresAt.toLocaleDateString()} {tokenDetails.expiresAt.toLocaleTimeString()}
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {tokenDetails.category !== undefined && (
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4" />
-                          <span>Категория токена: {tokenDetails.category}</span>
-                        </div>
-                      )}
-                      
-                      {tokenDetails.details && (
-                        <>
-                          <div className="flex items-center gap-2 mt-2">
-                            <Info className="w-4 h-4" />
-                            <span className="font-medium">Детальная информация:</span>
-                          </div>
-                          <Textarea 
-                            readOnly 
-                            value={tokenDetails.details} 
-                            className="h-24 text-xs font-mono mt-1" 
-                          />
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <Alert variant="destructive" className="mt-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Данные токена не получены</AlertTitle>
+                  <div className="text-sm space-y-1 mt-2">
+                    <Alert className="bg-amber-50">
+                      <Info className="h-4 w-4" />
+                      <AlertTitle>Проверка валидности токена отключена</AlertTitle>
                       <AlertDescription>
-                        Токен отсутствует или имеет неверный формат
+                        Все токены считаются действительными, независимо от срока действия
                       </AlertDescription>
                     </Alert>
-                  )}
+                    
+                    {tokenDetails.details && (
+                      <>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Info className="w-4 h-4" />
+                          <span className="font-medium">Детальная информация:</span>
+                        </div>
+                        <Textarea 
+                          readOnly 
+                          value={tokenDetails.details} 
+                          className="h-24 text-xs font-mono mt-1" 
+                        />
+                      </>
+                    )}
+                  </div>
                 </>
               )}
             </CardContent>
@@ -197,27 +159,6 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
               </Button>
             </CardFooter>
           </Card>
-          
-          {/* Предупреждения и рекомендации */}
-          {!isLoading && tokenDetails.isExpired && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Токен просрочен!</AlertTitle>
-              <AlertDescription>
-                Ваш API токен истек. Обновите токен, чтобы продолжить использование API.
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {!isLoading && !tokenDetails.isValid && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Недействительный токен</AlertTitle>
-              <AlertDescription>
-                Токен имеет неверный формат или не может быть декодирован. Установите корректный JWT токен.
-              </AlertDescription>
-            </Alert>
-          )}
           
           {/* Форма ввода нового токена */}
           <Card>
