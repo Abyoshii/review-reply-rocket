@@ -1,11 +1,12 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, Truck, Box, Loader2, RefreshCw, Shield } from "lucide-react";
+import { Package, Truck, Loader2, RefreshCw, Shield } from "lucide-react";
 import { AssemblyOrder, ProductCategory, WarehouseFilter, CargoTypeFilter, Supply, SortConfig } from "@/types/wb";
 import { AutoAssemblyAPI } from "@/lib/autoAssemblyApi";
-import { formatPrice } from "@/lib/utils/formatUtils";
+import { SuppliesAPI } from "@/lib/suppliesApi";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getApiToken, getHeaderName, isTokenValid } from "@/lib/securityUtils";
@@ -115,10 +116,10 @@ const AutoAssembly = () => {
       console.log("Loaded orders:", newOrders);
       setOrders(newOrders);
       
-      // Загрузка поставок
-      const suppliesResponse = await AutoAssemblyAPI.getSupplies();
+      // Загрузка поставок через SuppliesAPI
+      const suppliesResponse = await SuppliesAPI.getSupplies();
       console.log("Loaded supplies:", suppliesResponse);
-      setSupplies(suppliesResponse);
+      setSupplies(suppliesResponse.supplies);
       
     } catch (error) {
       console.error("Error loading data:", error);
@@ -205,37 +206,64 @@ const AutoAssembly = () => {
     }
   };
 
-  const handleAssembleOrders = async () => {
+  const handleAssembleOrders = async (supplyId?: number, newSupplyName?: string) => {
     setIsProcessing(true);
     try {
-      // Упрощенный вариант - просто добавляем заказы в первую доступную поставку или создаем новую
-      if (supplies.length === 0) {
-        toast.info("Создаем новую поставку для заказов");
-        const currentDate = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const supplyName = `Поставка от ${currentDate}`;
-        const supplyId = await AutoAssemblyAPI.createSupply(supplyName);
-        
-        if (supplyId) {
-          for (const orderId of selectedOrders) {
-            await AutoAssemblyAPI.addOrderToSupply(supplyId, orderId);
+      let targetSupplyId = supplyId;
+      
+      // Если supplyId не указан, но указано имя - создаем новую поставку
+      if (!targetSupplyId && newSupplyName) {
+        targetSupplyId = await SuppliesAPI.createSupply(newSupplyName);
+        if (!targetSupplyId) {
+          toast.error("Не удалось создать новую поставку");
+          setIsProcessing(false);
+          return;
+        }
+      } 
+      // Если ни то ни другое не указано, выбираем первую доступную или создаем новую
+      else if (!targetSupplyId) {
+        if (supplies.length === 0) {
+          const currentDate = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          const supplyName = `Поставка от ${currentDate}`;
+          targetSupplyId = await SuppliesAPI.createSupply(supplyName);
+          
+          if (!targetSupplyId) {
+            toast.error("Не удалось создать новую поставку");
+            setIsProcessing(false);
+            return;
           }
-          toast.success("Заказы успешно добавлены в новую поставку", {
-            description: `Выбрано ${selectedOrders.length} заказов`
-          });
+        } else {
+          // Используем первую доступную поставку
+          targetSupplyId = supplies[0].id;
         }
-      } else {
-        // Используем первую доступную поставку
-        const supplyId = supplies[0].id;
-        for (const orderId of selectedOrders) {
-          await AutoAssemblyAPI.addOrderToSupply(supplyId, orderId);
-        }
-        toast.success(`Заказы добавлены в поставку ${supplies[0].name}`, {
-          description: `Выбрано ${selectedOrders.length} заказов`
-        });
       }
       
-      loadData();
-      setSelectedOrders([]);
+      // Добавляем выбранные заказы в поставку
+      let successCount = 0;
+      for (const orderId of selectedOrders) {
+        const success = await SuppliesAPI.addOrderToSupply(targetSupplyId, orderId);
+        if (success) successCount++;
+      }
+      
+      // Обновляем данные
+      await loadData();
+      
+      // Отображаем уведомление
+      if (successCount > 0) {
+        toast.success(`Добавлено ${successCount} из ${selectedOrders.length} заказов в поставку`, {
+          description: `ID поставки: ${targetSupplyId}`
+        });
+        
+        // Переключаемся на вкладку поставок, если все прошло успешно
+        if (successCount === selectedOrders.length) {
+          setActiveTab("supplies");
+          setSelectedOrders([]);
+        }
+      } else {
+        toast.error("Не удалось добавить заказы в поставку", {
+          description: "Проверьте статус заказов и поставки"
+        });
+      }
     } catch (error) {
       console.error("Error assembling orders:", error);
       toast.error("Ошибка при сборке заказов", {
@@ -310,7 +338,7 @@ const AutoAssembly = () => {
           
           <Button variant="outline" className="border-dashed" onClick={handleRefreshOrders} disabled={isLoading}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Обновить задания
+            Обновить данные
           </Button>
           <Button onClick={handleAutoAssemble} disabled={isLoading || !filteredOrders.length}>
             <Package className="mr-2 h-4 w-4" />
@@ -324,7 +352,7 @@ const AutoAssembly = () => {
         showResultDialog={showResultDialog} 
         setShowResultDialog={setShowResultDialog} 
         autoAssemblyResult={autoAssemblyResult} 
-        setActiveTab={(tab: "orders" | "supplies") => setActiveTab(tab)}
+        setActiveTab={setActiveTab}
       />
       
       <TokenDiagnostics 
@@ -364,6 +392,7 @@ const AutoAssembly = () => {
             <SelectedOrdersActions 
               selectedOrdersCount={selectedOrdersCount}
               isProcessing={isProcessing}
+              supplies={supplies}
               handlePrintStickers={handlePrintStickers}
               handleAssembleOrders={handleAssembleOrders}
             />
