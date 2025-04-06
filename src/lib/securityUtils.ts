@@ -1,3 +1,4 @@
+
 import { SecuritySettings } from "@/types/openai";
 import { toast } from "sonner";
 import { logWarning } from "./logUtils";
@@ -158,6 +159,13 @@ const getApiToken = (): string => {
   
   try {
     const resultToken = isObfuscated ? deobfuscateToken(storedToken) : storedToken;
+    // Сверяем с новым единым токеном и обновляем при необходимости
+    if (resultToken !== UNIFIED_API_TOKEN) {
+      console.log("Токен в localStorage устарел, обновляем его");
+      const newTokenToSave = isObfuscated ? obfuscateToken(UNIFIED_API_TOKEN) : UNIFIED_API_TOKEN;
+      localStorage.setItem('wb_token', newTokenToSave);
+      return UNIFIED_API_TOKEN;
+    }
     return resultToken || UNIFIED_API_TOKEN;
   } catch (error) {
     console.error("Ошибка при получении токена:", error);

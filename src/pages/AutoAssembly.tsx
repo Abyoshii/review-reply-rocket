@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +8,7 @@ import { AutoAssemblyAPI } from "@/lib/autoAssemblyApi";
 import { SuppliesAPI } from "@/lib/suppliesApi";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getApiToken, getHeaderName, isTokenValid } from "@/lib/securityUtils";
+import { getApiToken, getHeaderName, isTokenValid, UNIFIED_API_TOKEN } from "@/lib/securityUtils";
 import { logAuthStatus, logError } from "@/lib/logUtils";
 import TokenDiagnostics from "@/components/TokenDiagnostics";
 import { getProductCacheStats, clearProductInfoCache, markProductAsInSupply } from "@/lib/utils/productUtils";
@@ -19,13 +18,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-// Импорт компонентов
-import OrdersTable from "@/components/autoAssembly/OrdersTable";
-import SelectedOrdersActions from "@/components/autoAssembly/SelectedOrdersActions";
-import SuppliesContent from "@/components/autoAssembly/SuppliesContent";
-import ResultDialog from "@/components/autoAssembly/ResultDialog";
-import OrdersFilters from "@/components/autoAssembly/OrdersFilters";
 
 interface FilterState {
   warehouseId: WarehouseFilter | null;
@@ -46,7 +38,6 @@ const AutoAssembly = () => {
   const [autoAssemblyResult, setAutoAssemblyResult] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"orders" | "supplies">("orders");
 
-  // Состояние для диалога диагностики токена
   const [showTokenDiagnostics, setShowTokenDiagnostics] = useState(false);
 
   const [filterState, setFilterState] = useState<FilterState>({
@@ -78,7 +69,6 @@ const AutoAssembly = () => {
     { id: 2, name: "Пакет" },
   ];
 
-  // Define filteredOrders before its usage
   const filteredOrders = orders.filter((order) => {
     if (order.inSupply) {
       return false;
@@ -105,11 +95,15 @@ const AutoAssembly = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      // Диагностика авторизации перед запросом
+      localStorage.setItem("wb_token", UNIFIED_API_TOKEN);
+      
       const token = getApiToken();
       const headerName = getHeaderName();
       
-      // Проверка токена на валидность
+      console.log("Используемый токен для запроса:", token);
+      console.log("Текущий единый токен:", UNIFIED_API_TOKEN);
+      console.log("Токены совпадают:", token === UNIFIED_API_TOKEN);
+      
       if (!isTokenValid(token)) {
         logError("Проблема с токеном авторизации", "Токен может быть просрочен или неправильного формата");
         toast.error("Ошибка авторизации API", {
@@ -126,10 +120,8 @@ const AutoAssembly = () => {
       const newOrders = await AutoAssemblyAPI.getNewOrders();
       console.log("Loaded orders:", newOrders);
       
-      // Помечаем заказы, которые уже в поставке
       const ordersWithSupplyStatus = newOrders.map(order => {
         if (order.inSupply) {
-          // Помечаем товар в кэше как перемещенный в поставку
           if (order.nmId) {
             markProductAsInSupply(order.nmId);
           }
@@ -139,7 +131,6 @@ const AutoAssembly = () => {
       
       setOrders(ordersWithSupplyStatus);
       
-      // Загрузка поставок через SuppliesAPI
       const suppliesResponse = await SuppliesAPI.getSupplies();
       console.log("Loaded supplies:", suppliesResponse);
       setSupplies(suppliesResponse.supplies);
@@ -147,7 +138,6 @@ const AutoAssembly = () => {
     } catch (error) {
       console.error("Error loading data:", error);
       
-      // Если ошибка 401, предлагаем открыть диагностику
       if (error instanceof Error && error.message.includes('401')) {
         toast.error("Ошибка авторизации API (401)", {
           description: "Проверьте токен авторизации",
@@ -177,7 +167,6 @@ const AutoAssembly = () => {
   const handleAutoAssemble = async () => {
     setIsLoading(true);
     try {
-      // Создаем поставки на основе категорий товаров
       const result = await AutoAssemblyAPI.createCategorizedSupplies(filteredOrders);
       setAutoAssemblyResult(result);
       setShowResultDialog(true);
@@ -234,7 +223,6 @@ const AutoAssembly = () => {
     try {
       let targetSupplyId = supplyId;
       
-      // Если supplyId не указан, но указано имя - создаем новую поставку
       if (!targetSupplyId && newSupplyName) {
         targetSupplyId = await SuppliesAPI.createSupply(newSupplyName);
         if (!targetSupplyId) {
@@ -242,9 +230,7 @@ const AutoAssembly = () => {
           setIsProcessing(false);
           return;
         }
-      } 
-      // Если ни то ни другое не указано, выбираем первую доступную или создаем новую
-      else if (!targetSupplyId) {
+      } else if (!targetSupplyId) {
         if (supplies.length === 0) {
           const currentDate = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
           const supplyName = `Поставка от ${currentDate}`;
@@ -256,26 +242,21 @@ const AutoAssembly = () => {
             return;
           }
         } else {
-          // Используем первую доступную поставку
           targetSupplyId = supplies[0].id;
         }
       }
       
-      // Добавляем выбранные заказы в поставку
       let successCount = 0;
       for (const orderId of selectedOrders) {
         const success = await SuppliesAPI.addOrderToSupply(targetSupplyId, orderId);
         if (success) {
           successCount++;
           
-          // Находим заказ по ID и получаем его nmId
           const assembledOrder = orders.find(order => order.id === orderId);
           if (assembledOrder?.nmId) {
-            // Помечаем товар в кэше как перемещенный в поставку
             markProductAsInSupply(assembledOrder.nmId);
           }
           
-          // Помечаем заказ как добавленный в поставку
           setOrders(prevOrders => 
             prevOrders.map(order => 
               order.id === orderId 
@@ -286,16 +267,13 @@ const AutoAssembly = () => {
         }
       }
       
-      // Обновляем данные
       await loadData();
       
-      // Отображаем уведомление
       if (successCount > 0) {
         toast.success(`Добавлено ${successCount} из ${selectedOrders.length} заказов в поставку`, {
           description: `ID поставки: ${targetSupplyId}`
         });
         
-        // Переключаемся на вкладку поставок, если все прошло успешно
         if (successCount === selectedOrders.length) {
           setActiveTab("supplies");
           setSelectedOrders([]);
@@ -365,7 +343,6 @@ const AutoAssembly = () => {
 
   const handleClearCache = useCallback(() => {
     clearProductInfoCache();
-    // Обновляем данные, чтобы перезагрузить товары
     loadData();
   }, []);
 
@@ -373,7 +350,6 @@ const AutoAssembly = () => {
 
   return (
     <div className="container mx-auto py-6 max-w-7xl">
-      {/* Заголовок и кнопки управления */}
       <div className="flex flex-wrap justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold">Автоматическая сборка</h1>
@@ -426,7 +402,6 @@ const AutoAssembly = () => {
         </div>
       </div>
       
-      {/* Диалоговые окна */}
       <ResultDialog 
         showResultDialog={showResultDialog} 
         setShowResultDialog={setShowResultDialog} 

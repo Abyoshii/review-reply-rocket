@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -28,12 +29,21 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
   const [isUsingLatestToken, setIsUsingLatestToken] = useState(false);
   
   useEffect(() => {
+    if (open) {
+      refreshTokenDetails();
+    }
+  }, [open]);
+  
+  useEffect(() => {
     setIsUsingLatestToken(currentToken === UNIFIED_API_TOKEN);
   }, [currentToken]);
   
   const refreshTokenDetails = () => {
     setIsLoading(true);
     try {
+      // Сначала проверяем локальное хранилище и обновляем токен если нужно
+      localStorage.setItem("wb_token", UNIFIED_API_TOKEN);
+      
       const token = getApiToken();
       setCurrentToken(token);
       setTokenDetails(getTokenDetails(token));

@@ -17,6 +17,11 @@ const DEFAULT_OPENAI_API_KEY = "sk-proj-yMWt9dvm2gTwEhsslsu4G8P1DGO62iablicOcitG
 // Получение токена WB из localStorage или использование единого токена
 const getWbToken = (): string => {
   const token = localStorage.getItem("wb_token");
+  // Если токен в localStorage отсутствует или устарел, обновляем его
+  if (!token || token !== UNIFIED_WB_TOKEN) {
+    localStorage.setItem("wb_token", UNIFIED_WB_TOKEN);
+    return UNIFIED_WB_TOKEN;
+  }
   return token || UNIFIED_WB_TOKEN;
 };
 
