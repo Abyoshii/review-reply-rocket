@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { 
   AssemblyOrder, 
@@ -179,24 +180,47 @@ export const AutoAssemblyAPI = {
       console.log("Supplies response:", response.data);
       logObjectStructure(response.data, "Полная структура ответа API поставок");
       
-      if (response.data) {
-        if (Array.isArray(response.data)) {
-          return response.data.map((supply: any) => ({
-            id: supply.id,
-            supplyId: supply.id,
-            name: supply.name,
-            createdAt: supply.createdAt,
-            done: supply.done || false,
-            status: supply.status || "NEW",
-            ordersCount: supply.ordersCount || 0
-          }));
-        } else if (response.data.data && Array.isArray(response.data.data.supplies)) {
+      // Обработка ответа в зависимости от его формата
+      if (Array.isArray(response.data)) {
+        // Если API возвращает прямой массив поставок
+        console.log("Обрабатываем массив поставок");
+        return response.data.map((supply: any) => ({
+          id: supply.id,
+          supplyId: supply.id,
+          name: supply.name || "",
+          createdAt: supply.createdAt || "",
+          done: supply.done || false,
+          status: supply.status || "NEW",
+          ordersCount: supply.ordersCount || 0,
+          cargoType: supply.cargoType || 0
+        }));
+      } else if (response.data && typeof response.data === 'object') {
+        // Проверяем различные структуры вложенности в ответе
+        console.log("Обрабатываем объект с поставками");
+        
+        if (response.data.data && Array.isArray(response.data.data.supplies)) {
+          console.log("Нашли массив поставок в response.data.data.supplies");
           return response.data.data.supplies;
         } else if (response.data.supplies && Array.isArray(response.data.supplies)) {
+          console.log("Нашли массив поставок в response.data.supplies");
           return response.data.supplies;
+        } else if (response.data.orders && Array.isArray(response.data.orders)) {
+          console.log("Нашли массив поставок в response.data.orders");
+          return response.data.orders.map((supply: any) => ({
+            id: supply.id,
+            supplyId: supply.id,
+            name: supply.name || "",
+            createdAt: supply.createdAt || "",
+            done: supply.done || false,
+            status: supply.status || "NEW",
+            ordersCount: 0,
+            cargoType: supply.cargoType || 0
+          }));
         }
       }
       
+      // Если не смогли распознать формат, возвращаем пустой массив
+      console.warn("Неизвестный формат ответа API поставок:", response.data);
       toast.error("API вернуло неожиданный формат данных для поставок");
       return [];
     } catch (error) {
@@ -213,8 +237,21 @@ export const AutoAssemblyAPI = {
         headers: addAuthHeaders()
       });
       
+      console.log(`Supply ${supplyId} details:`, response.data);
+      
       if (response.data) {
-        return response.data;
+        return {
+          id: response.data.id,
+          supplyId: response.data.id,
+          name: response.data.name || "",
+          createdAt: response.data.createdAt || "",
+          scanDt: response.data.scanDt,
+          closedAt: response.data.closedAt,
+          done: response.data.done || false,
+          status: response.data.status || "NEW",
+          ordersCount: 0,
+          cargoType: response.data.cargoType || 0
+        };
       }
       
       return null;
@@ -232,24 +269,37 @@ export const AutoAssemblyAPI = {
         headers: addAuthHeaders()
       });
       
-      if (response.data && Array.isArray(response.data)) {
-        return response.data.map((order: any) => ({
-          id: order.id,
-          orderUid: order.orderUid,
-          createdAt: order.createdAt,
-          ddate: order.ddate,
-          price: order.price,
-          salePrice: order.salePrice,
-          supplierArticle: order.supplierArticle,
-          productName: order.productName,
-          warehouseId: order.warehouseId,
-          cargoType: order.cargoType,
-          inSupply: true,
-          category: determineProductCategory(order.productName)
-        }));
+      console.log(`Supply ${supplyId} orders response:`, response.data);
+      
+      // Обрабатываем данные в зависимости от формата ответа
+      let orders: any[] = [];
+      
+      if (Array.isArray(response.data)) {
+        // Если API вернул прямой массив заказов
+        orders = response.data;
+      } else if (response.data && response.data.orders && Array.isArray(response.data.orders)) {
+        // Если API вернул объект с массивом заказов
+        orders = response.data.orders;
+      } else {
+        console.warn(`Неожиданный формат ответа для заказов поставки ${supplyId}:`, response.data);
+        return [];
       }
       
-      return [];
+      // Преобразуем данные в формат AssemblyOrder
+      return orders.map((order: any) => ({
+        id: order.id,
+        orderUid: order.orderUid || order.rid || `Order-${order.id}`,
+        createdAt: order.createdAt || new Date().toISOString(),
+        ddate: order.ddate || order.createdAt || new Date().toISOString(),
+        price: order.price || 0,
+        salePrice: order.price || 0,
+        supplierArticle: order.article || order.supplierArticle || "",
+        productName: order.productName || `Товар ${order.article || order.id}`,
+        warehouseId: order.warehouseId || 0,
+        cargoType: order.cargoType || 0,
+        inSupply: true,
+        category: determineProductCategory(order.productName || "")
+      }));
     } catch (error) {
       console.error(`Error fetching orders for supply ${supplyId}:`, error);
       logObjectStructure(error, "Детальная ошибка при получении заказов для поставки");

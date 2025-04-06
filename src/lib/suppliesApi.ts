@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { toast } from "sonner";
 import { addAuthHeaders } from "./securityUtils";
@@ -22,58 +21,55 @@ export const SuppliesAPI = {
         params
       });
       
-      console.log("Supplies API response:", response.data);
+      console.log("Supplies API raw response:", response.data);
       
       // Обработка ответа в соответствии с документацией API
-      if (response.data && Array.isArray(response.data)) {
-        // Прямой массив поставок (как в документации)
+      // Согласно документации, API возвращает массив объектов поставок
+      if (Array.isArray(response.data)) {
+        console.log("Detected array format for supplies data");
+        const suppliesData = response.data.map((supply: any) => ({
+          id: supply.id,
+          supplyId: supply.id,
+          name: supply.name || "",
+          createdAt: supply.createdAt || "",
+          done: supply.done || false,
+          status: supply.status || "NEW",
+          ordersCount: 0 // Будет обновлено при необходимости
+        }));
+        
+        console.log(`Processed ${suppliesData.length} supplies from array format`);
         return {
-          supplies: response.data.map((supply: any) => ({
-            id: supply.id,
-            supplyId: supply.id,
-            name: supply.name,
-            createdAt: supply.createdAt,
-            done: supply.done || false,
-            status: "NEW",
-            ordersCount: 0 // Будет обновлено позже при необходимости
-          })),
+          supplies: suppliesData,
           hasMore: false,
           next: undefined
         };
-      } else if (response.data && Array.isArray(response.data.supplies)) {
-        // Формат с вложенным массивом supplies
+      } else if (response.data && response.data.orders) {
+        // Альтернативный формат с полем orders
+        console.log("Detected object with orders format");
+        const suppliesData = Array.isArray(response.data.orders) ? response.data.orders : [];
         return {
-          supplies: response.data.supplies,
+          supplies: suppliesData.map((supply: any) => ({
+            id: supply.id,
+            supplyId: supply.id, 
+            name: supply.name || "",
+            createdAt: supply.createdAt || "",
+            done: supply.done || false,
+            status: supply.status || "NEW",
+            ordersCount: 0
+          })),
           hasMore: !!response.data.next,
           next: response.data.next
         };
-      } else if (response.data && typeof response.data === 'object') {
-        // Попытка анализа структуры ответа
-        console.log("Анализ структуры ответа API поставок:", Object.keys(response.data));
-        
-        // Проверка различных возможных путей к данным поставок
-        const possibleSupplies = response.data.supplies || 
-                               response.data.data?.supplies || 
-                               response.data.items ||
-                               response.data.data?.items ||
-                               [];
-        
-        if (Array.isArray(possibleSupplies)) {
-          return {
-            supplies: possibleSupplies,
-            hasMore: !!(response.data.next || response.data.data?.next),
-            next: response.data.next || response.data.data?.next
-          };
-        }
+      } else {
+        // Если формат не соответствует ожидаемым, логируем и возвращаем пустой массив
+        console.log("Unknown response format for supplies:", response.data);
+        toast.error("Неизвестный формат ответа API поставок");
+        return { supplies: [], hasMore: false };
       }
-      
-      // Если API вернул неожиданный формат
-      console.error("Неожиданный формат ответа API:", response.data);
-      toast.error("API вернул неожиданный формат данных");
-      return { supplies: [], hasMore: false };
     } catch (error: any) {
       console.error("Error fetching supplies:", error);
-      toast.error(`Ошибка получения поставок: ${error.message || 'Неизвестная ошибка'}`);
+      const errorMessage = error.response?.data?.message || error.message || 'Неизвестная ошибка';
+      toast.error(`Ошибка получения поставок: ${errorMessage}`);
       return { supplies: [], hasMore: false };
     }
   },
@@ -87,16 +83,54 @@ export const SuppliesAPI = {
         headers: addAuthHeaders()
       });
       
+      console.log("Create supply response:", response.data);
+      
+      // В документации указано, что ответ содержит id поставки
       if (response.data && response.data.id) {
         toast.success(`Поставка "${name}" создана успешно`);
-        return response.data.id;
+        return typeof response.data.id === 'number' ? 
+          response.data.id : 
+          parseInt(response.data.id, 10);
       } else {
         throw new Error("API не вернуло ID поставки");
       }
     } catch (error: any) {
       console.error("Error creating supply:", error);
-      const errorMessage = error.response?.data?.message || "Ошибка при создании поставки";
-      toast.error(errorMessage);
+      const errorMessage = error.response?.data?.message || error.message || 'Неизвестная ошибка';
+      toast.error(`Ошибка при создании поставки: ${errorMessage}`);
+      return null;
+    }
+  },
+  
+  // Получение информации о поставке
+  getSupplyDetails: async (supplyId: number): Promise<Supply | null> => {
+    try {
+      const response = await axios.get(`${WB_MARKETPLACE_API_BASE_URL}/supplies/${supplyId}`, {
+        headers: addAuthHeaders()
+      });
+      
+      console.log(`Supply ${supplyId} details:`, response.data);
+      
+      if (response.data) {
+        return {
+          id: response.data.id,
+          supplyId: response.data.id,
+          name: response.data.name || "",
+          createdAt: response.data.createdAt || "",
+          scanDt: response.data.scanDt,
+          closedAt: response.data.closedAt,
+          done: response.data.done || false,
+          status: response.data.status || "NEW",
+          ordersCount: 0,
+          cargoType: response.data.cargoType
+        };
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error(`Error fetching supply ${supplyId} details:`, error);
+      const errorMessage = error.response?.data?.message || error.message || 'Неизвестная ошибка';
+      toast.error(`Ошибка при получении информации о поставке: ${errorMessage}`);
       return null;
     }
   },
@@ -108,15 +142,52 @@ export const SuppliesAPI = {
         headers: addAuthHeaders()
       });
       
+      console.log(`Supply ${supplyId} orders:`, response.data);
+      
+      // Согласно документации, API возвращает объект с массивом orders
       if (response.data && Array.isArray(response.data)) {
-        return response.data;
+        // Прямой массив заказов
+        return response.data.map((order: any) => ({
+          id: order.id || 0,
+          supplierArticle: order.article || order.supplierArticle || "",
+          nmId: order.nmId || 0,
+          chrtId: order.chrtId || "",
+          barcode: order.skus?.[0] || "",
+          quantity: 1,
+          rid: order.rid || "",
+          price: order.price || 0,
+          salePrice: order.price || 0,
+          convertedPrice: order.convertedPrice || 0,
+          convertedSalePrice: order.convertedPrice || 0,
+          isSupply: true,
+          isReturn: false,
+          cargoType: order.cargoType || 0
+        }));
+      } else if (response.data && response.data.orders && Array.isArray(response.data.orders)) {
+        // Вложенный массив orders
+        return response.data.orders.map((order: any) => ({
+          id: order.id || 0,
+          supplierArticle: order.article || order.supplierArticle || "",
+          nmId: order.nmId || 0,
+          chrtId: order.chrtId || "",
+          barcode: order.skus?.[0] || "",
+          quantity: 1,
+          rid: order.rid || "",
+          price: order.price || 0,
+          salePrice: order.price || 0,
+          convertedPrice: order.convertedPrice || 0,
+          convertedSalePrice: order.convertedPrice || 0,
+          isSupply: true,
+          isReturn: false,
+          cargoType: order.cargoType || 0
+        }));
       }
       
       return [];
     } catch (error: any) {
       console.error(`Error fetching orders for supply ${supplyId}:`, error);
-      const errorMessage = error.response?.data?.message || `Ошибка при загрузке заказов для поставки ${supplyId}`;
-      toast.error(errorMessage);
+      const errorMessage = error.response?.data?.message || error.message || 'Неизвестная ошибка';
+      toast.error(`Ошибка при загрузке заказов для поставки: ${errorMessage}`);
       return [];
     }
   },
@@ -183,7 +254,7 @@ export const SuppliesAPI = {
       const blob = new Blob([response.data], { type: 'image/png' });
       const downloadUrl = URL.createObjectURL(blob);
       
-      toast.success(`QR-код для поставки ${supplyId} получен`);
+      toast.success(`QR-код для поставки ${supplyId} пол��чен`);
       return downloadUrl;
     } catch (error: any) {
       console.error(`Error getting barcode for supply ${supplyId}:`, error);

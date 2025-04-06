@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,16 +72,27 @@ const Supplies = () => {
   const [hasMorePages, setHasMorePages] = useState<boolean>(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [showQrDialog, setShowQrDialog] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   
   const loadSupplies = async () => {
     setIsLoading(true);
+    setLoadError(null);
+    
     try {
+      console.log("Loading supplies...");
       const result = await SuppliesAPI.getSupplies();
+      console.log("Loaded supplies:", result);
+      
       setSupplies(result.supplies);
       setNextPageToken(result.next);
       setHasMorePages(result.hasMore);
-    } catch (error) {
+      
+      if (result.supplies.length === 0) {
+        console.log("No supplies found, checking if there's an error");
+      }
+    } catch (error: any) {
       console.error("Failed to load supplies:", error);
+      setLoadError(error.message || "Не удалось загрузить поставки");
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +124,15 @@ const Supplies = () => {
     setShowOrdersDialog(true);
     
     try {
+      // Сначала попробуем получить детали поставки для обновления данных
+      const supplyDetails = await SuppliesAPI.getSupplyDetails(supply.id);
+      if (supplyDetails) {
+        setSelectedSupply(supplyDetails);
+      }
+      
+      // Теперь получим заказы в поставке
       const orders = await SuppliesAPI.getSupplyOrders(supply.id);
+      console.log(`Loaded ${orders.length} orders for supply ${supply.id}:`, orders);
       setSupplyOrders(orders);
     } catch (error) {
       console.error(`Failed to load orders for supply ${supply.id}:`, error);
@@ -243,8 +263,18 @@ const Supplies = () => {
               <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
               <h3 className="mt-4 text-lg font-medium">Нет поставок</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Создайте новую поставку для начала работы
+                {loadError ? `Ошибка: ${loadError}` : "Создайте новую поставку для начала работы"}
               </p>
+              {loadError && (
+                <Button 
+                  variant="outline" 
+                  onClick={loadSupplies}
+                  className="mt-4"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Попробовать снова
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
@@ -263,7 +293,7 @@ const Supplies = () => {
                 {supplies.map((supply) => (
                   <TableRow key={supply.id}>
                     <TableCell>{supply.id}</TableCell>
-                    <TableCell className="font-medium">{supply.name}</TableCell>
+                    <TableCell className="font-medium">{supply.name || "Без названия"}</TableCell>
                     <TableCell className="hidden sm:table-cell">{formatDate(supply.createdAt)}</TableCell>
                     <TableCell className="hidden md:table-cell">{supply.supplyId || '-'}</TableCell>
                     <TableCell>{supply.ordersCount}</TableCell>

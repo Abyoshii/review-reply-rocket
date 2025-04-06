@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -57,15 +57,19 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
 
   // Format date in Russian locale
   const formatDate = (dateString: string) => {
-    if (!dateString) return null;
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return "—";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
 
   // Get badge color based on supply status
@@ -74,12 +78,16 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
       return <Badge className="bg-green-600">Завершена</Badge>;
     }
     
+    status = status ? status.toLowerCase() : "";
+    
     switch(status) {
-      case 'NEW':
+      case 'new':
         return <Badge variant="outline" className="border-blue-500 text-blue-500">Новая</Badge>;
-      case 'PROCESSING':
+      case 'processing':
+      case 'in_progress':
         return <Badge variant="secondary" className="bg-amber-500">В обработке</Badge>;
-      case 'READY':
+      case 'ready':
+      case 'ready_to_ship':
         return <Badge variant="secondary" className="bg-green-500">Готова</Badge>;
       default:
         return <Badge variant="outline">{status || "Неизвестен"}</Badge>;
@@ -109,6 +117,30 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
       toast.error("Ошибка при создании поставки");
     } finally {
       setIsCreating(false);
+    }
+  };
+  
+  const loadSupplyOrders = async (supply: Supply) => {
+    setSelectedSupply(supply);
+    setIsLoadingOrders(true);
+    setShowOrdersDialog(true);
+    
+    try {
+      // Сначала попробуем получить детали поставки для обновления данных
+      const supplyDetails = await SuppliesAPI.getSupplyDetails(supply.id);
+      if (supplyDetails) {
+        setSelectedSupply(supplyDetails);
+      }
+      
+      // Теперь получим заказы в поставке
+      const orders = await SuppliesAPI.getSupplyOrders(supply.id);
+      console.log(`Loaded ${orders.length} orders for supply ${supply.id}:`, orders);
+      setSupplyOrders(orders);
+    } catch (error) {
+      console.error(`Failed to load orders for supply ${supply.id}:`, error);
+      toast.error(`Ошибка при загрузке заказов для поставки ${supply.id}`);
+    } finally {
+      setIsLoadingOrders(false);
     }
   };
   
@@ -154,22 +186,6 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
     } catch (error) {
       console.error("Error getting supply barcode:", error);
       toast.error("Ошибка при получении QR-кода поставки");
-    }
-  };
-
-  const loadSupplyOrders = async (supply: Supply) => {
-    setSelectedSupply(supply);
-    setIsLoadingOrders(true);
-    setShowOrdersDialog(true);
-    
-    try {
-      const orders = await SuppliesAPI.getSupplyOrders(supply.id);
-      setSupplyOrders(orders);
-    } catch (error) {
-      console.error(`Failed to load orders for supply ${supply.id}:`, error);
-      toast.error(`Ошибка при загрузке заказов для поставки ${supply.id}`);
-    } finally {
-      setIsLoadingOrders(false);
     }
   };
 
@@ -309,8 +325,8 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
                   {supplies.map((supply) => (
                     <TableRow key={supply.id}>
                       <TableCell className="font-medium">{supply.name || "Без названия"}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{formatDate(supply.createdAt) || "—"}</TableCell>
-                      <TableCell className="hidden md:table-cell">{supply.supplyId || "—"}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{formatDate(supply.createdAt)}</TableCell>
+                      <TableCell className="hidden md:table-cell">{supply.supplyId || supply.id || "—"}</TableCell>
                       <TableCell>{supply.ordersCount !== undefined ? supply.ordersCount : "—"}</TableCell>
                       <TableCell>{getStatusBadge(supply.status, supply.done)}</TableCell>
                       <TableCell>
