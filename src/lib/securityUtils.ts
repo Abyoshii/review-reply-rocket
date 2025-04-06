@@ -3,9 +3,6 @@ import { SecuritySettings } from "@/types/openai";
 import { toast } from "sonner";
 import { logWarning } from "./logUtils";
 
-// Единый API токен для всех API запросов
-const UNIFIED_API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU3ODUyNSwiaWQiOiIwMTk2MDMzNC1mYjA2LTc0ZjUtOGIwMC03MjU4YWI4OWM1MzAiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NzkzNCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6ZmFsc2UsInVpZCI6NTAxMDkyNzB9.e8n-W4xKLY9lpMANMRP4_0xZzKHL8gKAUeaXOkcxO6sLSUWHf_vTCGF5IoBceu5o6Dbj3K9Cu7CCbgRC07myPg";
-
 // Функция для обфускации токенов API
 const obfuscateToken = (token: string): string => {
   if (!token) return '';
@@ -27,6 +24,9 @@ const deobfuscateToken = (encodedToken: string): string => {
     return '';
   }
 };
+
+// Используем константу для единого API токена для всех API
+const API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU3ODUyNSwiaWQiOiIwMTk2MDMzNC1mYjA2LTc0ZjUtOGIwMC03MjU4YWI4OWM1MzAiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NzkzNCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6ZmFsc2UsInVpZCI6NTAxMDkyNzB9.e8n-W4xKLY9lpMANMRP4_0xZzKHL8gKAUeaXOkcxO6sLSUWHf_vTCGF5IoBceu5o6Dbj3K9Cu7CCbgRC07myPg";
 
 // Функция для декодирования JWT без использования внешних библиотек
 const decodeJWT = (token: string): { header: any, payload: any } | null => {
@@ -164,7 +164,7 @@ const saveApiToken = (token: string, securitySettings: SecuritySettings): void =
       ? obfuscateToken(token)
       : token;
     
-    localStorage.setItem('wb_token', tokenToSave);
+    localStorage.setItem('wb_api_token', tokenToSave);
     localStorage.setItem('wb_token_obfuscated', String(securitySettings.obfuscateTokens));
     localStorage.setItem('wb_header_name', securitySettings.headerName);
     
@@ -182,12 +182,12 @@ const saveApiToken = (token: string, securitySettings: SecuritySettings): void =
 
 // Функция для получения токена из localStorage с деобфускацией при необходимости
 const getApiToken = (): string => {
-  const token = localStorage.getItem('wb_token') || UNIFIED_API_TOKEN;
+  const token = localStorage.getItem('wb_api_token') || API_TOKEN;
   const isObfuscated = localStorage.getItem('wb_token_obfuscated') === 'true';
   
   if (!token) {
     console.warn("⚠️ API токен отсутствует!");
-    return UNIFIED_API_TOKEN;
+    return '';
   }
   
   const resultToken = isObfuscated ? deobfuscateToken(token) : token;
@@ -198,7 +198,6 @@ const getApiToken = (): string => {
     toast.warning("Проблема с API токеном", {
       description: "Токен может быть просрочен или иметь неверный формат"
     });
-    return UNIFIED_API_TOKEN;
   }
   
   return resultToken;
@@ -213,6 +212,11 @@ const getHeaderName = (): string => {
 const addAuthHeaders = (headers: Record<string, string> = {}, apiUrl?: string): Record<string, string> => {
   const token = getApiToken();
   const headerName = getHeaderName();
+  
+  if (!token) {
+    console.warn("⚠️ Невозможно добавить заголовок авторизации - токен отсутствует!");
+    return headers;
+  }
   
   // Проверяем совместимость токена с API, если URL предоставлен
   if (apiUrl && !isTokenCompatibleWithApi(token, apiUrl)) {
@@ -347,7 +351,5 @@ export {
   saveSecuritySettings,
   decodeJWT,
   isTokenValid,
-  getTokenDetails,
-  UNIFIED_API_TOKEN
+  getTokenDetails
 };
-
