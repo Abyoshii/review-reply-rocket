@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -116,12 +115,11 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5" /> Диагностика API токена
+            <Shield className="w-5 h-5" /> Диагностика API токена Feedbacks API
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 my-4">
-          {/* Статус текущего токена */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -208,10 +206,9 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
             </CardFooter>
           </Card>
           
-          {/* Форма ввода нового токена */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Обновить токен</CardTitle>
+              <CardTitle className="text-lg">Обновить токен API отзывов</CardTitle>
               <CardDescription>
                 Введите новый API токен Wildberries
               </CardDescription>
@@ -256,14 +253,13 @@ const TokenDiagnostics = ({ open, onOpenChange }: TokenDiagnosticsProps) => {
             </CardFooter>
           </Card>
           
-          {/* Советы по получению токена */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Получение токена</CardTitle>
+              <CardTitle className="text-lg">Получение токена Feedbacks API</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <p>
-                Для получения API токена Wildberries:
+                Для получения API токена Wildberries Feedbacks:
               </p>
               <ol className="list-decimal list-inside space-y-1">
                 <li>Войдите в личный кабинет продавца Wildberries</li>

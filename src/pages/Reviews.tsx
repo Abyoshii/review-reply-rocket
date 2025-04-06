@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,10 +13,10 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import HeaderAutoResponse from "@/components/HeaderAutoResponse";
 import { ReviewListParams, WbReview, WbQuestion, QuestionListParams } from "@/types/wb";
-import { WbAPI } from "@/lib/api";
 import { Loader2, AlertCircle } from "lucide-react";
 import { logObjectStructure } from "@/lib/imageUtils";
 import { UNIFIED_API_TOKEN, saveApiToken } from "@/lib/securityUtils";
+import { FeedbacksService } from "@/lib/feedbacks";
 
 const Reviews = () => {
   const [activeTab, setActiveTab] = useState("new");
@@ -36,7 +35,6 @@ const Reviews = () => {
   const [tokenResetAttempted, setTokenResetAttempted] = useState(false);
 
   const ensureLatestToken = () => {
-    // Сбрасываем токен до актуального значения при первой загрузке компонента
     try {
       saveApiToken(UNIFIED_API_TOKEN, {
         useHeaderApiKey: true,
@@ -54,7 +52,6 @@ const Reviews = () => {
     setError(null);
     
     try {
-      // При первой загрузке или после ошибки авторизации сбрасываем токен
       if (!tokenResetAttempted) {
         ensureLatestToken();
         setTokenResetAttempted(true);
@@ -67,9 +64,8 @@ const Reviews = () => {
         order: "dateDesc" 
       };
       
-      const reviewsResponse = await WbAPI.getReviews(reviewsParams);
+      const reviewsResponse = await FeedbacksService.reviews.getReviews(reviewsParams);
       
-      // Log the data structure to see what we're getting from the API
       logObjectStructure(reviewsResponse, "WB API Reviews Response");
       
       const questionsParams: QuestionListParams = { 
@@ -79,7 +75,7 @@ const Reviews = () => {
         order: "dateDesc" 
       };
       
-      const questionsResponse = await WbAPI.getQuestions(questionsParams);
+      const questionsResponse = await FeedbacksService.questions.getQuestions(questionsParams);
       
       const archiveParams: ReviewListParams = { 
         isAnswered: true, 
@@ -88,16 +84,14 @@ const Reviews = () => {
         order: "dateDesc" 
       };
       
-      const archiveResponse = await WbAPI.getArchiveReviews(archiveParams);
+      const archiveResponse = await FeedbacksService.reviews.getArchiveReviews(archiveParams);
       
-      // Log the archive response to see what we're getting
       logObjectStructure(archiveResponse, "WB API Archive Response");
       
       setReviews(reviewsResponse.data.feedbacks || []);
       setQuestions(questionsResponse.data.questions || []);
       setArchiveReviews(archiveResponse.data.feedbacks || []);
       
-      // Показываем уведомление об успешной загрузке
       toast.success("Данные успешно загружены", {
         description: `Загружено отзывов: ${reviewsResponse.data.feedbacks?.length || 0}`
       });
@@ -107,11 +101,9 @@ const Reviews = () => {
       
       let errorMessage = "Не удалось загрузить данные. Проверьте API-токен и сетевое соединение.";
       
-      // Проверяем не связана ли ошибка с токеном
       if (error.response?.status === 401) {
         errorMessage = "Ошибка авторизации (401). Токен недействителен или отозван.";
         
-        // Если это первая ошибка авторизации после загрузки страницы, пробуем сбросить токен и загрузить снова
         if (!tokenResetAttempted) {
           ensureLatestToken();
           setTokenResetAttempted(true);
@@ -120,7 +112,6 @@ const Reviews = () => {
           });
           setError(null);
           setLoading(false);
-          // Пробуем загрузить данные снова после небольшой задержки
           setTimeout(fetchData, 1000);
           return;
         }
@@ -177,7 +168,7 @@ const Reviews = () => {
     console.log("Применяем фильтры:", filters);
     setLoading(true);
     
-    WbAPI.getReviews(filters)
+    FeedbacksService.reviews.getReviews(filters)
       .then(response => {
         setReviews(response.data.feedbacks || []);
       })
@@ -194,7 +185,7 @@ const Reviews = () => {
     console.log("Применяем фильтры для вопросов:", filters);
     setLoading(true);
     
-    WbAPI.getQuestions(filters)
+    FeedbacksService.questions.getQuestions(filters)
       .then(response => {
         setQuestions(response.data.questions || []);
       })
