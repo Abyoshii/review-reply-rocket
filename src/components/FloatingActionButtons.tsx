@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Send, Loader2, CheckCircle } from "lucide-react";
 import { WbReview } from "@/types/wb";
 import { Progress } from "@/components/ui/progress";
 
-interface FloatingActionButtonsProps {
+export interface FloatingActionButtonsProps {
   selectedReviews: Set<string>;
   reviews: WbReview[];
   onGenerateAnswers: () => void;
