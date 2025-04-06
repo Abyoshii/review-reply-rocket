@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { ProductCardInfo, ProductCategory } from "@/types/wb";
 import { determineCategoryBySubject } from "./categoryUtils";
@@ -7,7 +8,7 @@ import { toast } from "sonner";
 const WB_CARD_API_URL = "https://content-api.wildberries.ru/content/v2/get/cards/list";
 
 // Специальный токен для запросов к API карточек товаров
-const PRODUCT_CARD_API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU3ODIxNiwiaWQiOiIwMTk2MDMzMC00MzI0LTc2YTQtYTYwOS1iOWIwYjM0ZjQ2MTYiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NDE3OCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6ZmFsc2UsInVpZCI6NTAxMDkyNzB9.gusUFEWP9X0AVMFeurwgV1OctQUbFbag5s_bA1AHPdvlSCLmaye0Fq3pzwDQzwNgJ1Z21eP0vnp-ARHJeDBTwQ";
+const PRODUCT_CARD_API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU3NzQ1OCwiaWQiOiIwMTk2MDMyNC1iMjhjLTcwOTctOWJkZS0xN2RiODE4ZTc4YjgiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NjYsInNpZCI6ImU2YWM2NjA0LTFkMjEtNDE1Yy05MDVkLTNkYzBjNGE4ZjJiZSIsInQiOmZhbHNlLCJ1aWQiOjUwMTA5MjcwfQ.KjEJlhdLljBMshejw2UUgEiQcq7XIYNFMSzPJb7F7LCSh274rIBmTFd2ozT4CGzlXFaUKCgFgHq0gyebND6qrQ";
 
 // Кэш для хранения информации о товарах
 const productInfoCache: Record<number, ProductCardInfo> = {};

@@ -324,7 +324,7 @@ const AutoAssembly = () => {
         showResultDialog={showResultDialog} 
         setShowResultDialog={setShowResultDialog} 
         autoAssemblyResult={autoAssemblyResult} 
-        setActiveTab={(tab: "orders" | "supplies") => setActiveTab(tab)}
+        setActiveTab={setActiveTab}
       />
       
       <TokenDiagnostics 
