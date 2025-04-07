@@ -65,20 +65,6 @@ const AppSidebar = () => {
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <SidebarMenuButton isActive={isActive("/auto-assembly")} onClick={() => navigate("/auto-assembly")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
-                        <PackagePlus size={18} />
-                        <span>Автосборка</span>
-                      </SidebarMenuButton>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Автоматическая сборка заказов
-                    </TooltipContent>
-                  </Tooltip>
-                </SidebarMenuItem>
               </TooltipProvider>
             </SidebarMenu>
           </SidebarGroupContent>
@@ -99,6 +85,20 @@ const AppSidebar = () => {
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
                       Упаковка в короба
+                    </TooltipContent>
+                  </Tooltip>
+                </SidebarMenuItem>
+                
+                <SidebarMenuItem>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SidebarMenuButton isActive={isActive("/auto-assembly")} onClick={() => navigate("/auto-assembly")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
+                        <PackagePlus size={18} />
+                        <span>Автосборка</span>
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
+                      Автоматическая сборка заказов
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
