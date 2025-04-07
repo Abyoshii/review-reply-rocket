@@ -142,13 +142,12 @@ const AutoAssembly = () => {
         const suppliesResponse = await SuppliesAPI.getSupplies(100);
         console.log("Loaded supplies via SuppliesAPI:", suppliesResponse);
         
-        if (suppliesResponse && suppliesResponse.supplies && suppliesResponse.supplies.length > 0) {
+        if (suppliesResponse && Array.isArray(suppliesResponse.supplies) && suppliesResponse.supplies.length > 0) {
           console.log(`Получены ${suppliesResponse.supplies.length} поставок через SuppliesAPI`);
           setSupplies(suppliesResponse.supplies);
         } else {
           console.log("SuppliesAPI вернул пустой массив, пробуем резервный метод");
           
-          // Резервный метод через AutoAssemblyAPI
           console.log("Загрузка поставок через AutoAssemblyAPI...");
           const backupSupplies = await AutoAssemblyAPI.getSupplies();
           
@@ -169,7 +168,6 @@ const AutoAssembly = () => {
       } catch (suppliesError) {
         console.error("Error loading supplies:", suppliesError);
         
-        // Резервный метод через AutoAssemblyAPI
         try {
           console.log("Ошибка при загрузке через SuppliesAPI, пробуем через AutoAssemblyAPI");
           const backupSupplies = await AutoAssemblyAPI.getSupplies();
