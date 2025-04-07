@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { logObjectStructure } from "./imageUtils";
 import { determineCategory, determineProductCategory } from "./utils/categoryUtils";
 import { formatTimeAgo } from "./utils/formatUtils";
-import { getProductCardInfo } from "./utils/productUtils";
+import { getProductCardInfo, getBulkProductInfo } from "./utils/productUtils";
 
 const WB_API_BASE_URL = "https://marketplace-api.wildberries.ru/api/v3";
 
@@ -30,6 +30,7 @@ export const AutoAssemblyAPI = {
       logObjectStructure(response.data, "Полная структура ответа API заказов");
       
       if (response.data && Array.isArray(response.data.orders)) {
+        // Базовое преобразование заказов без информации о товарах
         const orders = response.data.orders.map((order: any) => ({
           id: order.id,
           orderUid: order.orderUid || `WB-${Math.random().toString(36).substr(2, 9)}`,
@@ -45,32 +46,56 @@ export const AutoAssemblyAPI = {
           nmId: order.nmId || null
         }));
         
-        const ordersWithProductInfo = await Promise.all(
-          orders.map(async (order: AssemblyOrder) => {
-            if (order.nmId) {
-              try {
-                const productInfo = await getProductCardInfo(order.nmId);
-                if (productInfo) {
-                  return {
-                    ...order,
-                    productInfo,
-                    productName: productInfo.name,
-                    category: productInfo.productCategory || determineProductCategory(productInfo.name)
-                  };
-                }
-              } catch (error) {
-                console.error(`Error fetching product info for nmId=${order.nmId}:`, error);
+        // Выделяем все nmId из заказов для массовой загрузки
+        const nmIds = orders.filter(order => order.nmId).map(order => order.nmId as number);
+        
+        console.log(`Извлечено ${nmIds.length} nmId товаров для массовой загрузки`);
+        
+        // Получаем информацию о всех товарах сразу
+        if (nmIds.length > 0) {
+          try {
+            console.time("BulkProductInfoLoad");
+            const productInfoMap = await getBulkProductInfo(nmIds);
+            console.timeEnd("BulkProductInfoLoad");
+            console.log(`Загружена информация о ${Object.keys(productInfoMap).length} товарах`);
+            
+            // Дополняем заказы информацией о товарах
+            const ordersWithProductInfo = orders.map(order => {
+              if (order.nmId && productInfoMap[order.nmId]) {
+                const productInfo = productInfoMap[order.nmId];
+                return {
+                  ...order,
+                  productInfo,
+                  productName: productInfo.name,
+                  category: productInfo.productCategory || determineProductCategory(productInfo.name)
+                };
               }
-            }
-            return {
+              // Для товаров, которые не удалось загрузить, оставляем базовую информацию
+              return {
+                ...order,
+                productName: order.supplierArticle ? `Товар ${order.supplierArticle}` : "Неизвестный товар",
+                category: determineProductCategory(order.productName)
+              };
+            });
+            
+            return ordersWithProductInfo;
+          } catch (error) {
+            console.error("Ошибка при массовой загрузке информации о товарах:", error);
+            // В случае ошибки возвращаем заказы с базовой информацией
+            return orders.map(order => ({
               ...order,
               productName: order.supplierArticle ? `Товар ${order.supplierArticle}` : "Неизвестный товар",
               category: determineProductCategory(order.productName)
-            };
-          })
-        );
-        
-        return ordersWithProductInfo;
+            }));
+          }
+        } else {
+          // Если нет nmId, возвращаем заказы с базовой информацией
+          return orders.map(order => ({
+            ...order,
+            productName: order.supplierArticle ? `Товар ${order.supplierArticle}` : "Неизвестный товар",
+            category: determineProductCategory(order.productName)
+          }));
+        }
       }
       
       toast.error("API вернуло неожиданный формат данных для заказов");

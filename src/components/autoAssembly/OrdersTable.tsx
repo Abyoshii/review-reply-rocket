@@ -179,8 +179,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Не удалось загрузить информацию о товаре</p>
-                                  <p className="text-xs">Нажмите для повтора</p>
+                                  <p>Нет изображения товара</p>
+                                  <p className="text-xs">Нажмите для повтора загрузки</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -195,9 +195,9 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className="text-left font-medium text-sm truncate w-full cursor-default">
-                              {order.productInfo?.name || (
+                              {order.productInfo?.name || order.productName || (
                                 <span className="italic text-muted-foreground">
-                                  {order.nmId ? "Загрузка данных..." : "Данные недоступны"}
+                                  {order.nmId ? "ID товара: " + order.nmId : "Нет данных"}
                                 </span>
                               )}
                             </div>
@@ -224,14 +224,19 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                               </>
                             ) : order.nmId ? (
                               <>
-                                <p>Информация о товаре загружается</p>
+                                <p>ID товара: {order.nmId}</p>
+                                {order.supplierArticle && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Артикул: {order.supplierArticle}
+                                  </p>
+                                )}
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
                                   className="mt-2" 
                                   onClick={() => handleRetryProductInfo(order.nmId!)}
                                 >
-                                  <RefreshCw className="h-3 w-3 mr-1" /> Загрузить сейчас
+                                  <RefreshCw className="h-3 w-3 mr-1" /> Загрузить информацию
                                 </Button>
                               </>
                             ) : (
@@ -245,8 +250,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                           {order.productInfo.brand}
                         </span>
                       ) : (
-                        <span className="text-xs italic text-muted-foreground">
-                          {order.nmId ? "Загрузка информации..." : "Нет данных о бренде"}
+                        <span className="text-xs text-muted-foreground">
+                          {order.supplierArticle ? `Артикул: ${order.supplierArticle}` : (order.nmId ? `ID: ${order.nmId}` : "Нет данных")}
                         </span>
                       )}
                     </div>

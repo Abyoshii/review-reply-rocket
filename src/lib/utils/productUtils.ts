@@ -1,6 +1,7 @@
+
 import axios from "axios";
 import { ProductCardInfo, ProductCategory } from "@/types/wb";
-import { determineCategoryBySubject } from "./categoryUtils";
+import { determineProductCategory } from "./categoryUtils";
 import { toast } from "sonner";
 import { getApiToken } from "../securityUtils";
 
@@ -139,7 +140,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
         brand: product.brand || "Бренд не указан",
         image: "", // Пустая ссылка на изображение
         category: product.subjectName || "Категория не указана",
-        productCategory: product.subjectName ? determineCategoryBySubject(product.subjectName) : ProductCategory.MISC
+        productCategory: product.subjectName ? determineProductCategory(product.subjectName) : ProductCategory.MISC
       };
       
       // Сохраняем в кэше успешную загрузку, даже без изображения
@@ -165,7 +166,7 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
       brand: product.brand || "Бренд не указан",
       image: product.photos[0].big,
       category: subjectName,
-      productCategory: determineCategoryBySubject(subjectName)
+      productCategory: determineProductCategory(subjectName)
     };
     
     console.log(`✅ Успешно сформирована информация о товаре nmId=${nmId}:`, productInfo);
@@ -230,6 +231,144 @@ export const getProductCardInfo = async (nmId: number): Promise<ProductCardInfo 
     };
     
     return null;
+  }
+};
+
+// Функция для получения информации о нескольких товарах через массовый запрос
+export const getBulkProductInfo = async (nmIds: number[]): Promise<Record<number, ProductCardInfo>> => {
+  if (!nmIds || nmIds.length === 0) return {};
+  
+  const result: Record<number, ProductCardInfo> = {};
+  const nmIdsToFetch: number[] = [];
+  
+  // 1. Сначала проверяем кэш
+  for (const nmId of nmIds) {
+    if (productInfoCache[nmId] && !productInfoCache[nmId].failed) {
+      result[nmId] = productInfoCache[nmId].info;
+    } else {
+      nmIdsToFetch.push(nmId);
+    }
+  }
+  
+  if (nmIdsToFetch.length === 0) {
+    console.log(`✅ Все ${nmIds.length} товаров получены из кэша`);
+    return result;
+  }
+  
+  console.log(`🔄 Получение данных для ${nmIdsToFetch.length} товаров через массовый запрос`);
+  
+  try {
+    // 2. Формируем запрос с пакетами по 100 товаров
+    const batchSize = 100;
+    const batches = [];
+    
+    for (let i = 0; i < nmIdsToFetch.length; i += batchSize) {
+      const batchNmIds = nmIdsToFetch.slice(i, i + batchSize);
+      
+      // Формируем текстовый поиск по всем nmIds в батче
+      const textSearch = batchNmIds.join(' | ');
+      
+      const requestBody = {
+        settings: {
+          cursor: { limit: 200 },
+          filter: {
+            textSearch,
+            withPhoto: -1
+          }
+        }
+      };
+      
+      batches.push(requestBody);
+    }
+    
+    // 3. Выполняем запросы по батчам
+    const token = getApiToken();
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+    
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`📦 Запрос батча ${i+1}/${batches.length} с ${batchSize} товарами:`);
+      
+      const response = await axios.post(WB_CARD_API_URL, batch, { headers });
+      
+      // 4. Обрабатываем ответ
+      const cards = response.data.cards || [];
+      console.log(`✅ Получено ${cards.length} карточек товаров`);
+      
+      // 5. Обрабатываем каждую карточку
+      for (const card of cards) {
+        if (!card.nmID || !card.title) continue;
+        
+        const nmId = card.nmID;
+        const currentTime = Date.now();
+        
+        // Проверяем наличие фото
+        const hasImages = card.photos && card.photos.length > 0 && card.photos[0].big;
+        const imageUrl = hasImages ? card.photos[0].big : "";
+        
+        const subjectName = card.subjectName || "Категория не указана";
+        
+        const productInfo: ProductCardInfo = {
+          nmId: nmId,
+          name: card.title,
+          brand: card.brand || "Бренд не указан",
+          image: imageUrl,
+          category: subjectName,
+          productCategory: determineProductCategory(subjectName)
+        };
+        
+        // Сохраняем в кэш и результат
+        productInfoCache[nmId] = {
+          info: productInfo,
+          loadedAt: currentTime,
+          failed: false
+        };
+        
+        result[nmId] = productInfo;
+      }
+      
+      // 6. Добавляем паузу между батчами, чтобы не перегружать API
+      if (i < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+    
+    // 7. Проверяем товары, которые не удалось получить
+    for (const nmId of nmIdsToFetch) {
+      if (!result[nmId]) {
+        console.warn(`⚠️ Не удалось получить данные для товара nmId=${nmId}`);
+        
+        // Добавляем запись о неудачной попытке
+        productInfoCache[nmId] = {
+          info: null as any,
+          loadedAt: Date.now(),
+          failed: true,
+          failReason: "Товар не найден в результатах массового запроса",
+          retryAt: Date.now() + RETRY_INTERVAL
+        };
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error(`❌ Ошибка при массовом получении данных карточек товаров:`, error);
+    
+    // В случае ошибки попробуем получить товары по одному через обычный метод
+    for (const nmId of nmIdsToFetch) {
+      try {
+        const info = await getProductCardInfo(nmId);
+        if (info) {
+          result[nmId] = info;
+        }
+      } catch (e) {
+        console.error(`Ошибка при получении данных для nmId=${nmId}:`, e);
+      }
+    }
+    
+    return result;
   }
 };
 
