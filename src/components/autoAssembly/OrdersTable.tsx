@@ -85,8 +85,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
       return {
         name: order.productInfo.name || "Товар без названия",
         brand: order.productInfo.brand || "",
-        photo: order.productInfo.image || order.productInfo.photo || "",
-        article: order.productInfo.article || order.supplierArticle || "",
+        photo: order.productInfo.image || "",
+        article: order.supplierArticle || "",
         nmId: order.productInfo.nmId || order.nmId
       };
     }
