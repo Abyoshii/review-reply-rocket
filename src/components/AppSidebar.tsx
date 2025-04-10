@@ -15,7 +15,7 @@ const AppSidebar = () => {
     toggleSidebar
   } = useSidebar();
 
-  // Determine active page
+  // Определение активной страницы
   const isActive = (path: string) => {
     return currentPath === path;
   };
@@ -34,7 +34,7 @@ const AppSidebar = () => {
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="transition-all duration-300">Main</SidebarGroupLabel>
+          <SidebarGroupLabel className="transition-all duration-300">Основное</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <TooltipProvider delayDuration={150}>
@@ -43,11 +43,11 @@ const AppSidebar = () => {
                     <TooltipTrigger asChild>
                       <SidebarMenuButton isActive={isActive("/")} onClick={() => navigate("/")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <LayoutDashboard size={18} />
-                        <span>Dashboard</span>
+                        <span>Главная</span>
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Dashboard and statistics
+                      Дашборд и статистика
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
@@ -57,11 +57,11 @@ const AppSidebar = () => {
                     <TooltipTrigger asChild>
                       <SidebarMenuButton isActive={isActive("/reviews")} onClick={() => navigate("/reviews")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <MessageSquare size={18} />
-                        <span>Reviews</span>
+                        <span>Отзывы</span>
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Reviews and review management
+                      Отзывы и управление отзывами
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
@@ -71,7 +71,7 @@ const AppSidebar = () => {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="transition-all duration-300">FBS Management</SidebarGroupLabel>
+          <SidebarGroupLabel className="transition-all duration-300">Управление FBS</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <TooltipProvider delayDuration={150}>
@@ -80,11 +80,11 @@ const AppSidebar = () => {
                     <TooltipTrigger asChild>
                       <SidebarMenuButton isActive={isActive("/boxes")} onClick={() => navigate("/boxes")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <PackageCheck size={18} />
-                        <span>Boxes</span>
+                        <span>Короба</span>
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Packaging in boxes
+                      Упаковка в короба
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
@@ -94,11 +94,11 @@ const AppSidebar = () => {
                     <TooltipTrigger asChild>
                       <SidebarMenuButton isActive={isActive("/auto-assembly")} onClick={() => navigate("/auto-assembly")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <PackagePlus size={18} />
-                        <span>Auto Assembly</span>
+                        <span>Автосборка</span>
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Automatic order assembly
+                      Автоматическая сборка заказов
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
@@ -108,7 +108,7 @@ const AppSidebar = () => {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="transition-all duration-300">System</SidebarGroupLabel>
+          <SidebarGroupLabel className="transition-all duration-300">Система</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <TooltipProvider delayDuration={150}>
@@ -117,11 +117,11 @@ const AppSidebar = () => {
                     <TooltipTrigger asChild>
                       <SidebarMenuButton isActive={isActive("/passes")} onClick={() => navigate("/passes")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <Box size={18} />
-                        <span>Passes</span>
+                        <span>Пропуска</span>
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Pass management
+                      Управление пропусками
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
@@ -131,11 +131,11 @@ const AppSidebar = () => {
                     <TooltipTrigger asChild>
                       <SidebarMenuButton isActive={isActive("/settings")} onClick={() => navigate("/settings")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <Settings size={18} />
-                        <span>Settings</span>
+                        <span>Настройки</span>
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Application settings
+                      Настройки приложения
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
@@ -145,11 +145,11 @@ const AppSidebar = () => {
                     <TooltipTrigger asChild>
                       <SidebarMenuButton isActive={isActive("/help")} onClick={() => navigate("/help")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
                         <HelpCircle size={18} />
-                        <span>Help</span>
+                        <span>Помощь</span>
                       </SidebarMenuButton>
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
-                      Help and support
+                      Справка и поддержка
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
