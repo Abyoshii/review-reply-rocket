@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,8 +88,7 @@ const AutoAssembly = () => {
   const loadSupplies = async () => {
     try {
       const suppliesResponse = await axios.get("https://marketplace-api.wildberries.ru/api/v3/supplies", {
-        headers: addAuthHeaders(),
-        params: { limit: 100 }
+        headers: addAuthHeaders()
       });
       
       console.log("Полученные поставки:", suppliesResponse.data);

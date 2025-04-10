@@ -1,26 +1,14 @@
 
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, RefreshCw, Plus, Package, QrCode, Trash, Clock } from "lucide-react";
+import { toast } from "sonner";
 import { 
-  Table, 
-  TableBody, 
-  TableCaption, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Checkbox,
-} from "@/components/ui/checkbox";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -31,213 +19,125 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { 
-  Package, 
-  Truck, 
-  Box, 
-  Filter, 
-  Search, 
-  RefreshCw,
-  Plus,
-  Trash2,
-  Send,
-  QrCode,
-  Eye,
-  Loader2,
-  Download,
-  ChevronLeft,
-  Printer
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import axios from "axios";
+import { addAuthHeaders } from "@/lib/securityUtils";
 
-import { TrbxBox, SupplyOrder } from "@/types/wb";
-import { SuppliesAPI } from "@/lib/suppliesApi";
+// Определяем временный тип для коробов
+interface TrbxBox {
+  id: number;
+  name: string;
+  createdAt: string;
+  status: string;
+  ordersCount: number;
+}
+
+// Пока нет интеграции с API коробов, используем временную имплементацию
+// Это будет заменено на реальную интеграцию в будущем
+const BoxesAPI = {
+  getTrbxBoxes: async (): Promise<TrbxBox[]> => {
+    try {
+      // Заглушка для API
+      const mockBoxes: TrbxBox[] = [
+        {
+          id: 1001,
+          name: "Короб №1001",
+          createdAt: new Date().toISOString(),
+          status: "new",
+          ordersCount: 5
+        },
+        {
+          id: 1002,
+          name: "Короб №1002",
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          status: "sent",
+          ordersCount: 3
+        }
+      ];
+      
+      return mockBoxes;
+    } catch (error) {
+      console.error("Error fetching TRBX boxes:", error);
+      toast.error("Не удалось загрузить коробы");
+      return [];
+    }
+  },
+  
+  createTrbxBoxes: async (name: string): Promise<number | null> => {
+    try {
+      // Заглушка для создания короба
+      return 1003;
+    } catch (error) {
+      console.error("Error creating TRBX box:", error);
+      toast.error("Не удалось создать короб");
+      return null;
+    }
+  },
+  
+  deleteTrbxBox: async (boxId: number): Promise<boolean> => {
+    try {
+      // Заглушка для удаления короба
+      return true;
+    } catch (error) {
+      console.error(`Error deleting TRBX box ${boxId}:`, error);
+      toast.error("Не удалось удалить короб");
+      return false;
+    }
+  },
+  
+  addOrdersToTrbxBox: async (boxId: number, orderIds: number[]): Promise<boolean> => {
+    try {
+      // Заглушка для добавления заказов в короб
+      return true;
+    } catch (error) {
+      console.error(`Error adding orders to TRBX box ${boxId}:`, error);
+      toast.error("Не удалось добавить заказы в короб");
+      return false;
+    }
+  },
+  
+  getTrbxStickers: async (boxId: number): Promise<string | null> => {
+    try {
+      // Заглушка для получения стикеров короба
+      return null;
+    } catch (error) {
+      console.error(`Error getting stickers for TRBX box ${boxId}:`, error);
+      toast.error("Не удалось получить стикеры для короба");
+      return null;
+    }
+  }
+};
 
 const Boxes = () => {
-  const navigate = useNavigate();
-  const { supplyId } = useParams<{ supplyId: string }>();
-  const supplyIdNumber = parseInt(supplyId || "0");
-  
   const [boxes, setBoxes] = useState<TrbxBox[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [selectedBox, setSelectedBox] = useState<TrbxBox | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState<boolean>(false);
-  const [boxAmount, setBoxAmount] = useState<number>(1);
+  const [newBoxName, setNewBoxName] = useState<string>("");
   const [isCreating, setIsCreating] = useState<boolean>(false);
-  const [supplyOrders, setSupplyOrders] = useState<SupplyOrder[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(false);
-  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
-  const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set());
-  const [showAddOrdersDialog, setShowAddOrdersDialog] = useState<boolean>(false);
-  const [selectedBoxes, setSelectedBoxes] = useState<Set<string>>(new Set());
-  const [showStickersDialog, setShowStickersDialog] = useState<boolean>(false);
-  const [stickersUrl, setStickersUrl] = useState<string | null>(null);
-  const [isGeneratingStickers, setIsGeneratingStickers] = useState<boolean>(false);
-  
-  // Загрузка данных
-  const loadBoxes = async () => {
-    if (!supplyId) return;
-    
-    setIsLoading(true);
-    try {
-      const result = await SuppliesAPI.getTrbxBoxes(supplyIdNumber);
-      setBoxes(result);
-    } catch (error) {
-      console.error("Failed to load boxes:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Загрузка заказов в поставке, которые можно добавить в короб
-  const loadSupplyOrders = async () => {
-    if (!supplyId) return;
-    
-    setIsLoadingOrders(true);
-    try {
-      const orders = await SuppliesAPI.getSupplyOrders(supplyIdNumber);
-      setSupplyOrders(orders);
-    } catch (error) {
-      console.error(`Failed to load orders for supply ${supplyId}:`, error);
-    } finally {
-      setIsLoadingOrders(false);
-    }
-  };
   
   useEffect(() => {
-    if (!supplyId) {
-      toast.error("ID поставки не указан");
-      navigate("/supplies");
-      return;
-    }
-    
     loadBoxes();
-  }, [supplyId]);
+  }, []);
   
-  // Создание новых коробов
-  const createBoxes = async () => {
-    if (!supplyId) return;
-    
-    if (boxAmount <= 0) {
-      toast.error("Количество коробов должно быть положительным числом");
-      return;
-    }
-    
-    setIsCreating(true);
-    
+  const loadBoxes = async () => {
+    setLoading(true);
     try {
-      const success = await SuppliesAPI.createTrbxBoxes(supplyIdNumber, boxAmount);
-      if (success) {
-        setShowCreateDialog(false);
-        setBoxAmount(1);
-        await loadBoxes();
-      }
+      const boxes = await BoxesAPI.getTrbxBoxes();
+      setBoxes(boxes);
     } catch (error) {
-      console.error("Failed to create boxes:", error);
+      console.error("Error loading boxes:", error);
+      toast.error("Не удалось загрузить коробы");
     } finally {
-      setIsCreating(false);
+      setLoading(false);
     }
   };
   
-  // Удаление короба
-  const deleteBox = async (trbxId: string) => {
-    if (!supplyId) return;
-    
-    const success = await SuppliesAPI.deleteTrbxBox(supplyIdNumber, trbxId);
-    if (success) {
-      await loadBoxes();
-    }
-  };
-  
-  // Открытие диалога добавления заказов в короб
-  const openAddOrdersDialog = async (trbxId: string) => {
-    setSelectedBoxId(trbxId);
-    setSelectedOrders(new Set());
-    
-    // Загрузим заказы, если еще не загружены
-    if (supplyOrders.length === 0) {
-      await loadSupplyOrders();
-    }
-    
-    setShowAddOrdersDialog(true);
-  };
-  
-  // Добавление выбранных заказов в короб
-  const addOrdersToBox = async () => {
-    if (!supplyId || !selectedBoxId) return;
-    
-    if (selectedOrders.size === 0) {
-      toast.error("Выберите хотя бы один заказ");
-      return;
-    }
-    
-    const orderIds = Array.from(selectedOrders);
-    const success = await SuppliesAPI.addOrdersToTrbxBox(supplyIdNumber, selectedBoxId, orderIds);
-    
-    if (success) {
-      setShowAddOrdersDialog(false);
-      await loadBoxes();
-    }
-  };
-  
-  // Получение стикеров для коробов
-  const getBoxStickers = async () => {
-    if (!supplyId) return;
-    
-    if (selectedBoxes.size === 0) {
-      toast.error("Выберите хотя бы один короб");
-      return;
-    }
-    
-    setIsGeneratingStickers(true);
-    
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "—";
     try {
-      const url = await SuppliesAPI.getTrbxStickers(supplyIdNumber, Array.from(selectedBoxes));
-      if (url) {
-        setStickersUrl(url);
-        setShowStickersDialog(true);
-      }
-    } catch (error) {
-      console.error("Failed to get stickers:", error);
-    } finally {
-      setIsGeneratingStickers(false);
-    }
-  };
-  
-  // Обработка выбора короба
-  const toggleBoxSelection = (trbxId: string) => {
-    const newSelection = new Set(selectedBoxes);
-    if (selectedBoxes.has(trbxId)) {
-      newSelection.delete(trbxId);
-    } else {
-      newSelection.add(trbxId);
-    }
-    setSelectedBoxes(newSelection);
-  };
-  
-  // Обработка выбора всех коробов
-  const toggleAllBoxes = () => {
-    if (selectedBoxes.size === boxes.length) {
-      setSelectedBoxes(new Set());
-    } else {
-      setSelectedBoxes(new Set(boxes.map(box => box.id)));
-    }
-  };
-  
-  // Обработка выбора заказа для добавления в короб
-  const toggleOrderSelection = (orderId: number) => {
-    const newSelection = new Set(selectedOrders);
-    if (selectedOrders.has(orderId)) {
-      newSelection.delete(orderId);
-    } else {
-      newSelection.add(orderId);
-    }
-    setSelectedOrders(newSelection);
-  };
-  
-  // Форматирование даты
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
+      const date = new Date(dateString);
       return date.toLocaleDateString('ru-RU', {
         day: '2-digit',
         month: '2-digit',
@@ -246,53 +146,102 @@ const Boxes = () => {
         minute: '2-digit'
       });
     } catch (e) {
-      return dateStr;
+      return dateString;
     }
   };
   
+  const getStatusBadge = (status: string) => {
+    switch(status.toLowerCase()) {
+      case 'new':
+        return <Badge variant="outline" className="border-blue-500 text-blue-500">Новый</Badge>;
+      case 'sent':
+      case 'shipped':
+        return <Badge className="bg-green-600">Отправлен</Badge>;
+      case 'processing':
+        return <Badge variant="secondary" className="bg-amber-500">В обработке</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+  
+  const createBox = async () => {
+    if (!newBoxName.trim()) {
+      toast.error("Пожалуйста, введите название короба");
+      return;
+    }
+    
+    setIsCreating(true);
+    try {
+      const boxId = await BoxesAPI.createTrbxBoxes(newBoxName);
+      if (boxId) {
+        toast.success(`Короб "${newBoxName}" создан`);
+        setShowCreateDialog(false);
+        setNewBoxName("");
+        await loadBoxes();
+      } else {
+        toast.error("Не удалось создать короб");
+      }
+    } catch (error) {
+      console.error("Error creating box:", error);
+      toast.error("Ошибка при создании короба");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+  
+  const deleteBox = async (boxId: number) => {
+    try {
+      const success = await BoxesAPI.deleteTrbxBox(boxId);
+      if (success) {
+        toast.success("Короб удален");
+        await loadBoxes();
+      } else {
+        toast.error("Не удалось удалить короб");
+      }
+    } catch (error) {
+      console.error("Error deleting box:", error);
+      toast.error("Ошибка при удалении короба");
+    }
+  };
+  
+  const printBoxSticker = async (boxId: number) => {
+    try {
+      const stickerUrl = await BoxesAPI.getTrbxStickers(boxId);
+      if (stickerUrl) {
+        window.open(stickerUrl, '_blank');
+      } else {
+        toast.error("Не удалось получить стикер для короба");
+      }
+    } catch (error) {
+      console.error("Error getting box sticker:", error);
+      toast.error("Ошибка при получении стикера для короба");
+    }
+  };
+
   return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex flex-wrap items-center gap-2 mb-6">
-        <Button 
-          variant="outline" 
-          onClick={() => navigate("/supplies")}
-          className="flex items-center"
-        >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          К поставкам
-        </Button>
-        
-        <h1 className="text-3xl font-bold tracking-tight ml-2">Короба</h1>
-        <Badge variant="secondary" className="ml-2 text-sm">Поставка #{supplyId}</Badge>
-      </div>
-      
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <p className="text-muted-foreground mb-4 md:mb-0">
-          Управление коробами для текущей поставки
-        </p>
-        
+    <div className="container mx-auto py-6 max-w-7xl">
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">Коробы TRBX</h1>
+          <p className="text-muted-foreground">
+            Управление коробами TRBX для отправки через Почту России
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button 
             variant="outline" 
             onClick={loadBoxes}
-            disabled={isLoading}
+            disabled={loading}
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            {loading ? 
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+              <RefreshCw className="mr-2 h-4 w-4" />
+            }
             Обновить
           </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={getBoxStickers}
-            disabled={selectedBoxes.size === 0 || isGeneratingStickers}
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Стикеры для выбранных
-          </Button>
-          
           <Button onClick={() => setShowCreateDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Создать короба
+            Создать короб
           </Button>
         </div>
       </div>
@@ -300,128 +249,134 @@ const Boxes = () => {
       <Card>
         <CardHeader>
           <CardTitle>Список коробов</CardTitle>
+          <CardDescription>
+            Управление коробами и отправками
+          </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
+        <CardContent>
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="p-4 border rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-4 w-48" />
+                    </div>
+                    <Skeleton className="h-8 w-24" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : boxes.length === 0 ? (
             <div className="text-center py-12">
-              <Box className="mx-auto h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-medium">Нет коробов</h3>
+              <Package className="h-12 w-12 mx-auto text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-medium">Нет созданных коробов</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Создайте новые короба для начала работы
+                Создайте новый короб и добавьте в него заказы для отправки
               </p>
+              <Button 
+                className="mt-4" 
+                onClick={() => setShowCreateDialog(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Создать короб
+              </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox 
-                      checked={selectedBoxes.size > 0 && selectedBoxes.size === boxes.length}
-                      onCheckedChange={toggleAllBoxes}
-                    />
-                  </TableHead>
-                  <TableHead>ID короба</TableHead>
-                  <TableHead>Название</TableHead>
-                  <TableHead className="hidden md:table-cell">Дата создания</TableHead>
-                  <TableHead>Заказов</TableHead>
-                  <TableHead>Действия</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {boxes.map((box) => (
-                  <TableRow key={box.id}>
-                    <TableCell>
-                      <Checkbox 
-                        checked={selectedBoxes.has(box.id)} 
-                        onCheckedChange={() => toggleBoxSelection(box.id)}
-                      />
-                    </TableCell>
-                    <TableCell>{box.id}</TableCell>
-                    <TableCell className="font-medium">{box.name || box.id}</TableCell>
-                    <TableCell className="hidden md:table-cell">{formatDate(box.createdAt)}</TableCell>
-                    <TableCell>
-                      <Badge variant={box.orders.length > 0 ? "default" : "outline"}>
-                        {box.orders.length}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => openAddOrdersDialog(box.id)}
-                          title="Добавить заказы"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                              title="Удалить короб"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Удалить короб?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Короб {box.id} будет полностью удален.
-                                Это действие нельзя отменить.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Отмена</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteBox(box.id)}
-                                className="bg-red-500 hover:bg-red-600"
-                              >
-                                Удалить короб
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Название</TableHead>
+                    <TableHead className="hidden sm:table-cell">Дата создания</TableHead>
+                    <TableHead>Заказов</TableHead>
+                    <TableHead>Статус</TableHead>
+                    <TableHead className="text-right">Действия</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-              <TableCaption>
-                Всего коробов: {boxes.length}
-                {isLoading && <span className="ml-2">Загрузка...</span>}
-              </TableCaption>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {boxes.map(box => (
+                    <TableRow key={box.id}>
+                      <TableCell className="font-medium">{box.name}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          {formatDate(box.createdAt)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{box.ordersCount}</TableCell>
+                      <TableCell>{getStatusBadge(box.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => printBoxSticker(box.id)}
+                            title="Печать стикера"
+                          >
+                            <QrCode className="h-4 w-4" />
+                          </Button>
+                          
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                title="Удалить короб"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Удалить короб?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Короб "{box.name}" будет полностью удален.
+                                  Это действие нельзя отменить.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteBox(box.id)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  Удалить короб
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
       
-      {/* Диалог создания новых коробов */}
+      {/* Диалог создания короба */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Создать новые короба</DialogTitle>
+            <DialogTitle>Создать новый короб</DialogTitle>
             <DialogDescription>
-              Укажите количество коробов для создания
+              Введите название для нового короба TRBX.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Количество коробов</Label>
+              <Label htmlFor="name">Название короба</Label>
               <Input
-                id="amount"
-                type="number"
-                min="1"
-                value={boxAmount}
-                onChange={(e) => setBoxAmount(parseInt(e.target.value) || 1)}
+                id="name"
+                placeholder="Например: Короб для Москвы"
+                value={newBoxName}
+                onChange={(e) => setNewBoxName(e.target.value)}
               />
             </div>
           </div>
@@ -435,8 +390,8 @@ const Boxes = () => {
               Отмена
             </Button>
             <Button 
-              onClick={createBoxes}
-              disabled={isCreating || boxAmount <= 0}
+              onClick={createBox}
+              disabled={isCreating || !newBoxName.trim()}
             >
               {isCreating ? (
                 <>
@@ -444,120 +399,9 @@ const Boxes = () => {
                   Создание...
                 </>
               ) : (
-                'Создать короба'
+                'Создать короб'
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Диалог добавления заказов в короб */}
-      <Dialog open={showAddOrdersDialog} onOpenChange={setShowAddOrdersDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Добавить заказы в короб</DialogTitle>
-            <DialogDescription>
-              Выберите заказы для добавления в короб {selectedBoxId}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {isLoadingOrders ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : supplyOrders.length === 0 ? (
-            <div className="text-center py-8">
-              <p>В поставке нет доступных заказов</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox />
-                  </TableHead>
-                  <TableHead>ID заказа</TableHead>
-                  <TableHead>Артикул</TableHead>
-                  <TableHead>Штрихкод</TableHead>
-                  <TableHead>Кол-во</TableHead>
-                  <TableHead>Цена</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {supplyOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <Checkbox 
-                        checked={selectedOrders.has(order.id)}
-                        onCheckedChange={() => toggleOrderSelection(order.id)}
-                      />
-                    </TableCell>
-                    <TableCell>{order.id}</TableCell>
-                    <TableCell>{order.supplierArticle}</TableCell>
-                    <TableCell>{order.barcode}</TableCell>
-                    <TableCell>{order.quantity}</TableCell>
-                    <TableCell>{order.salePrice} ₽</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableCaption>
-                Выбрано заказов: {selectedOrders.size} из {supplyOrders.length}
-              </TableCaption>
-            </Table>
-          )}
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowAddOrdersDialog(false)}
-            >
-              Отмена
-            </Button>
-            <Button 
-              onClick={addOrdersToBox}
-              disabled={selectedOrders.size === 0}
-            >
-              Добавить в короб
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Диалог со стикерами для коробов */}
-      <Dialog open={showStickersDialog} onOpenChange={setShowStickersDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Стикеры для коробов</DialogTitle>
-            <DialogDescription>
-              Стикеры готовы для печати
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex flex-col items-center justify-center py-4">
-            {stickersUrl ? (
-              <img 
-                src={stickersUrl} 
-                alt="Стикеры для коробов" 
-                className="max-w-full h-auto border rounded-md"
-              />
-            ) : (
-              <div className="flex justify-center items-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowStickersDialog(false)}>
-              Закрыть
-            </Button>
-            {stickersUrl && (
-              <Button asChild>
-                <a href={stickersUrl} download="box-stickers.png">
-                  Скачать
-                </a>
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

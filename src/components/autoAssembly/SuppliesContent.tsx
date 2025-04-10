@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -103,14 +102,18 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
     setIsCreating(true);
     
     try {
-      const supplyId = await SuppliesAPI.createSupply(newSupplyName);
-      if (supplyId) {
-        toast.success(`Поставка "${newSupplyName}" успешно создана`);
-        setShowCreateDialog(false);
-        setNewSupplyName("");
-        await loadData();
+      if (typeof SuppliesAPI.createSupply === 'function') {
+        const supplyId = await SuppliesAPI.createSupply(newSupplyName);
+        if (supplyId) {
+          toast.success(`Поставка "${newSupplyName}" успешно создана`);
+          setShowCreateDialog(false);
+          setNewSupplyName("");
+          await loadData();
+        } else {
+          toast.error("Не удалось создать поставку");
+        }
       } else {
-        toast.error("Не удалось создать поставку");
+        toast.error("Функция создания поставки недоступна");
       }
     } catch (error) {
       console.error("Failed to create supply:", error);
@@ -126,16 +129,18 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
     setShowOrdersDialog(true);
     
     try {
-      // Сначала попробуем получить детали поставки для обновления данных
-      const supplyDetails = await SuppliesAPI.getSupplyDetails(supply.id);
-      if (supplyDetails) {
-        setSelectedSupply(supplyDetails);
+      if (typeof SuppliesAPI.getSupplyDetails === 'function') {
+        const supplyDetails = await SuppliesAPI.getSupplyDetails(supply.id);
+        if (supplyDetails) {
+          setSelectedSupply(supplyDetails);
+        }
+        
+        const orders = await SuppliesAPI.getSupplyOrders(supply.id);
+        console.log(`Loaded ${orders.length} orders for supply ${supply.id}:`, orders);
+        setSupplyOrders(orders);
+      } else {
+        toast.error("Функция получения деталей поставки недоступна");
       }
-      
-      // Теперь получим заказы в поставке
-      const orders = await SuppliesAPI.getSupplyOrders(supply.id);
-      console.log(`Loaded ${orders.length} orders for supply ${supply.id}:`, orders);
-      setSupplyOrders(orders);
     } catch (error) {
       console.error(`Failed to load orders for supply ${supply.id}:`, error);
       toast.error(`Ошибка при загрузке заказов для поставки ${supply.id}`);
@@ -146,12 +151,16 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
   
   const deleteSupply = async (supplyId: number) => {
     try {
-      const success = await SuppliesAPI.deleteSupply(supplyId);
-      if (success) {
-        toast.success("Поставка успешно удалена");
-        await loadData();
+      if (typeof SuppliesAPI.deleteSupply === 'function') {
+        const success = await SuppliesAPI.deleteSupply(supplyId);
+        if (success) {
+          toast.success("Поставка успешно удалена");
+          await loadData();
+        } else {
+          toast.error("Не удалось удалить поставку");
+        }
       } else {
-        toast.error("Не удалось удалить поставку");
+        toast.error("Функция удаления поставки недоступна");
       }
     } catch (error) {
       console.error("Error deleting supply:", error);
@@ -196,12 +205,16 @@ const SuppliesContent: React.FC<SuppliesContentProps> = ({
     const supplyName = `Поставка: ${category} – ${currentDate}`;
     
     try {
-      const supplyId = await SuppliesAPI.createSupply(supplyName);
-      if (supplyId) {
-        toast.success(`Поставка для категории "${category}" создана`);
-        await loadData();
+      if (typeof SuppliesAPI.createSupply === 'function') {
+        const supplyId = await SuppliesAPI.createSupply(supplyName);
+        if (supplyId) {
+          toast.success(`Поставка для категории "${category}" создана`);
+          await loadData();
+        } else {
+          toast.error("Не удалось создать поставку для категории");
+        }
       } else {
-        toast.error("Не удалось создать поставку для категории");
+        toast.error("Функция создания поставки недоступна");
       }
     } catch (error) {
       console.error("Error creating category supply:", error);

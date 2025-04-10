@@ -9,22 +9,16 @@ const WB_MARKETPLACE_API_BASE_URL = "https://marketplace-api.wildberries.ru/api/
 
 export const SuppliesAPI = {
   // Получение списка поставок
-  getSupplies: async (limit: number = 100, next: string = ""): Promise<{ supplies: Supply[], hasMore: boolean, next?: string }> => {
+  getSupplies: async (): Promise<{ supplies: Supply[], hasMore: boolean, next?: string }> => {
     try {
-      console.log("Запрос поставок с параметрами:", { limit, next });
-      
-      const params: Record<string, string | number> = {
-        limit: limit
-      };
-      
-      if (next) params.next = next;
+      console.log("Запрос поставок");
       
       const headers = addAuthHeaders();
       console.log("Используемые заголовки:", headers);
       
       const response = await axios.get(`${WB_MARKETPLACE_API_BASE_URL}/supplies`, {
-        headers,
-        params
+        headers
+        // Удален параметр limit, так как API не поддерживает этот параметр
       });
       
       console.log("Supplies API raw response:", response.data);
@@ -217,6 +211,45 @@ export const SuppliesAPI = {
       const errorMessage = error.response?.data?.message || `Ошибка при получении QR-кода для поставки ${supplyId}`;
       toast.error(errorMessage);
       return null;
+    }
+  },
+  
+  // Создание поставки
+  createSupply: async (name: string): Promise<number | null> => {
+    try {
+      const response = await axios.post(`${WB_MARKETPLACE_API_BASE_URL}/supplies`, 
+        { name }, 
+        { headers: addAuthHeaders() }
+      );
+      
+      if (response.data && response.data.id) {
+        toast.success(`Поставка "${name}" создана`);
+        return response.data.id;
+      }
+      
+      throw new Error("API не вернуло ID поставки");
+    } catch (error: any) {
+      console.error("Error creating supply:", error);
+      const errorMessage = error.response?.data?.message || "Ошибка при создании поставки";
+      toast.error(errorMessage);
+      return null;
+    }
+  },
+  
+  // Удаление поставки
+  deleteSupply: async (supplyId: number): Promise<boolean> => {
+    try {
+      await axios.delete(`${WB_MARKETPLACE_API_BASE_URL}/supplies/${supplyId}`, {
+        headers: addAuthHeaders()
+      });
+      
+      toast.success(`Поставка ${supplyId} удалена`);
+      return true;
+    } catch (error: any) {
+      console.error(`Error deleting supply ${supplyId}:`, error);
+      const errorMessage = error.response?.data?.message || `Ошибка при удалении поставки ${supplyId}`;
+      toast.error(errorMessage);
+      return false;
     }
   }
 };
