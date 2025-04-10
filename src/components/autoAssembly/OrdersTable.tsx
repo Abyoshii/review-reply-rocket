@@ -71,26 +71,32 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   const getProductInfo = (order: AssemblyOrder) => {
     // Первый приоритет - проверка массива products
     if (order.products && order.products.length > 0) {
-      return order.products[0]; // Берем первый продукт из массива
+      return {
+        name: order.products[0].name || "Товар без названия",
+        brand: order.products[0].brand || "",
+        photo: order.products[0].photo || "",
+        article: order.products[0].article || order.supplierArticle || "",
+        nmId: order.products[0].nmId || order.nmId
+      };
     }
     
     // Второй приоритет - проверка объекта productInfo
     if (order.productInfo) {
       return {
-        name: order.productInfo.name,
-        brand: order.productInfo.brand,
-        photo: order.productInfo.image,
-        article: order.supplierArticle,
-        nmId: order.nmId
+        name: order.productInfo.name || "Товар без названия",
+        brand: order.productInfo.brand || "",
+        photo: order.productInfo.image || order.productInfo.photo || "",
+        article: order.productInfo.article || order.supplierArticle || "",
+        nmId: order.productInfo.nmId || order.nmId
       };
     }
     
     // Если нет ни products, ни productInfo - возвращаем базовую информацию
     return {
       name: order.productName || `Товар ID: ${order.nmId || order.id}`,
-      brand: undefined,
+      brand: "",
       photo: "",
-      article: order.supplierArticle,
+      article: order.supplierArticle || "",
       nmId: order.nmId
     };
   };
@@ -150,6 +156,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
             filteredOrders.map(order => {
               // Получаем информацию о продукте для текущего заказа
               const productInfo = getProductInfo(order);
+              console.log('Отображаем заказ:', order.id, 'Информация о товаре:', productInfo);
               
               return (
                 <TableRow key={order.id} className={`cursor-pointer hover:bg-muted/30 ${selectedOrders.includes(order.id) ? 'bg-muted/50' : ''}`}>
@@ -190,6 +197,10 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                             src={productInfo.photo} 
                             alt={productInfo.name || 'Товар'} 
                             className="w-full h-full object-contain"
+                            onError={(e) => {
+                              // Если изображение не загружается, показываем заглушку
+                              (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150';
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full bg-muted flex items-center justify-center rounded-md">
