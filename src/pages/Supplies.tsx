@@ -1,10 +1,7 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   Table, 
@@ -16,16 +13,6 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,34 +27,23 @@ import {
 import { toast } from "sonner";
 import { 
   Package, 
-  Truck, 
-  Box, 
-  Filter, 
-  Search, 
   RefreshCw,
-  Plus,
-  Trash2,
+  Loader2,
   Send,
   QrCode,
   Eye,
-  Loader2
 } from "lucide-react";
 
 import { Supply, SupplyOrder } from "@/types/wb";
 import { SuppliesAPI } from "@/lib/suppliesApi";
 
 const Supplies = () => {
-  const navigate = useNavigate();
-  
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedSupply, setSelectedSupply] = useState<Supply | null>(null);
   const [supplyOrders, setSupplyOrders] = useState<SupplyOrder[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState<boolean>(false);
-  const [showCreateDialog, setShowCreateDialog] = useState<boolean>(false);
-  const [newSupplyName, setNewSupplyName] = useState<string>("");
-  const [isCreating, setIsCreating] = useState<boolean>(false);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined);
   const [hasMorePages, setHasMorePages] = useState<boolean>(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
@@ -141,35 +117,6 @@ const Supplies = () => {
     }
   };
   
-  const createSupply = async () => {
-    if (!newSupplyName.trim()) {
-      toast.error("Пожалуйста, введите название поставки");
-      return;
-    }
-    
-    setIsCreating(true);
-    
-    try {
-      const supplyId = await SuppliesAPI.createSupply(newSupplyName);
-      if (supplyId) {
-        setShowCreateDialog(false);
-        setNewSupplyName("");
-        await loadSupplies();
-      }
-    } catch (error) {
-      console.error("Failed to create supply:", error);
-    } finally {
-      setIsCreating(false);
-    }
-  };
-  
-  const deleteSupply = async (supplyId: number) => {
-    const success = await SuppliesAPI.deleteSupply(supplyId);
-    if (success) {
-      await loadSupplies();
-    }
-  };
-  
   const deliverSupply = async (supplyId: number) => {
     const success = await SuppliesAPI.deliverSupply(supplyId);
     if (success) {
@@ -185,19 +132,13 @@ const Supplies = () => {
     }
   };
   
-  const goToBoxes = (supply: Supply) => {
-    navigate(`/trbx/${supply.id}`);
-  };
-  
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
       return date.toLocaleDateString('ru-RU', {
         day: '2-digit',
         month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: 'numeric'
       });
     } catch (e) {
       return dateStr;
@@ -205,21 +146,10 @@ const Supplies = () => {
   };
   
   const getStatusBadge = (status: string, done: boolean) => {
-    if (done) {
-      return <Badge variant="secondary" className="bg-green-500 hover:bg-green-600">Доставлена</Badge>;
-    }
-    
-    switch(status.toLowerCase()) {
-      case 'new':
-        return <Badge variant="outline">Новая</Badge>;
-      case 'in_progress':
-        return <Badge variant="secondary">В процессе</Badge>;
-      case 'ready_to_ship':
-        return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">Готова к отправке</Badge>;
-      case 'shipped':
-        return <Badge variant="secondary" className="bg-purple-600 hover:bg-purple-700">Отправлена</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+    if (status === "draft" || !done) {
+      return <Badge variant="outline">Черновик</Badge>;
+    } else {
+      return <Badge>Отправлена</Badge>;
     }
   };
   
@@ -241,11 +171,6 @@ const Supplies = () => {
             <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Обновить
           </Button>
-          
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Создать поставку
-          </Button>
         </div>
       </div>
       
@@ -263,7 +188,7 @@ const Supplies = () => {
               <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
               <h3 className="mt-4 text-lg font-medium">Нет поставок</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {loadError ? `Ошибка: ${loadError}` : "Создайте новую поставку для начала работы"}
+                {loadError ? `Ошибка: ${loadError}` : "У вас пока нет созданных поставок"}
               </p>
               {loadError && (
                 <Button 
@@ -280,24 +205,20 @@ const Supplies = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Название</TableHead>
+                  <TableHead>ID поставки</TableHead>
                   <TableHead className="hidden sm:table-cell">Дата создания</TableHead>
-                  <TableHead className="hidden md:table-cell">Номер поставки</TableHead>
                   <TableHead>Кол-во заказов</TableHead>
-                  <TableHead className="hidden lg:table-cell">Статус</TableHead>
+                  <TableHead>Статус</TableHead>
                   <TableHead>Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {supplies.map((supply) => (
                   <TableRow key={supply.id}>
-                    <TableCell>{supply.id}</TableCell>
-                    <TableCell className="font-medium">{supply.name || "Без названия"}</TableCell>
+                    <TableCell className="font-medium">{supply.supplyId || supply.id}</TableCell>
                     <TableCell className="hidden sm:table-cell">{formatDate(supply.createdAt)}</TableCell>
-                    <TableCell className="hidden md:table-cell">{supply.supplyId || '-'}</TableCell>
                     <TableCell>{supply.ordersCount}</TableCell>
-                    <TableCell className="hidden lg:table-cell">
+                    <TableCell>
                       {getStatusBadge(supply.status, supply.done)}
                     </TableCell>
                     <TableCell>
@@ -309,15 +230,6 @@ const Supplies = () => {
                           title="Просмотреть заказы"
                         >
                           <Eye className="h-4 w-4" />
-                        </Button>
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => goToBoxes(supply)}
-                          title="Управление коробами"
-                        >
-                          <Box className="h-4 w-4" />
                         </Button>
                         
                         <Button 
@@ -344,7 +256,7 @@ const Supplies = () => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Передать в доставку?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Поставка №{supply.id} "{supply.name}" будет передана в доставку. 
+                                Поставка №{supply.id} будет передана в доставку. 
                                 После этого её нельзя будет изменить.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -354,37 +266,6 @@ const Supplies = () => {
                                 onClick={() => deliverSupply(supply.id)}
                               >
                                 Передать в доставку
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                        
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                              title="Удалить поставку"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Удалить поставку?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Поставка №{supply.id} "{supply.name}" будет полностью удалена.
-                                Это действие нельзя отменить.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Отмена</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteSupply(supply.id)}
-                                className="bg-red-500 hover:bg-red-600"
-                              >
-                                Удалить поставку
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -422,57 +303,11 @@ const Supplies = () => {
         )}
       </Card>
       
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Создать новую поставку</DialogTitle>
-            <DialogDescription>
-              Введите название для новой поставки.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Название поставки</Label>
-              <Input
-                id="name"
-                placeholder="Например: Поставка на март 2023"
-                value={newSupplyName}
-                onChange={(e) => setNewSupplyName(e.target.value)}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowCreateDialog(false)}
-              disabled={isCreating}
-            >
-              Отмена
-            </Button>
-            <Button 
-              onClick={createSupply}
-              disabled={isCreating || !newSupplyName.trim()}
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Создание...
-                </>
-              ) : (
-                'Создать поставку'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
       <Dialog open={showOrdersDialog} onOpenChange={setShowOrdersDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Заказы в поставке {selectedSupply?.name}
+              Заказы в поставке {selectedSupply?.supplyId || selectedSupply?.id}
             </DialogTitle>
             <DialogDescription>
               Список заказов, входящих в данную поставку
@@ -485,7 +320,7 @@ const Supplies = () => {
             </div>
           ) : supplyOrders.length === 0 ? (
             <div className="text-center py-8">
-              <p>В поставке нет заказов</p>
+              <p>Поставка пока не содержит заданий</p>
             </div>
           ) : (
             <Table>
