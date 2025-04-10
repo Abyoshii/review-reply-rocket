@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
-// Типы для данных
+// Types for data
 interface AssemblyOrder {
   orderId: string | number;
   orderUid: string;
@@ -30,54 +30,42 @@ interface ProductInfo {
   brand?: string;
 }
 
-interface ProductCardData {
-  nmID: number;
-  vendorCode: string;
-  article: string;
-  subjectName: string;
-  brand: string;
-  name: string;
-  photos: {
-    big: string;
-  }[];
-}
-
 const AutoAssembly = () => {
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<AssemblyOrder[]>([]);
   const [selectedTab, setSelectedTab] = useState("orders");
 
-  // Получение данных при загрузке страницы
+  // Get data on page load
   useEffect(() => {
     loadAssemblyOrders();
   }, []);
 
-  // Загрузка сборочных заданий
+  // Load assembly orders
   const loadAssemblyOrders = async () => {
     setLoading(true);
     try {
-      // Шаг 1: Получение списка сборочных заданий
-      const ordersResponse = await axios.get("https://marketplace-api.wildberries.ru/api/v3/orders", {
+      // Step 1: Get list of assembly orders
+      const ordersResponse = await axios.get("https://marketplace-api.wildberries.ru/api/v3/orders/new", {
         headers: addAuthHeaders()
       });
       
-      console.log("Получены заказы:", ordersResponse.data);
+      console.log("Orders received:", ordersResponse.data);
       
       let ordersData = [];
       
-      // Проверка формата ответа
+      // Check response format
       if (Array.isArray(ordersResponse.data)) {
         ordersData = ordersResponse.data;
       } else if (ordersResponse.data && Array.isArray(ordersResponse.data.orders)) {
         ordersData = ordersResponse.data.orders;
       } else {
-        console.error("Неизвестный формат ответа API заказов:", ordersResponse.data);
-        toast.error("API вернуло неожиданный формат данных для заказов");
+        console.error("Unknown API response format for orders:", ordersResponse.data);
+        toast.error("API returned unexpected data format for orders");
         setLoading(false);
         return;
       }
       
-      // Шаг 2: Сбор всех уникальных nmId
+      // Step 2: Collect all unique nmIds
       const nmIdsSet = new Set<number>();
       
       for (const order of ordersData) {
@@ -91,26 +79,26 @@ const AutoAssembly = () => {
       }
       
       const uniqueNmIds = Array.from(nmIdsSet);
-      console.log("Собраны уникальные nmId:", uniqueNmIds);
+      console.log("Collected unique nmIds:", uniqueNmIds);
       
       if (uniqueNmIds.length === 0) {
         setOrders([]);
-        toast.warning("Не найдено товаров в заказах");
+        toast.warning("No products found in orders");
         setLoading(false);
         return;
       }
       
-      // Шаг 3: Запрос карточек товаров по списку nmId
-      // Разбиваем на чанки по 100 nmId
+      // Step 3: Request product cards by nmId list
+      // Split into chunks of 100 nmIds
       const nmIdChunks = [];
       for (let i = 0; i < uniqueNmIds.length; i += 100) {
         nmIdChunks.push(uniqueNmIds.slice(i, i + 100));
       }
       
-      // Карта для хранения информации о продуктах
+      // Map to store product information
       const productInfoMap: Record<number, ProductInfo> = {};
       
-      // Делаем запросы для каждого чанка
+      // Make requests for each chunk
       for (const chunk of nmIdChunks) {
         try {
           const cardsResponse = await axios.post("https://content-api.wildberries.ru/content/v2/get/cards/list", {
@@ -126,14 +114,14 @@ const AutoAssembly = () => {
             headers: addAuthHeaders()
           });
           
-          console.log("Получены карточки товаров:", cardsResponse.data);
+          console.log("Product cards received:", cardsResponse.data);
           
           if (cardsResponse.data && cardsResponse.data.data && Array.isArray(cardsResponse.data.data.cards)) {
             for (const card of cardsResponse.data.data.cards) {
               productInfoMap[card.nmID] = {
                 nmId: card.nmID,
-                article: card.article || card.vendorCode || "Нет артикула",
-                subjectName: card.subjectName || "Нет категории",
+                article: card.article || card.vendorCode || "No article",
+                subjectName: card.subjectName || "No category",
                 photo: card.photos && card.photos.length > 0 ? card.photos[0].big : "https://via.placeholder.com/150",
                 name: card.name,
                 brand: card.brand
@@ -141,18 +129,18 @@ const AutoAssembly = () => {
             }
           }
           
-          // Короткая пауза между запросами для избежания превышения лимитов API
+          // Short pause between requests to avoid API rate limits
           await new Promise(resolve => setTimeout(resolve, 100));
           
         } catch (error) {
-          console.error("Ошибка при запросе карточек товаров:", error);
-          toast.error("Не удалось получить информацию о товарах");
+          console.error("Error requesting product cards:", error);
+          toast.error("Failed to get product information");
         }
       }
       
-      console.log("Создана карта товаров:", productInfoMap);
+      console.log("Created product map:", productInfoMap);
       
-      // Шаг 5: Формируем финальный результат
+      // Step 5: Create final result
       const assemblyOrders: AssemblyOrder[] = [];
       
       for (const order of ordersData) {
@@ -173,16 +161,16 @@ const AutoAssembly = () => {
           products,
           status: order.status || "new",
           address: order.address?.addressString,
-          customerName: order.user?.fio || "Клиент"
+          customerName: order.user?.fio || "Customer"
         });
       }
       
       setOrders(assemblyOrders);
-      toast.success(`Загружено ${assemblyOrders.length} заказов`);
+      toast.success(`Loaded ${assemblyOrders.length} orders`);
       
     } catch (error) {
-      console.error("Ошибка при загрузке данных:", error);
-      toast.error("Не удалось загрузить сборочные задания");
+      console.error("Error loading data:", error);
+      toast.error("Failed to load assembly orders");
     } finally {
       setLoading(false);
     }
@@ -192,9 +180,9 @@ const AutoAssembly = () => {
     <div className="container mx-auto py-6 max-w-7xl">
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Автоматическая сборка</h1>
+          <h1 className="text-2xl font-bold">Automatic Assembly</h1>
           <p className="text-muted-foreground">
-            Формирование поставок на основе заказов и производство коробов
+            Creating shipments based on orders and box production
           </p>
         </div>
         <Button 
@@ -208,19 +196,19 @@ const AutoAssembly = () => {
           ) : (
             <RefreshCcw className="h-4 w-4" />
           )}
-          Обновить
+          Refresh
         </Button>
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="orders" className="relative">
-            Заказы
+            Orders
             {orders.length > 0 && (
               <Badge className="ml-2 bg-purple-600">{orders.length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="supplies">Поставки</TabsTrigger>
+          <TabsTrigger value="supplies">Shipments</TabsTrigger>
         </TabsList>
         
         <TabsContent value="orders" className="space-y-4">
@@ -234,13 +222,13 @@ const AutoAssembly = () => {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground">Нет заказов для отображения</p>
+                  <p className="text-muted-foreground">No orders to display</p>
                   <Button 
                     onClick={loadAssemblyOrders}
                     variant="outline" 
                     className="mt-4"
                   >
-                    Загрузить заказы
+                    Load orders
                   </Button>
                 </div>
               </CardContent>
@@ -251,14 +239,14 @@ const AutoAssembly = () => {
         <TabsContent value="supplies">
           <Card>
             <CardHeader>
-              <CardTitle>Поставки</CardTitle>
+              <CardTitle>Shipments</CardTitle>
               <CardDescription>
-                Управление поставками и формирование новых
+                Manage shipments and create new ones
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-center text-muted-foreground py-6">
-                Функциональность раздела "Поставки" будет добавлена в ближайшее время
+                The "Shipments" section functionality will be added soon
               </p>
             </CardContent>
           </Card>
@@ -268,9 +256,9 @@ const AutoAssembly = () => {
   );
 };
 
-// Компонент карточки заказа
+// Order card component
 const OrderCard = ({ order }: { order: AssemblyOrder }) => {
-  const dateTime = new Date(order.createdAt).toLocaleString('ru-RU');
+  const dateTime = new Date(order.createdAt).toLocaleString('en-US');
   
   return (
     <Card>
@@ -278,16 +266,16 @@ const OrderCard = ({ order }: { order: AssemblyOrder }) => {
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="flex items-center gap-2">
-              Заказ №{order.orderUid}
+              Order #{order.orderUid}
               <Badge variant={order.status === "new" ? "default" : "outline"}>
-                {order.status === "new" ? "Новый" : "В обработке"}
+                {order.status === "new" ? "New" : "Processing"}
               </Badge>
             </CardTitle>
             <CardDescription>
-              Создан: {dateTime}
+              Created: {dateTime}
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm">Добавить в поставку</Button>
+          <Button variant="outline" size="sm">Add to shipment</Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -309,13 +297,13 @@ const OrderCard = ({ order }: { order: AssemblyOrder }) => {
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                    <span className="text-xs text-gray-400">Нет фото</span>
+                    <span className="text-xs text-gray-400">No photo</span>
                   </div>
                 )}
               </div>
               <div className="flex-1">
-                <h4 className="font-medium">{product.name || `Товар ${product.article}`}</h4>
-                <p className="text-sm text-muted-foreground">Артикул: {product.article}</p>
+                <h4 className="font-medium">{product.name || `Product ${product.article}`}</h4>
+                <p className="text-sm text-muted-foreground">Article: {product.article}</p>
                 <p className="text-xs text-muted-foreground">{product.subjectName}</p>
               </div>
             </div>
@@ -323,14 +311,14 @@ const OrderCard = ({ order }: { order: AssemblyOrder }) => {
           
           {order.address && (
             <div className="mt-4 text-sm">
-              <span className="font-medium">Адрес: </span>
+              <span className="font-medium">Address: </span>
               <span className="text-muted-foreground">{order.address}</span>
             </div>
           )}
           
           {order.customerName && (
             <div className="text-sm">
-              <span className="font-medium">Получатель: </span>
+              <span className="font-medium">Recipient: </span>
               <span className="text-muted-foreground">{order.customerName}</span>
             </div>
           )}
@@ -340,7 +328,7 @@ const OrderCard = ({ order }: { order: AssemblyOrder }) => {
   );
 };
 
-// Скелетон для загрузки заказов
+// Orders loading skeleton
 const OrdersLoadingSkeleton = () => {
   return (
     <>
