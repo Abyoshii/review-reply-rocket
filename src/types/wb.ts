@@ -1,4 +1,3 @@
-
 // Типы для работы с API Wildberries
 
 export interface WbReview {
@@ -241,8 +240,9 @@ export interface ProductCardInfo {
   name: string;
   brand: string;
   image: string;
-  category?: string; // Добавляем поле для категории товара (subjectName)
-  productCategory?: ProductCategory; // Добавляем поле для определенной категории товара
+  category?: string; 
+  productCategory?: ProductCategory;
+  size?: string; // Add the size property
 }
 
 // Типы для заказов автосборки
