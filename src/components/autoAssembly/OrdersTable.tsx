@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Box, Loader2, RefreshCw, ImageOff, Clock, ShoppingBag } from "lucide-react";
+import { Box, Loader2, RefreshCw, ImageOff, Clock, ShoppingBag, Package } from "lucide-react";
 import { AssemblyOrder, ProductCategory, SortConfig } from "@/types/wb";
 import { formatTimeAgo, formatPrice } from "@/lib/utils/formatUtils";
 import { retryLoadProductInfo, retryFailedProductInfoRequests } from "@/lib/utils/productUtils";
@@ -58,6 +58,15 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     await retryLoadProductInfo(nmId);
   };
 
+  // Форматирование ID заказа для отображения
+  const formatOrderId = (orderId: number, orderUid?: string) => {
+    if (orderUid) {
+      // Если есть UID, показываем только последние 8 символов для краткости
+      return orderUid.length > 8 ? `№${orderUid.slice(-8)}` : `№${orderUid}`;
+    }
+    return `№${orderId}`;
+  };
+
   return (
     <div className="relative overflow-x-auto rounded-lg border">
       <Table>
@@ -70,7 +79,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
           ) : filteredOrders.length === 0 ? (
             "Нет доступных сборочных заданий"
           ) : (
-            `Всего товаров в сборочных заданиях: ${filteredOrders.length}`
+            `Всего заданий: ${filteredOrders.length}`
           )}
         </TableCaption>
         <TableHeader>
@@ -81,8 +90,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                 onCheckedChange={toggleSelectAll} 
               />
             </TableHead>
-            <TableHead className="w-48">Задание</TableHead>
-            <TableHead className="w-[500px]">Наименование</TableHead>
+            <TableHead>Задание</TableHead>
+            <TableHead className="w-[600px]">Наименование</TableHead>
             <TableHead className="text-right">Стоимость</TableHead>
           </TableRow>
         </TableHeader>
@@ -119,16 +128,21 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                   />
                 </TableCell>
                 
-                {/* Колонка с номером задания и датой - новый дизайн */}
-                <TableCell>
+                {/* Колонка с номером задания - новый дизайн */}
+                <TableCell className="align-top">
                   <div className="flex flex-col">
-                    <div className="font-medium text-black">#{order.id}</div>
-                    <div className="text-xs text-muted-foreground">от {new Date(order.createdAt).toLocaleDateString('ru-RU')}</div>
-                    <div className="flex items-center text-xs text-green-600 mt-1">
-                      <Clock className="h-3 w-3 mr-1" />
-                      <span className="text-green-600">{formatTimeAgo(order.createdAt)}</span>
+                    <div className="font-medium">
+                      {formatOrderId(order.id, order.orderUid)}
+                    </div>
+                    <div className="text-xs text-green-600 mt-1">
+                      Новый
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Создан: {new Date(order.createdAt).toLocaleString('ru-RU')}
+                    </div>
+                    <div className="mt-2">
                       {order.cargoType && (
-                        <span className="ml-2 inline-block">{renderCargoTypeBadge(order.cargoType)}</span>
+                        <span className="inline-block">{renderCargoTypeBadge(order.cargoType)}</span>
                       )}
                     </div>
                   </div>
@@ -136,9 +150,9 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                 
                 {/* Колонка с названием товара - обновленный дизайн */}
                 <TableCell>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-start gap-4">
                     {/* Изображение товара */}
-                    <div className="w-10 h-10 relative flex-shrink-0">
+                    <div className="w-16 h-16 relative flex-shrink-0 bg-gray-100 rounded overflow-hidden">
                       {order.productInfo?.image ? (
                         <img 
                           src={order.productInfo.image} 
@@ -169,14 +183,23 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                     
                     {/* Информация о товаре - обновленный дизайн */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-blue-600 truncate">
+                      <div className="font-medium text-lg">
                         {order.productInfo?.name || order.productName || `Товар ID: ${order.nmId || order.id}`}
                       </div>
-                      <div className="text-xs text-muted-foreground truncate mt-1">
+                      <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                         {order.productInfo?.brand && (
-                          <span className="font-medium">{order.productInfo.brand} / </span>
+                          <span>{order.productInfo.brand}</span>
                         )}
-                        Арт: {order.supplierArticle || (order.productInfo?.size ? `UI-${order.productInfo.size}-1` : '—')}
+                        {order.productInfo?.brand && order.supplierArticle && (
+                          <span className="mx-1">•</span>
+                        )}
+                        {order.supplierArticle && (
+                          <span>Арт: {order.supplierArticle}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center text-xs text-green-600 mt-2">
+                        <Clock className="h-3 w-3 mr-1" />
+                        <span>{formatTimeAgo(order.createdAt)}</span>
                       </div>
                     </div>
                   </div>
