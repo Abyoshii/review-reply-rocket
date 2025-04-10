@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Box, Loader2, RefreshCw, ImageOff, Droplets, Shirt, Paperclip, AlertTriangle, Clock, ShoppingBag } from "lucide-react";
+import { Box, Loader2, RefreshCw, ImageOff, Clock, ShoppingBag } from "lucide-react";
 import { AssemblyOrder, ProductCategory, SortConfig } from "@/types/wb";
 import { formatTimeAgo, formatPrice } from "@/lib/utils/formatUtils";
 import { retryLoadProductInfo, retryFailedProductInfoRequests } from "@/lib/utils/productUtils";
@@ -81,7 +81,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                 onCheckedChange={toggleSelectAll} 
               />
             </TableHead>
-            <TableHead className="w-44">Задание</TableHead>
+            <TableHead className="w-48">Задание</TableHead>
             <TableHead className="w-[500px]">Наименование</TableHead>
             <TableHead className="text-right">Стоимость</TableHead>
           </TableRow>
@@ -119,14 +119,14 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                   />
                 </TableCell>
                 
-                {/* Колонка с номером задания и датой */}
+                {/* Колонка с номером задания и датой - новый дизайн */}
                 <TableCell>
                   <div className="flex flex-col">
-                    <div className="font-medium">{order.id}</div>
+                    <div className="font-medium text-black">{order.id}</div>
                     <div className="text-xs text-muted-foreground">от {new Date(order.createdAt).toLocaleDateString('ru-RU')}</div>
                     <div className="flex items-center text-xs text-green-600 mt-1">
                       <Clock className="h-3 w-3 mr-1" />
-                      {formatTimeAgo(order.createdAt)}
+                      <span className="text-green-600">{formatTimeAgo(order.createdAt)}</span>
                       {order.cargoType && (
                         <span className="ml-2 inline-block">{renderCargoTypeBadge(order.cargoType)}</span>
                       )}
@@ -134,7 +134,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                   </div>
                 </TableCell>
                 
-                {/* Колонка с названием товара */}
+                {/* Колонка с названием товара - новый дизайн */}
                 <TableCell>
                   <div className="flex items-center gap-4">
                     {/* Изображение товара */}
@@ -167,24 +167,17 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                       )}
                     </div>
                     
-                    {/* Информация о товаре */}
+                    {/* Информация о товаре - новый дизайн */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-blue-600 hover:underline truncate">
-                        {order.productInfo?.brand && (
-                          <span>{order.productInfo.brand} / </span>
-                        )}
+                      <div className="font-medium text-blue-600 truncate">
                         {order.productInfo?.name || order.productName || `Товар ID: ${order.nmId || order.id}`}
                       </div>
-                      <div className="text-sm text-muted-foreground truncate">
+                      <div className="text-xs text-muted-foreground truncate mt-1">
+                        {order.productInfo?.brand && (
+                          <span className="font-medium">{order.productInfo.brand} / </span>
+                        )}
                         Арт: {order.supplierArticle || (order.productInfo?.size ? `UI-${order.productInfo.size}-1` : '—')}
                       </div>
-                      {order.category === ProductCategory.CLOTHING && order.productInfo?.size && (
-                        <div className="mt-1">
-                          <Badge variant="outline" className="text-xs">
-                            Размер: {order.productInfo.size}
-                          </Badge>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </TableCell>

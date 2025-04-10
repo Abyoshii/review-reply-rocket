@@ -242,7 +242,7 @@ export interface ProductCardInfo {
   image: string;
   category?: string; 
   productCategory?: ProductCategory;
-  size?: string; // Add the size property
+  size?: string;
 }
 
 // Типы для заказов автосборки
@@ -250,18 +250,22 @@ export interface AssemblyOrder {
   id: number;
   orderUid: string;
   createdAt: string;
-  ddate: string;
+  ddate?: string;
   price: number;
   salePrice: number;
   supplierArticle?: string;
-  productName: string;
-  warehouseId: number;
-  cargoType: number;
+  productName?: string;
+  warehouseId?: number;
+  cargoType?: number;
   selected?: boolean;
   category?: ProductCategory;
   inSupply?: boolean;
-  nmId?: number;  // Добавлен nmId для связи с данными карточки товара
-  productInfo?: ProductCardInfo;  // Информация о товаре из карточки
+  nmId?: number;
+  productInfo?: ProductCardInfo;
+  status?: string;
+  address?: string;
+  customerName?: string;
+  products?: ProductInfo[];
 }
 
 // Фильтры
@@ -346,4 +350,16 @@ export interface ProductCardData {
 export interface SortConfig {
   key: keyof AssemblyOrder | null;
   direction: 'asc' | 'desc' | null;
+}
+
+// Interface for product info in an assembly order
+export interface ProductInfo {
+  nmId: number;
+  article: string;
+  subjectName: string;
+  photo: string;
+  name: string;
+  brand?: string;
+  category?: ProductCategory;
+  size?: string;
 }
