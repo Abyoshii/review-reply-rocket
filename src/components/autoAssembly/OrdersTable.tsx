@@ -71,7 +71,14 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   const getProductInfo = (order: AssemblyOrder) => {
     // Первый приоритет - проверка массива products
     if (order.products && order.products.length > 0) {
-      return order.products[0]; // Берем первый продукт из массива
+      const product = order.products[0];
+      return {
+        name: product.name || "Товар без названия", 
+        brand: product.brand,
+        photo: product.photo || product.image,
+        article: product.article,
+        nmId: product.nmId
+      };
     }
     
     // Второй приоритет - проверка объекта productInfo
@@ -150,6 +157,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
             filteredOrders.map(order => {
               // Получаем информацию о продукте для текущего заказа
               const productInfo = getProductInfo(order);
+              console.log("Product info for order", order.id, productInfo);
               
               return (
                 <TableRow key={order.id} className={`cursor-pointer hover:bg-muted/30 ${selectedOrders.includes(order.id) ? 'bg-muted/50' : ''}`}>
@@ -180,7 +188,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                     </div>
                   </TableCell>
                   
-                  {/* Колонка с названием товара - обновленный дизайн с учетом продуктов из массива */}
+                  {/* Колонка с названием товара - обновленный для корректного отображения информации */}
                   <TableCell>
                     <div className="flex items-start gap-4">
                       {/* Изображение товара */}
@@ -190,6 +198,27 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                             src={productInfo.photo} 
                             alt={productInfo.name || 'Товар'} 
                             className="w-full h-full object-contain"
+                            onError={(e) => {
+                              console.log("Error loading image for product", productInfo.nmId);
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).parentElement!.innerHTML = `
+                                <div class="w-full h-full flex items-center justify-center">
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-8 w-8 text-muted-foreground/50">
+                                    <line x1="2" x2="22" y1="2" y2="22"></line>
+                                    <path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"></path>
+                                    <line x1="13.5" x2="6.5" y1="13.5" y2="20.5"></line>
+                                    <path d="M14 14h-4v-4"></path>
+                                    <path d="M5 21v-7"></path>
+                                    <path d="M15 7a4 4 0 1 0-8 0"></path>
+                                    <path d="M18.5 3.5 20 2l1 1-1.5 1.5"></path>
+                                    <path d="M20 6v.5"></path>
+                                    <path d="M18.5 7.5 17 9l-1-1 1.5-1.5"></path>
+                                    <path d="M16 8h-.5"></path>
+                                    <path d="M13.5 10.5 12 12l-1-1 1.5-1.5"></path>
+                                  </svg>
+                                </div>
+                              `;
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full bg-muted flex items-center justify-center rounded-md">
@@ -213,14 +242,14 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                         )}
                       </div>
                       
-                      {/* Информация о товаре - обновленный дизайн с учетом продуктов из массива */}
+                      {/* Информация о товаре - название, бренд, артикул */}
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-lg">
                           {productInfo.name}
                         </div>
-                        <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                        <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
                           {productInfo.brand && (
-                            <span>{productInfo.brand}</span>
+                            <span className="font-semibold">{productInfo.brand}</span>
                           )}
                           {productInfo.brand && productInfo.article && (
                             <span className="mx-1">•</span>
