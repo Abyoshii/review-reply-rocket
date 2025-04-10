@@ -2,7 +2,7 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
-import { Package, MessageSquare, Box, LayoutDashboard, ChevronLeft, ChevronRight, Settings, HelpCircle, PackageCheck, PackagePlus } from "lucide-react";
+import { Package, MessageSquare, Box, LayoutDashboard, ChevronLeft, ChevronRight, Settings, HelpCircle, PackageCheck, PackagePlus, FileBox } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
@@ -62,6 +62,20 @@ const AppSidebar = () => {
                     </TooltipTrigger>
                     <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
                       Отзывы и управление отзывами
+                    </TooltipContent>
+                  </Tooltip>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SidebarMenuButton isActive={isActive("/kizy")} onClick={() => navigate("/kizy")} className="hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors duration-200">
+                        <FileBox size={18} />
+                        <span>Кизы</span>
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className={state === 'expanded' ? 'hidden' : ''}>
+                      Раздел в разработке
                     </TooltipContent>
                   </Tooltip>
                 </SidebarMenuItem>
