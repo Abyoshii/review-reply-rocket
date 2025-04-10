@@ -1,55 +1,90 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCcw, Truck, Package2 } from "lucide-react";
+import { Loader2, RefreshCcw, Truck, Package2, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { addAuthHeaders } from "@/lib/securityUtils";
 import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { determineCategory } from "@/lib/utils/categoryUtils";
-import { ProductCategory } from "@/types/wb";
-
-// Типы для данных
-interface AssemblyOrder {
-  orderId: string | number;
-  orderUid: string;
-  createdAt: string;
-  products: ProductInfo[];
-  status?: string;
-  address?: string;
-  customerName?: string;
-  selected?: boolean;
-}
-
-interface ProductInfo {
-  nmId: number;
-  article: string;
-  subjectName: string;
-  photo: string;
-  name?: string;
-  brand?: string;
-  category?: ProductCategory;
-  size?: string;
-}
+import { determineCategory, shouldShowSize, formatSize } from "@/lib/utils/categoryUtils";
+import { ProductCategory, AssemblyOrder, SortConfig, WarehouseFilter, CargoTypeFilter } from "@/types/wb";
+import OrdersTable from "@/components/autoAssembly/OrdersTable";
+import CollapsibleFilters from "@/components/autoAssembly/CollapsibleFilters";
 
 const AutoAssembly = () => {
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<AssemblyOrder[]>([]);
   const [selectedTab, setSelectedTab] = useState("orders");
-  const [selectedOrders, setSelectedOrders] = useState<Set<string | number>>(new Set());
+  const [selectedOrders, setSelectedOrders] = useState<number[]>([]);
   const [supplies, setSupplies] = useState<{id: number, name: string}[]>([]);
   const [processingAction, setProcessingAction] = useState(false);
+  
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'createdAt',
+    direction: 'desc'
+  });
+  
+  const [filters, setFilters] = useState<{
+    warehouseId: WarehouseFilter | null,
+    productCategory: ProductCategory | null,
+    cargoType: CargoTypeFilter | null,
+    dateFrom: Date | null,
+    dateTo: Date | null,
+    searchQuery: string
+  }>({
+    warehouseId: null,
+    productCategory: null,
+    cargoType: null,
+    dateFrom: null,
+    dateTo: null,
+    searchQuery: ''
+  });
+  
+  const warehouseOptions: WarehouseFilter[] = [
+    { id: 1, name: "Коледино" },
+    { id: 2, name: "Подольск" },
+    { id: 3, name: "Казань" },
+    { id: 4, name: "Электросталь" }
+  ];
+  
+  const cargoTypeOptions: CargoTypeFilter[] = [
+    { id: 1, name: "Короб" },
+    { id: 2, name: "Пакет" }
+  ];
+  
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filters.warehouseId) count++;
+    if (filters.productCategory) count++;
+    if (filters.cargoType) count++;
+    if (filters.dateFrom) count++;
+    if (filters.dateTo) count++;
+    if (filters.searchQuery) count++;
+    return count;
+  }, [filters]);
+  
+  const resetAllFilters = () => {
+    setFilters({
+      warehouseId: null,
+      productCategory: null,
+      cargoType: null,
+      dateFrom: null,
+      dateTo: null,
+      searchQuery: ''
+    });
+  };
+  
+  const updateFilters = (newFilterState: Partial<typeof filters>) => {
+    setFilters(prev => ({ ...prev, ...newFilterState }));
+  };
 
-  // Получение данных при загрузке страницы
   useEffect(() => {
     loadAssemblyOrders();
     loadSupplies();
   }, []);
 
-  // Загрузка существующих поставок
   const loadSupplies = async () => {
     try {
       const suppliesResponse = await axios.get("https://marketplace-api.wildberries.ru/api/v3/supplies", {
@@ -79,11 +114,9 @@ const AutoAssembly = () => {
     }
   };
 
-  // Загрузка сборочных заданий
   const loadAssemblyOrders = async () => {
     setLoading(true);
     try {
-      // Шаг 1: Получение списка сборочных заданий
       const ordersResponse = await axios.get("https://marketplace-api.wildberries.ru/api/v3/orders/new", {
         headers: addAuthHeaders()
       });
@@ -92,7 +125,6 @@ const AutoAssembly = () => {
       
       let ordersData = [];
       
-      // Проверка формата ответа
       if (Array.isArray(ordersResponse.data)) {
         ordersData = ordersResponse.data;
       } else if (ordersResponse.data && Array.isArray(ordersResponse.data.orders)) {
@@ -104,7 +136,6 @@ const AutoAssembly = () => {
         return;
       }
       
-      // Шаг 2: Сбор всех уникальных nmId
       const nmIdsSet = new Set<number>();
       
       for (const order of ordersData) {
@@ -129,17 +160,13 @@ const AutoAssembly = () => {
         return;
       }
       
-      // Шаг 3: Запрос карточек товаров по списку nmId
-      // Разбиваем на чанки по 100 nmId
       const nmIdChunks = [];
       for (let i = 0; i < uniqueNmIds.length; i += 100) {
         nmIdChunks.push(uniqueNmIds.slice(i, i + 100));
       }
       
-      // Карта для хранения информации о продуктах
       const productInfoMap: Record<number, ProductInfo> = {};
       
-      // Делаем запросы для каждого чанка
       for (const chunk of nmIdChunks) {
         try {
           const cardsResponse = await axios.post("https://content-api.wildberries.ru/content/v2/get/cards/list", {
@@ -159,10 +186,7 @@ const AutoAssembly = () => {
           
           if (cardsResponse.data && cardsResponse.data.data && Array.isArray(cardsResponse.data.data.cards)) {
             for (const card of cardsResponse.data.data.cards) {
-              // Определяем категорию товара
               const category = determineCategory(card.subjectName, card.name);
-              
-              // Получаем размер, если это одежда
               let size = undefined;
               if (category === ProductCategory.CLOTHING && card.sizes && card.sizes.length > 0) {
                 size = card.sizes[0].name || card.sizes[0].value;
@@ -181,9 +205,7 @@ const AutoAssembly = () => {
             }
           }
           
-          // Короткая пауза между запросами для избежания превышения лимитов API
           await new Promise(resolve => setTimeout(resolve, 100));
-          
         } catch (error) {
           console.error("Ошибка при запросе карточек товаров:", error);
           toast.error("Не удалось получить информацию о товарах");
@@ -192,17 +214,14 @@ const AutoAssembly = () => {
       
       console.log("Создана карта товаров:", productInfoMap);
       
-      // Формируем финальный результат
       const assemblyOrders: AssemblyOrder[] = [];
       
       for (const order of ordersData) {
         const products: ProductInfo[] = [];
         
         if (order.nmId && productInfoMap[order.nmId]) {
-          // Если nmId есть прямо в заказе
           products.push(productInfoMap[order.nmId]);
         } else if (order.skus && Array.isArray(order.skus)) {
-          // Если nmId в массиве skus
           for (const sku of order.skus) {
             if (sku.nmId && productInfoMap[sku.nmId]) {
               products.push(productInfoMap[sku.nmId]);
@@ -232,30 +251,24 @@ const AutoAssembly = () => {
     }
   };
 
-  // Обработка выбора заказа
-  const toggleOrderSelection = (orderId: string | number) => {
-    setOrders(prev => 
-      prev.map(order => 
-        order.orderId === orderId 
-          ? { ...order, selected: !order.selected } 
-          : order
-      )
+  const toggleOrderSelection = (orderId: number) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
     );
-    
-    setSelectedOrders(prev => {
-      const newSelection = new Set(prev);
-      if (newSelection.has(orderId)) {
-        newSelection.delete(orderId);
-      } else {
-        newSelection.add(orderId);
-      }
-      return newSelection;
-    });
+  };
+  
+  const toggleSelectAll = () => {
+    if (selectedOrders.length === filteredOrders.length) {
+      setSelectedOrders([]);
+    } else {
+      setSelectedOrders(filteredOrders.map(order => order.id));
+    }
   };
 
-  // Печать стикеров
   const handlePrintStickers = async () => {
-    if (selectedOrders.size === 0) return;
+    if (selectedOrders.length === 0) return;
     
     setProcessingAction(true);
     try {
@@ -271,7 +284,6 @@ const AutoAssembly = () => {
         }
       );
       
-      // Создаем ссылку для скачивания PDF
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -290,13 +302,11 @@ const AutoAssembly = () => {
     }
   };
 
-  // Создание поставки и добавление заказов
   const handleCreateSupply = async () => {
-    if (selectedOrders.size === 0) return;
+    if (selectedOrders.length === 0) return;
     
     setProcessingAction(true);
     try {
-      // Создаем поставку
       const currentDate = new Date().toLocaleDateString('ru-RU');
       const response = await axios.post("https://marketplace-api.wildberries.ru/api/v3/supplies", 
         { name: `Автосборка ${currentDate}` }, 
@@ -310,7 +320,6 @@ const AutoAssembly = () => {
       const supplyId = response.data.id;
       console.log("Создана поставка с ID:", supplyId);
       
-      // Добавляем заказы в поставку
       let successCount = 0;
       for (const orderId of selectedOrders) {
         try {
@@ -325,13 +334,11 @@ const AutoAssembly = () => {
         }
       }
       
-      // Обновляем список поставок
       loadSupplies();
       
-      // Обновляем список заказов после успешной обработки
       if (successCount > 0) {
         loadAssemblyOrders();
-        toast.success(`${successCount} из ${selectedOrders.size} заказов успешно добавлены в поставку`);
+        toast.success(`${successCount} из ${selectedOrders.length} заказов успешно добавлены в поставку`);
       } else {
         toast.error("Не удалось добавить заказы в поставку");
       }
@@ -343,6 +350,70 @@ const AutoAssembly = () => {
       setProcessingAction(false);
     }
   };
+
+  const handleSort = (key: keyof AssemblyOrder) => {
+    setSortConfig(config => ({
+      key,
+      direction: config.key === key && config.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+  
+  const filteredOrders = useMemo(() => {
+    return orders
+      .filter(order => {
+        if (filters.warehouseId && order.warehouseId !== filters.warehouseId.id) {
+          return false;
+        }
+        
+        if (filters.productCategory && order.category !== filters.productCategory) {
+          return false;
+        }
+        
+        if (filters.cargoType && order.cargoType !== filters.cargoType.id) {
+          return false;
+        }
+        
+        if (filters.searchQuery) {
+          const query = filters.searchQuery.toLowerCase();
+          const searchIn = [
+            order.productName,
+            order.supplierArticle,
+            order.id.toString(),
+            order.nmId?.toString(),
+            order.productInfo?.brand,
+            order.productInfo?.name
+          ].filter(Boolean).join(' ').toLowerCase();
+          
+          if (!searchIn.includes(query)) {
+            return false;
+          }
+        }
+        
+        return true;
+      })
+      .sort((a, b) => {
+        const key = sortConfig.key || 'createdAt';
+        const direction = sortConfig.direction === 'asc' ? 1 : -1;
+        
+        if (!a[key] && !b[key]) return 0;
+        if (!a[key]) return 1;
+        if (!b[key]) return -1;
+        
+        if (typeof a[key] === 'number' && typeof b[key] === 'number') {
+          return (a[key] as number - (b[key] as number)) * direction;
+        }
+        
+        if (typeof a[key] === 'string' && typeof b[key] === 'string') {
+          return (a[key] as string).localeCompare(b[key] as string) * direction;
+        }
+        
+        if (a[key] instanceof Date && b[key] instanceof Date) {
+          return ((a[key] as Date).getTime() - (b[key] as Date).getTime()) * direction;
+        }
+        
+        return 0;
+      });
+  }, [orders, sortConfig, filters]);
 
   return (
     <div className="container mx-auto py-6 max-w-7xl">
@@ -380,9 +451,17 @@ const AutoAssembly = () => {
         </TabsList>
         
         <TabsContent value="orders" className="space-y-4">
-          {selectedOrders.size > 0 && (
+          <CollapsibleFilters
+            warehouseOptions={warehouseOptions}
+            cargoTypeOptions={cargoTypeOptions}
+            onFilterChange={updateFilters}
+            activeFiltersCount={activeFiltersCount}
+            onResetFilters={resetAllFilters}
+          />
+
+          {selectedOrders.length > 0 && (
             <div className="p-4 flex flex-wrap items-center justify-between bg-muted/50 gap-2 rounded-lg mb-4">
-              <span>Выбрано заказов: <strong>{selectedOrders.size}</strong></span>
+              <span>Выбрано заказов: <strong>{selectedOrders.length}</strong></span>
               <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" onClick={handlePrintStickers} disabled={processingAction}>
                   {processingAction ? (
@@ -470,7 +549,6 @@ const AutoAssembly = () => {
   );
 };
 
-// Компонент карточки заказа
 const OrderCard = ({ 
   order, 
   selected, 
@@ -494,7 +572,7 @@ const OrderCard = ({
               </Badge>
             </CardTitle>
             <CardDescription>
-              Создан: {dateTime}
+              Созда��: {dateTime}
             </CardDescription>
           </div>
           <Button 
@@ -578,7 +656,6 @@ const OrderCard = ({
   );
 };
 
-// Скелетон для загрузки заказов
 const OrdersLoadingSkeleton = () => {
   return (
     <>
