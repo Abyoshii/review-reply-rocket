@@ -2,13 +2,15 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCcw, Truck, Package2 } from "lucide-react";
 import { toast } from "sonner";
 import { addAuthHeaders } from "@/lib/securityUtils";
 import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { determineCategory } from "@/lib/utils/categoryUtils";
+import { ProductCategory } from "@/types/wb";
 
 // Типы для данных
 interface AssemblyOrder {
@@ -19,6 +21,7 @@ interface AssemblyOrder {
   status?: string;
   address?: string;
   customerName?: string;
+  selected?: boolean;
 }
 
 interface ProductInfo {
@@ -28,36 +31,60 @@ interface ProductInfo {
   photo: string;
   name?: string;
   brand?: string;
-}
-
-interface ProductCardData {
-  nmID: number;
-  vendorCode: string;
-  article: string;
-  subjectName: string;
-  brand: string;
-  name: string;
-  photos: {
-    big: string;
-  }[];
+  category?: ProductCategory;
+  size?: string;
 }
 
 const AutoAssembly = () => {
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<AssemblyOrder[]>([]);
   const [selectedTab, setSelectedTab] = useState("orders");
+  const [selectedOrders, setSelectedOrders] = useState<Set<string | number>>(new Set());
+  const [supplies, setSupplies] = useState<{id: number, name: string}[]>([]);
+  const [processingAction, setProcessingAction] = useState(false);
 
   // Получение данных при загрузке страницы
   useEffect(() => {
     loadAssemblyOrders();
+    loadSupplies();
   }, []);
+
+  // Загрузка существующих поставок
+  const loadSupplies = async () => {
+    try {
+      const suppliesResponse = await axios.get("https://marketplace-api.wildberries.ru/api/v3/supplies", {
+        headers: addAuthHeaders(),
+        params: { limit: 100 }
+      });
+      
+      console.log("Полученные поставки:", suppliesResponse.data);
+      
+      let suppliesData = [];
+      
+      if (Array.isArray(suppliesResponse.data)) {
+        suppliesData = suppliesResponse.data.map(supply => ({
+          id: supply.id,
+          name: supply.name || `Поставка #${supply.id}`
+        }));
+      } else if (suppliesResponse.data && Array.isArray(suppliesResponse.data.supplies)) {
+        suppliesData = suppliesResponse.data.supplies.map(supply => ({
+          id: supply.id,
+          name: supply.name || `Поставка #${supply.id}`
+        }));
+      }
+      
+      setSupplies(suppliesData);
+    } catch (error) {
+      console.error("Ошибка при загрузке поставок:", error);
+    }
+  };
 
   // Загрузка сборочных заданий
   const loadAssemblyOrders = async () => {
     setLoading(true);
     try {
       // Шаг 1: Получение списка сборочных заданий
-      const ordersResponse = await axios.get("https://marketplace-api.wildberries.ru/api/v3/orders", {
+      const ordersResponse = await axios.get("https://marketplace-api.wildberries.ru/api/v3/orders/new", {
         headers: addAuthHeaders()
       });
       
@@ -81,7 +108,9 @@ const AutoAssembly = () => {
       const nmIdsSet = new Set<number>();
       
       for (const order of ordersData) {
-        if (order.skus && Array.isArray(order.skus)) {
+        if (order.nmId) {
+          nmIdsSet.add(order.nmId);
+        } else if (order.skus && Array.isArray(order.skus)) {
           order.skus.forEach((sku: any) => {
             if (sku.nmId) {
               nmIdsSet.add(sku.nmId);
@@ -130,13 +159,24 @@ const AutoAssembly = () => {
           
           if (cardsResponse.data && cardsResponse.data.data && Array.isArray(cardsResponse.data.data.cards)) {
             for (const card of cardsResponse.data.data.cards) {
+              // Определяем категорию товара
+              const category = determineCategory(card.subjectName, card.name);
+              
+              // Получаем размер, если это одежда
+              let size = undefined;
+              if (category === ProductCategory.CLOTHING && card.sizes && card.sizes.length > 0) {
+                size = card.sizes[0].name || card.sizes[0].value;
+              }
+              
               productInfoMap[card.nmID] = {
                 nmId: card.nmID,
                 article: card.article || card.vendorCode || "Нет артикула",
                 subjectName: card.subjectName || "Нет категории",
                 photo: card.photos && card.photos.length > 0 ? card.photos[0].big : "https://via.placeholder.com/150",
                 name: card.name,
-                brand: card.brand
+                brand: card.brand,
+                category,
+                size
               };
             }
           }
@@ -152,13 +192,17 @@ const AutoAssembly = () => {
       
       console.log("Создана карта товаров:", productInfoMap);
       
-      // Шаг 5: Формируем финальный результат
+      // Формируем финальный результат
       const assemblyOrders: AssemblyOrder[] = [];
       
       for (const order of ordersData) {
         const products: ProductInfo[] = [];
         
-        if (order.skus && Array.isArray(order.skus)) {
+        if (order.nmId && productInfoMap[order.nmId]) {
+          // Если nmId есть прямо в заказе
+          products.push(productInfoMap[order.nmId]);
+        } else if (order.skus && Array.isArray(order.skus)) {
+          // Если nmId в массиве skus
           for (const sku of order.skus) {
             if (sku.nmId && productInfoMap[sku.nmId]) {
               products.push(productInfoMap[sku.nmId]);
@@ -185,6 +229,118 @@ const AutoAssembly = () => {
       toast.error("Не удалось загрузить сборочные задания");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Обработка выбора заказа
+  const toggleOrderSelection = (orderId: string | number) => {
+    setOrders(prev => 
+      prev.map(order => 
+        order.orderId === orderId 
+          ? { ...order, selected: !order.selected } 
+          : order
+      )
+    );
+    
+    setSelectedOrders(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(orderId)) {
+        newSelection.delete(orderId);
+      } else {
+        newSelection.add(orderId);
+      }
+      return newSelection;
+    });
+  };
+
+  // Печать стикеров
+  const handlePrintStickers = async () => {
+    if (selectedOrders.size === 0) return;
+    
+    setProcessingAction(true);
+    try {
+      const orderIds = Array.from(selectedOrders);
+      const response = await axios.post("https://marketplace-api.wildberries.ru/api/v3/orders/stickers", 
+        {
+          orders: orderIds,
+          type: "pdf"
+        }, 
+        {
+          headers: addAuthHeaders(),
+          responseType: 'blob'
+        }
+      );
+      
+      // Создаем ссылку для скачивания PDF
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Стикеры_${new Date().toLocaleDateString()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast.success("Стикеры успешно созданы и загружены");
+    } catch (error) {
+      console.error("Ошибка при создании стикеров:", error);
+      toast.error("Не удалось создать и загрузить стикеры");
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Создание поставки и добавление заказов
+  const handleCreateSupply = async () => {
+    if (selectedOrders.size === 0) return;
+    
+    setProcessingAction(true);
+    try {
+      // Создаем поставку
+      const currentDate = new Date().toLocaleDateString('ru-RU');
+      const response = await axios.post("https://marketplace-api.wildberries.ru/api/v3/supplies", 
+        { name: `Автосборка ${currentDate}` }, 
+        { headers: addAuthHeaders() }
+      );
+      
+      if (!response.data || !response.data.id) {
+        throw new Error("API не вернуло ID поставки");
+      }
+      
+      const supplyId = response.data.id;
+      console.log("Создана поставка с ID:", supplyId);
+      
+      // Добавляем заказы в поставку
+      let successCount = 0;
+      for (const orderId of selectedOrders) {
+        try {
+          await axios.patch(
+            `https://marketplace-api.wildberries.ru/api/v3/supplies/${supplyId}/orders/${orderId}`, 
+            {}, 
+            { headers: addAuthHeaders() }
+          );
+          successCount++;
+        } catch (err) {
+          console.error(`Ошибка при добавлении заказа ${orderId} в поставку:`, err);
+        }
+      }
+      
+      // Обновляем список поставок
+      loadSupplies();
+      
+      // Обновляем список заказов после успешной обработки
+      if (successCount > 0) {
+        loadAssemblyOrders();
+        toast.success(`${successCount} из ${selectedOrders.size} заказов успешно добавлены в поставку`);
+      } else {
+        toast.error("Не удалось добавить заказы в поставку");
+      }
+      
+    } catch (error) {
+      console.error("Ошибка при создании поставки:", error);
+      toast.error("Не удалось создать поставку");
+    } finally {
+      setProcessingAction(false);
     }
   };
 
@@ -224,11 +380,41 @@ const AutoAssembly = () => {
         </TabsList>
         
         <TabsContent value="orders" className="space-y-4">
+          {selectedOrders.size > 0 && (
+            <div className="p-4 flex flex-wrap items-center justify-between bg-muted/50 gap-2 rounded-lg mb-4">
+              <span>Выбрано заказов: <strong>{selectedOrders.size}</strong></span>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" onClick={handlePrintStickers} disabled={processingAction}>
+                  {processingAction ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Package2 className="mr-2 h-4 w-4" />
+                  )}
+                  Распечатать стикеры
+                </Button>
+                
+                <Button onClick={handleCreateSupply} disabled={processingAction}>
+                  {processingAction ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Truck className="mr-2 h-4 w-4" />
+                  )}
+                  Создать поставку
+                </Button>
+              </div>
+            </div>
+          )}
+          
           {loading ? (
             <OrdersLoadingSkeleton />
           ) : orders.length > 0 ? (
             orders.map(order => (
-              <OrderCard key={order.orderId} order={order} />
+              <OrderCard 
+                key={order.orderId} 
+                order={order}
+                selected={order.selected}
+                onSelect={() => toggleOrderSelection(order.orderId)}
+              />
             ))
           ) : (
             <Card>
@@ -257,9 +443,25 @@ const AutoAssembly = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-center text-muted-foreground py-6">
-                Функциональность раздела "Поставки" будет добавлена в ближайшее время
-              </p>
+              {supplies.length > 0 ? (
+                <div className="space-y-4">
+                  {supplies.map(supply => (
+                    <div key={supply.id} className="p-4 border rounded-lg flex justify-between items-center">
+                      <div>
+                        <h3 className="font-medium">{supply.name}</h3>
+                        <p className="text-sm text-muted-foreground">ID поставки: {supply.id}</p>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        Управление
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-6">
+                  Нет активных поставок
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -269,11 +471,19 @@ const AutoAssembly = () => {
 };
 
 // Компонент карточки заказа
-const OrderCard = ({ order }: { order: AssemblyOrder }) => {
+const OrderCard = ({ 
+  order, 
+  selected, 
+  onSelect 
+}: { 
+  order: AssemblyOrder;
+  selected?: boolean;
+  onSelect: () => void;
+}) => {
   const dateTime = new Date(order.createdAt).toLocaleString('ru-RU');
   
   return (
-    <Card>
+    <Card className={`${selected ? 'border-purple-500 shadow-purple-100 dark:shadow-purple-900/20' : ''} transition-all duration-200`}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
@@ -287,7 +497,13 @@ const OrderCard = ({ order }: { order: AssemblyOrder }) => {
               Создан: {dateTime}
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm">Добавить в поставку</Button>
+          <Button 
+            variant={selected ? "default" : "outline"} 
+            size="sm"
+            onClick={onSelect}
+          >
+            {selected ? "Выбрано" : "Выбрать"}
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -316,7 +532,29 @@ const OrderCard = ({ order }: { order: AssemblyOrder }) => {
               <div className="flex-1">
                 <h4 className="font-medium">{product.name || `Товар ${product.article}`}</h4>
                 <p className="text-sm text-muted-foreground">Артикул: {product.article}</p>
-                <p className="text-xs text-muted-foreground">{product.subjectName}</p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  <Badge variant="outline" className="text-xs">
+                    {product.subjectName || "Нет категории"}
+                  </Badge>
+                  {product.brand && (
+                    <Badge variant="outline" className="text-xs">
+                      {product.brand}
+                    </Badge>
+                  )}
+                  {product.category === ProductCategory.CLOTHING && product.size && (
+                    <Badge variant="secondary" className="text-xs">
+                      Размер: {product.size}
+                    </Badge>
+                  )}
+                  {product.category && (
+                    <Badge className={`text-xs ${
+                      product.category === ProductCategory.PERFUME ? 'bg-pink-500' : 
+                      product.category === ProductCategory.CLOTHING ? 'bg-blue-500' : 'bg-gray-500'
+                    }`}>
+                      {product.category}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
           ))}
