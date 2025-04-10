@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +37,6 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     return null;
   };
   
-  // Helper to render sort button
   const renderSortButton = (key: keyof AssemblyOrder, label: string) => (
     <Button 
       variant="ghost" 
@@ -65,7 +63,6 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   };
 
   const getProductData = (order: AssemblyOrder) => {
-    // Проверяем информацию о продукте в products (основной источник)
     if (order.products && order.products.length > 0) {
       return {
         name: order.products[0].name || "Неизвестный товар",
@@ -75,17 +72,15 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
       };
     }
     
-    // Запасной вариант - проверяем информацию из productInfo
     if (order.productInfo) {
       return {
         name: order.productInfo.name || "Неизвестный товар",
         brand: order.productInfo.brand || "—",
-        article: order.productInfo.article || "—",
-        photo: order.productInfo.photo || "https://via.placeholder.com/50",
+        article: order.supplierArticle || "—",
+        photo: order.productInfo.image || "https://via.placeholder.com/50",
       };
     }
     
-    // Если нет ни products, ни productInfo, используем запасные данные
     return {
       name: order.productName || "Неизвестный товар",
       brand: "—",

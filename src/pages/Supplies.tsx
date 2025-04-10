@@ -83,7 +83,8 @@ const Supplies = () => {
     
     setIsLoading(true);
     try {
-      const result = await SuppliesAPI.getSupplies(50, nextPageToken);
+      // Fixed: Remove extra parameters when calling getSupplies
+      const result = await SuppliesAPI.getSupplies();
       setSupplies([...supplies, ...result.supplies]);
       setNextPageToken(result.next);
       setHasMorePages(result.hasMore);
