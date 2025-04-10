@@ -67,6 +67,34 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     return `№${orderId}`;
   };
 
+  // Получение основной информации о продукте из заказа
+  const getProductInfo = (order: AssemblyOrder) => {
+    // Первый приоритет - проверка массива products
+    if (order.products && order.products.length > 0) {
+      return order.products[0]; // Берем первый продукт из массива
+    }
+    
+    // Второй приоритет - проверка объекта productInfo
+    if (order.productInfo) {
+      return {
+        name: order.productInfo.name,
+        brand: order.productInfo.brand,
+        photo: order.productInfo.image,
+        article: order.supplierArticle,
+        nmId: order.nmId
+      };
+    }
+    
+    // Если нет ни products, ни productInfo - возвращаем базовую информацию
+    return {
+      name: order.productName || `Товар ID: ${order.nmId || order.id}`,
+      brand: undefined,
+      photo: "",
+      article: order.supplierArticle,
+      nmId: order.nmId
+    };
+  };
+
   return (
     <div className="relative overflow-x-auto rounded-lg border">
       <Table>
@@ -119,101 +147,106 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
               </TableCell>
             </TableRow>
           ) : (
-            filteredOrders.map(order => (
-              <TableRow key={order.id} className={`cursor-pointer hover:bg-muted/30 ${selectedOrders.includes(order.id) ? 'bg-muted/50' : ''}`}>
-                <TableCell>
-                  <Checkbox 
-                    checked={selectedOrders.includes(order.id)} 
-                    onCheckedChange={() => toggleOrderSelection(order.id)} 
-                  />
-                </TableCell>
-                
-                {/* Колонка с номером задания - новый дизайн */}
-                <TableCell className="align-top">
-                  <div className="flex flex-col">
-                    <div className="font-medium">
-                      {formatOrderId(order.id, order.orderUid)}
+            filteredOrders.map(order => {
+              // Получаем информацию о продукте для текущего заказа
+              const productInfo = getProductInfo(order);
+              
+              return (
+                <TableRow key={order.id} className={`cursor-pointer hover:bg-muted/30 ${selectedOrders.includes(order.id) ? 'bg-muted/50' : ''}`}>
+                  <TableCell>
+                    <Checkbox 
+                      checked={selectedOrders.includes(order.id)} 
+                      onCheckedChange={() => toggleOrderSelection(order.id)} 
+                    />
+                  </TableCell>
+                  
+                  {/* Колонка с номером задания - новый дизайн */}
+                  <TableCell className="align-top">
+                    <div className="flex flex-col">
+                      <div className="font-medium">
+                        {formatOrderId(order.id, order.orderUid)}
+                      </div>
+                      <div className="text-xs text-green-600 mt-1">
+                        Новый
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Создан: {new Date(order.createdAt).toLocaleString('ru-RU')}
+                      </div>
+                      <div className="mt-2">
+                        {order.cargoType && (
+                          <span className="inline-block">{renderCargoTypeBadge(order.cargoType)}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs text-green-600 mt-1">
-                      Новый
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Создан: {new Date(order.createdAt).toLocaleString('ru-RU')}
-                    </div>
-                    <div className="mt-2">
-                      {order.cargoType && (
-                        <span className="inline-block">{renderCargoTypeBadge(order.cargoType)}</span>
-                      )}
-                    </div>
-                  </div>
-                </TableCell>
-                
-                {/* Колонка с названием товара - обновленный дизайн */}
-                <TableCell>
-                  <div className="flex items-start gap-4">
-                    {/* Изображение товара */}
-                    <div className="w-16 h-16 relative flex-shrink-0 bg-gray-100 rounded overflow-hidden">
-                      {order.productInfo?.image ? (
-                        <img 
-                          src={order.productInfo.image} 
-                          alt={order.productInfo.name || 'Товар'} 
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-muted flex items-center justify-center rounded-md">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => order.nmId && handleRetryProductInfo(order.nmId)}
-                                >
-                                  <ImageOff className="h-4 w-4 text-muted-foreground" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Загрузить изображение товара</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                  </TableCell>
+                  
+                  {/* Колонка с названием товара - обновленный дизайн с учетом продуктов из массива */}
+                  <TableCell>
+                    <div className="flex items-start gap-4">
+                      {/* Изображение товара */}
+                      <div className="w-16 h-16 relative flex-shrink-0 bg-gray-100 rounded overflow-hidden">
+                        {productInfo.photo ? (
+                          <img 
+                            src={productInfo.photo} 
+                            alt={productInfo.name || 'Товар'} 
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-muted flex items-center justify-center rounded-md">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => productInfo.nmId && handleRetryProductInfo(productInfo.nmId)}
+                                  >
+                                    <ImageOff className="h-4 w-4 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Загрузить изображение товара</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Информация о товаре - обновленный дизайн с учетом продуктов из массива */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-lg">
+                          {productInfo.name}
                         </div>
-                      )}
-                    </div>
-                    
-                    {/* Информация о товаре - обновленный дизайн */}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-lg">
-                        {order.productInfo?.name || order.productName || `Товар ID: ${order.nmId || order.id}`}
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                        {order.productInfo?.brand && (
-                          <span>{order.productInfo.brand}</span>
-                        )}
-                        {order.productInfo?.brand && order.supplierArticle && (
-                          <span className="mx-1">•</span>
-                        )}
-                        {order.supplierArticle && (
-                          <span>Арт: {order.supplierArticle}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center text-xs text-green-600 mt-2">
-                        <Clock className="h-3 w-3 mr-1" />
-                        <span>{formatTimeAgo(order.createdAt)}</span>
+                        <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                          {productInfo.brand && (
+                            <span>{productInfo.brand}</span>
+                          )}
+                          {productInfo.brand && productInfo.article && (
+                            <span className="mx-1">•</span>
+                          )}
+                          {productInfo.article && (
+                            <span>Арт: {productInfo.article}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center text-xs text-green-600 mt-2">
+                          <Clock className="h-3 w-3 mr-1" />
+                          <span>{formatTimeAgo(order.createdAt)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </TableCell>
-                
-                {/* Колонка с ценой */}
-                <TableCell className="text-right">
-                  <div className="font-bold">{formatPrice(order.salePrice)} ₽</div>
-                  {order.price !== order.salePrice && (
-                    <div className="text-sm text-muted-foreground line-through">{formatPrice(order.price)} ₽</div>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))
+                  </TableCell>
+                  
+                  {/* Колонка с ценой */}
+                  <TableCell className="text-right">
+                    <div className="font-bold">{formatPrice(order.salePrice)} ₽</div>
+                    {order.price !== order.salePrice && (
+                      <div className="text-sm text-muted-foreground line-through">{formatPrice(order.price)} ₽</div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
