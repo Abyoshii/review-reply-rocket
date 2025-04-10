@@ -122,7 +122,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                 {/* Колонка с номером задания и датой - новый дизайн */}
                 <TableCell>
                   <div className="flex flex-col">
-                    <div className="font-medium text-black">{order.id}</div>
+                    <div className="font-medium text-black">#{order.id}</div>
                     <div className="text-xs text-muted-foreground">от {new Date(order.createdAt).toLocaleDateString('ru-RU')}</div>
                     <div className="flex items-center text-xs text-green-600 mt-1">
                       <Clock className="h-3 w-3 mr-1" />
@@ -134,7 +134,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                   </div>
                 </TableCell>
                 
-                {/* Колонка с названием товара - новый дизайн */}
+                {/* Колонка с названием товара - обновленный дизайн */}
                 <TableCell>
                   <div className="flex items-center gap-4">
                     {/* Изображение товара */}
@@ -167,7 +167,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                       )}
                     </div>
                     
-                    {/* Информация о товаре - новый дизайн */}
+                    {/* Информация о товаре - обновленный дизайн */}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-blue-600 truncate">
                         {order.productInfo?.name || order.productName || `Товар ID: ${order.nmId || order.id}`}

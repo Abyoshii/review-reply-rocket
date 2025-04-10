@@ -245,6 +245,18 @@ export interface ProductCardInfo {
   size?: string;
 }
 
+// Interface for product info in an assembly order
+export interface ProductInfo {
+  nmId: number;
+  article: string;
+  subjectName: string;
+  photo: string;
+  name: string;
+  brand?: string;
+  category?: ProductCategory;
+  size?: string;
+}
+
 // Типы для заказов автосборки
 export interface AssemblyOrder {
   id: number;
@@ -350,16 +362,4 @@ export interface ProductCardData {
 export interface SortConfig {
   key: keyof AssemblyOrder | null;
   direction: 'asc' | 'desc' | null;
-}
-
-// Interface for product info in an assembly order
-export interface ProductInfo {
-  nmId: number;
-  article: string;
-  subjectName: string;
-  photo: string;
-  name: string;
-  brand?: string;
-  category?: ProductCategory;
-  size?: string;
 }

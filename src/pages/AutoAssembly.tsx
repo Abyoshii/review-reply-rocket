@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { determineCategory, shouldShowSize, formatSize } from "@/lib/utils/categoryUtils";
-import { ProductCategory, AssemblyOrder, SortConfig, WarehouseFilter, CargoTypeFilter } from "@/types/wb";
+import { ProductCategory, AssemblyOrder, SortConfig, WarehouseFilter, CargoTypeFilter, ProductInfo } from "@/types/wb";
 import OrdersTable from "@/components/autoAssembly/OrdersTable";
 import CollapsibleFilters from "@/components/autoAssembly/CollapsibleFilters";
 
@@ -230,9 +231,11 @@ const AutoAssembly = () => {
         }
         
         assemblyOrders.push({
-          orderId: order.orderId || order.id,
+          id: order.orderId || order.id,
           orderUid: order.orderUid || order.rid || `${order.orderId}`,
           createdAt: order.createdAt || new Date().toISOString(),
+          price: order.price || 0,
+          salePrice: order.salePrice || 0,
           products,
           status: order.status || "new",
           address: order.address?.addressString,
@@ -486,30 +489,17 @@ const AutoAssembly = () => {
           
           {loading ? (
             <OrdersLoadingSkeleton />
-          ) : orders.length > 0 ? (
-            orders.map(order => (
-              <OrderCard 
-                key={order.orderId} 
-                order={order}
-                selected={order.selected}
-                onSelect={() => toggleOrderSelection(order.orderId)}
-              />
-            ))
           ) : (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">Нет заказов для отображения</p>
-                  <Button 
-                    onClick={loadAssemblyOrders}
-                    variant="outline" 
-                    className="mt-4"
-                  >
-                    Загрузить заказы
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <OrdersTable
+              filteredOrders={filteredOrders}
+              isLoading={loading}
+              selectedOrders={selectedOrders}
+              toggleOrderSelection={toggleOrderSelection}
+              toggleSelectAll={toggleSelectAll}
+              allSelected={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
+              sortConfig={sortConfig}
+              handleSort={handleSort}
+            />
           )}
         </TabsContent>
         
@@ -546,113 +536,6 @@ const AutoAssembly = () => {
         </TabsContent>
       </Tabs>
     </div>
-  );
-};
-
-const OrderCard = ({ 
-  order, 
-  selected, 
-  onSelect 
-}: { 
-  order: AssemblyOrder;
-  selected?: boolean;
-  onSelect: () => void;
-}) => {
-  const dateTime = new Date(order.createdAt).toLocaleString('ru-RU');
-  
-  return (
-    <Card className={`${selected ? 'border-purple-500 shadow-purple-100 dark:shadow-purple-900/20' : ''} transition-all duration-200`}>
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              Заказ №{order.orderUid}
-              <Badge variant={order.status === "new" ? "default" : "outline"}>
-                {order.status === "new" ? "Новый" : "В обработке"}
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              Созда��: {dateTime}
-            </CardDescription>
-          </div>
-          <Button 
-            variant={selected ? "default" : "outline"} 
-            size="sm"
-            onClick={onSelect}
-          >
-            {selected ? "Выбрано" : "Выбрать"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {order.products.map((product) => (
-            <div 
-              key={product.nmId} 
-              className="flex gap-4 items-center p-2 border rounded-md"
-            >
-              <div className="w-16 h-16 overflow-hidden rounded">
-                {product.photo ? (
-                  <img 
-                    src={product.photo} 
-                    alt={product.name || product.article} 
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://via.placeholder.com/150";
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                    <span className="text-xs text-gray-400">Нет фото</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <h4 className="font-medium">{product.name || `Товар ${product.article}`}</h4>
-                <p className="text-sm text-muted-foreground">Артикул: {product.article}</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <Badge variant="outline" className="text-xs">
-                    {product.subjectName || "Нет категории"}
-                  </Badge>
-                  {product.brand && (
-                    <Badge variant="outline" className="text-xs">
-                      {product.brand}
-                    </Badge>
-                  )}
-                  {product.category === ProductCategory.CLOTHING && product.size && (
-                    <Badge variant="secondary" className="text-xs">
-                      Размер: {product.size}
-                    </Badge>
-                  )}
-                  {product.category && (
-                    <Badge className={`text-xs ${
-                      product.category === ProductCategory.PERFUME ? 'bg-pink-500' : 
-                      product.category === ProductCategory.CLOTHING ? 'bg-blue-500' : 'bg-gray-500'
-                    }`}>
-                      {product.category}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-          
-          {order.address && (
-            <div className="mt-4 text-sm">
-              <span className="font-medium">Адрес: </span>
-              <span className="text-muted-foreground">{order.address}</span>
-            </div>
-          )}
-          
-          {order.customerName && (
-            <div className="text-sm">
-              <span className="font-medium">Получатель: </span>
-              <span className="text-muted-foreground">{order.customerName}</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 };
 
