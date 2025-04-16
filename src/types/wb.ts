@@ -238,7 +238,7 @@ export enum ProductCategory {
 export interface ProductCardInfo {
   nmId: number;
   name: string;
-  brand: string;
+  brand: string; // This is required
   image: string;
   category?: string; 
   productCategory?: ProductCategory;
@@ -252,11 +252,11 @@ export interface ProductInfo {
   subjectName: string;
   photo: string;
   name: string;
-  brand?: string;
+  brand: string; // Now required to match ProductCardInfo
   category?: ProductCategory;
   size?: string;
-  productCategory?: ProductCategory; // Добавлено для совместимости с ProductCardInfo
-  image?: string; // Добавляем поле image для совместимости с ProductCardInfo
+  productCategory?: ProductCategory;
+  image?: string;
 }
 
 // Типы для заказов автосборки

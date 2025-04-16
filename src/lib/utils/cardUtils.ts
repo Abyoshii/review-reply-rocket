@@ -1,3 +1,4 @@
+
 import axios from "axios";
 import { addAuthHeaders } from "@/lib/securityUtils";
 import { ProductCardInfo, ProductInfo, ProductCategory } from "@/types/wb";
@@ -66,9 +67,9 @@ export const getCardsByNmIds = async (nmIds: number[]): Promise<Map<number, Prod
             article: card.article || card.vendorCode || "Нет артикула",
             subjectName: card.subjectName || "Нет категории",
             photo: photoUrl,
-            image: photoUrl, // Добавляем поле image с тем же значением, что и photo
+            image: photoUrl, // Поле image с тем же значением, что и photo
             name: card.name || "Неизвестный товар",
-            brand: card.brand || "—",
+            brand: card.brand || "—", // Убедимся, что бренд всегда имеет значение
             category,
             size,
             productCategory: category
