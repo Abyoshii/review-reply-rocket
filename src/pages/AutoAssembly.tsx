@@ -12,6 +12,7 @@ import { determineCategory, shouldShowSize, formatSize } from "@/lib/utils/categ
 import { ProductCategory, AssemblyOrder, SortConfig, WarehouseFilter, CargoTypeFilter, ProductInfo } from "@/types/wb";
 import OrdersTable from "@/components/autoAssembly/OrdersTable";
 import CollapsibleFilters from "@/components/autoAssembly/CollapsibleFilters";
+import { getCardsByNmIds, mapToRecord } from "@/lib/utils/cardUtils";
 
 const AutoAssembly = () => {
   const [loading, setLoading] = useState(false);
@@ -159,71 +160,22 @@ const AutoAssembly = () => {
         return;
       }
       
-      const nmIdChunks = [];
-      for (let i = 0; i < uniqueNmIds.length; i += 100) {
-        nmIdChunks.push(uniqueNmIds.slice(i, i + 100));
-      }
+      const productInfoMap = await getCardsByNmIds(uniqueNmIds);
+      console.log(`Получена информация о ${productInfoMap.size} товарах`);
       
-      const productInfoMap: Record<number, ProductInfo> = {};
-      
-      for (const chunk of nmIdChunks) {
-        try {
-          const cardsResponse = await axios.post("https://content-api.wildberries.ru/content/v2/get/cards/list", {
-            settings: {
-              cursor: {
-                limit: 100
-              },
-              filter: {
-                nmID: chunk
-              }
-            }
-          }, {
-            headers: addAuthHeaders()
-          });
-          
-          console.log("Получены карточки товаров:", cardsResponse.data);
-          
-          if (cardsResponse.data && cardsResponse.data.data && Array.isArray(cardsResponse.data.data.cards)) {
-            for (const card of cardsResponse.data.data.cards) {
-              const category = determineCategory(card.subjectName, card.name);
-              let size = undefined;
-              if (category === ProductCategory.CLOTHING && card.sizes && card.sizes.length > 0) {
-                size = card.sizes[0].name || card.sizes[0].value;
-              }
-              
-              productInfoMap[card.nmID] = {
-                nmId: card.nmID,
-                article: card.article || card.vendorCode || "Нет артикула",
-                subjectName: card.subjectName || "Нет категории",
-                photo: card.photos && card.photos.length > 0 ? card.photos[0].big : "https://via.placeholder.com/150",
-                name: card.name,
-                brand: card.brand,
-                category,
-                size
-              };
-            }
-          }
-          
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-          console.error("Ошибка при запросе карточек товаров:", error);
-          toast.error("Не удалось получить информацию о товарах");
-        }
-      }
-      
-      console.log("Создана карта товаров:", productInfoMap);
+      const productInfoRecord = mapToRecord(productInfoMap);
       
       const assemblyOrders: AssemblyOrder[] = [];
       
       for (const order of ordersData) {
         const products: ProductInfo[] = [];
         
-        if (order.nmId && productInfoMap[order.nmId]) {
-          products.push(productInfoMap[order.nmId]);
+        if (order.nmId && productInfoMap.has(order.nmId)) {
+          products.push(productInfoMap.get(order.nmId)!);
         } else if (order.skus && Array.isArray(order.skus)) {
           for (const sku of order.skus) {
-            if (sku.nmId && productInfoMap[sku.nmId]) {
-              products.push(productInfoMap[sku.nmId]);
+            if (sku.nmId && productInfoMap.has(sku.nmId)) {
+              products.push(productInfoMap.get(sku.nmId)!);
             }
           }
         }
@@ -237,7 +189,10 @@ const AutoAssembly = () => {
           products,
           status: order.status || "new",
           address: order.address?.addressString,
-          customerName: order.user?.fio || "Клиент"
+          customerName: order.user?.fio || "Клиент",
+          productName: products[0]?.name || order.name || "Неизвестный товар",
+          productInfo: products[0],
+          supplierArticle: products[0]?.article || order.article || ""
         });
       }
       

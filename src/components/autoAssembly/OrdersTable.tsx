@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -63,29 +64,12 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   };
 
   const getProductData = (order: AssemblyOrder) => {
-    if (order.products && order.products.length > 0) {
-      return {
-        name: order.products[0].name || "Неизвестный товар",
-        brand: order.products[0].brand || "—",
-        article: order.products[0].article || "—",
-        photo: order.products[0].photo || "https://via.placeholder.com/50",
-      };
-    }
-    
-    if (order.productInfo) {
-      return {
-        name: order.productInfo.name || "Неизвестный товар",
-        brand: order.productInfo.brand || "—",
-        article: order.supplierArticle || "—",
-        photo: order.productInfo.image || "https://via.placeholder.com/50",
-      };
-    }
-    
     return {
-      name: order.productName || "Неизвестный товар",
-      brand: "—",
-      article: order.supplierArticle || "—",
-      photo: "https://via.placeholder.com/50",
+      // Объединяем данные из разных источников с правильным приоритетом
+      name: order.products?.[0]?.name || order.productInfo?.name || order.productName || "Неизвестный товар",
+      brand: order.products?.[0]?.brand || order.productInfo?.brand || "—",
+      article: order.products?.[0]?.article || order.supplierArticle || "—",
+      photo: order.products?.[0]?.photo || order.productInfo?.image || "https://via.placeholder.com/50",
     };
   };
 
