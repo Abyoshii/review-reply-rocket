@@ -46,6 +46,7 @@ export const getCardsByNmIds = async (nmIds: number[]): Promise<Map<number, Prod
       });
       
       console.log(`Получено ${cardsResponse.data?.cards?.length || 0} карточек для чанка из ${chunk.length} nmIds`);
+      console.log("Ответ API:", JSON.stringify(cardsResponse.data, null, 2).substring(0, 500) + "...");
       
       // Исправлен путь до карточек: cardsResponse.data.cards вместо cardsResponse.data.data.cards
       if (cardsResponse.data && Array.isArray(cardsResponse.data.cards)) {
@@ -64,7 +65,6 @@ export const getCardsByNmIds = async (nmIds: number[]): Promise<Map<number, Prod
             article: card.article || card.vendorCode || "Нет артикула",
             subjectName: card.subjectName || "Нет категории",
             photo: card.photos && card.photos.length > 0 ? card.photos[0].big : "https://via.placeholder.com/150",
-            image: card.photos && card.photos.length > 0 ? card.photos[0].big : "https://via.placeholder.com/150",
             name: card.name || "Неизвестный товар",
             brand: card.brand || "—",
             category,
@@ -104,4 +104,3 @@ export const validateProductCard = (card: ProductInfo | ProductCardInfo | null):
   if (!card) return false;
   return Boolean(card.name && card.nmId);
 };
-

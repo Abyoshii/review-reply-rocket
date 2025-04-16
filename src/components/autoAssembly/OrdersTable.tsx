@@ -73,6 +73,11 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     };
   };
 
+  // Форматирование цены с делением на 100
+  const formatPrice = (price: number) => {
+    return (price / 100).toFixed(2);
+  };
+
   if (filteredOrders.length === 0) {
     return (
       <div className="text-center py-10 border rounded-lg bg-muted/30">
@@ -157,9 +162,9 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="font-medium">{order.price} ₽</div>
+                  <div className="font-medium">{formatPrice(order.price)} ₽</div>
                   {order.salePrice !== order.price && (
-                    <div className="text-sm text-muted-foreground line-through">{order.salePrice} ₽</div>
+                    <div className="text-sm text-muted-foreground line-through">{formatPrice(order.salePrice)} ₽</div>
                   )}
                 </TableCell>
               </TableRow>
