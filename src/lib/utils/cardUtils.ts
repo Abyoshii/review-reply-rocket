@@ -67,7 +67,7 @@ export const getCardsByNmIds = async (nmIds: number[]): Promise<Map<number, Prod
             article: card.article || card.vendorCode || "Нет артикула",
             subjectName: card.subjectName || "Нет категории",
             photo: photoUrl,
-            image: photoUrl, // Поле image с тем же значением, что и photo
+            image: photoUrl, // Поле image теперь обязательное, не опциональное
             name: card.name || "Неизвестный товар",
             brand: card.brand || "—", // Убедимся, что бренд всегда имеет значение
             category,
