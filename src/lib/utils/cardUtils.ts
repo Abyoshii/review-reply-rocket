@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { addAuthHeaders } from "@/lib/securityUtils";
 import { ProductCardInfo, ProductInfo, ProductCategory } from "@/types/wb";
@@ -60,11 +59,14 @@ export const getCardsByNmIds = async (nmIds: number[]): Promise<Map<number, Prod
             size = card.sizes[0].name || card.sizes[0].value;
           }
           
+          const photoUrl = card.photos && card.photos.length > 0 ? card.photos[0].big : "https://via.placeholder.com/150";
+          
           productInfoMap.set(card.nmID, {
             nmId: card.nmID,
             article: card.article || card.vendorCode || "Нет артикула",
             subjectName: card.subjectName || "Нет категории",
-            photo: card.photos && card.photos.length > 0 ? card.photos[0].big : "https://via.placeholder.com/150",
+            photo: photoUrl,
+            image: photoUrl, // Добавляем поле image с тем же значением, что и photo
             name: card.name || "Неизвестный товар",
             brand: card.brand || "—",
             category,

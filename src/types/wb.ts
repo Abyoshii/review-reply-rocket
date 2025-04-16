@@ -256,6 +256,7 @@ export interface ProductInfo {
   category?: ProductCategory;
   size?: string;
   productCategory?: ProductCategory; // Добавлено для совместимости с ProductCardInfo
+  image?: string; // Добавляем поле image для совместимости с ProductCardInfo
 }
 
 // Типы для заказов автосборки
