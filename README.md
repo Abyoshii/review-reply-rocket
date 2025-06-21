@@ -1,73 +1,120 @@
-# Welcome to your Lovable project
 
-## Project info
+# Asterion WB - Система автоматизации Wildberries
 
-**URL**: https://lovable.dev/projects/81d1f709-d781-402f-8a1a-97a0ab4e2f82
+## О проекте
 
-## How can I edit this code?
+**Asterion WB** — это веб-приложение для автоматизации работы с маркетплейсом Wildberries, разработанное в рамках производственной практики. Система предназначена для упрощения и автоматизации рутинных операций продавцов на платформе Wildberries.
 
-There are several ways of editing your application.
+## Основные возможности
 
-**Use Lovable**
+### 🎯 Автоматизация отзывов и вопросов
+- Автоматические ответы на отзывы покупателей с использованием ИИ
+- Обработка вопросов клиентов
+- Массовая генерация ответов
+- Настраиваемые шаблоны и тон общения
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/81d1f709-d781-402f-8a1a-97a0ab4e2f82) and start prompting.
+### 📦 Управление заказами и поставками  
+- Автоматическая сборка заказов (FBS)
+- Создание и управление поставками
+- Печать стикеров и этикеток
+- Фильтрация и сортировка заказов
 
-Changes made via Lovable will be committed automatically to this repo.
+### ⚙️ Гибкие настройки
+- Интеграция с API Wildberries
+- Настройка OpenAI для генерации ответов
+- Сохранение пользовательских настроек
+- Система резервного копирования
 
-**Use your preferred IDE**
+## Технологический стек
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Проект построен с использованием современных веб-технологий:
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Vite** — сборщик и dev-сервер
+- **TypeScript** — типизированный JavaScript
+- **React** — пользовательский интерфейс
+- **shadcn-ui** — компоненты UI
+- **Tailwind CSS** — стилизация
+- **React Query** — управление состоянием и кэширование
+- **Axios** — HTTP-клиент для API
 
-Follow these steps:
+## Быстрый старт
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+```bash
+# Клонирование репозитория
+git clone https://github.com/your-org/asterion-wb.git
+cd asterion-wb
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Установка зависимостей
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Запуск в режиме разработки
+npm run dev
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Сборка для продакшн
+npm run build
+```
+
+После запуска приложение будет доступно по адресу: `http://localhost:5173`
+
+## Документация
+
+Полная документация находится в папке `/docs/`:
+
+- 📋 [**INSTALL.md**](./docs/INSTALL.md) — Руководство по установке и настройке
+- 👥 [**OPERATOR_MANUAL.md**](./docs/OPERATOR_MANUAL.md) — Инструкции для пользователей
+- 💾 [**BACKUP_GUIDE.md**](./docs/BACKUP_GUIDE.md) — Резервное копирование
+- 🔌 [**API_REFERENCE.md**](./docs/API_REFERENCE.md) — Справочник API
+
+## Настройка API
+
+Для работы системы необходимы API-ключи:
+
+1. **Wildberries API** — для доступа к данным маркетплейса
+2. **OpenAI API** — для автоматической генерации ответов
+
+Подробные инструкции по получению и настройке ключей см. в [документации по установке](./docs/INSTALL.md).
+
+## Производственная практика
+
+Данный проект был разработан в рамках производственной практики и демонстрирует:
+
+- Интеграцию с внешними API (Wildberries, OpenAI)
+- Современные подходы к разработке веб-приложений
+- Работу с большими объемами данных
+- Автоматизацию бизнес-процессов
+- Создание удобного пользовательского интерфейса
+
+## Развертывание
+
+### Локальная разработка
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Продакшн
+```bash
+npm run build
+npm run preview
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Облачное развертывание
+Проект оптимизирован для развертывания на платформах:
+- Vercel
+- Netlify  
+- GitHub Pages
+- Любой статический хостинг
 
-**Use GitHub Codespaces**
+## Лицензия
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Проект разработан в образовательных целях в рамках производственной практики.
 
-## What technologies are used for this project?
+## Поддержка
 
-This project is built with:
+При возникновении вопросов или проблем:
+1. Изучите документацию в папке `/docs/`
+2. Проверьте раздел FAQ в руководстве оператора
+3. Создайте issue в GitHub репозитории
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/81d1f709-d781-402f-8a1a-97a0ab4e2f82) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes it is!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+*Разработано в рамках производственной практики для автоматизации работы с маркетплейсом Wildberries*
