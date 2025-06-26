@@ -58,6 +58,18 @@ const AutoResponseSettings = ({
     }
   }, []);
 
+  useEffect(() => {
+    // Auto-save settings when they change
+    try {
+      localStorage.setItem(
+        "auto_response_settings",
+        JSON.stringify({ settings, interval: checkInterval })
+      );
+    } catch (e) {
+      console.error("Failed to auto-save auto response settings", e);
+    }
+  }, [settings, checkInterval]);
+
   const handleSaveSettings = () => {
     try {
       localStorage.setItem("auto_response_settings", JSON.stringify({
