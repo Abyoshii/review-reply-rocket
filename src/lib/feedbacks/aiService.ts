@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { toast } from "sonner";
 import { 
@@ -8,8 +7,8 @@ import {
   ReviewRatingType
 } from "@/types/openai";
 
-// API Key для OpenAI
-const DEFAULT_OPENAI_API_KEY = "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";
+// API Key для OpenAI (обновленный)
+const DEFAULT_OPENAI_API_KEY = "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";
 
 // OpenAI API URL
 const OPENAI_API_BASE_URL = "https://api.openai.com/v1/chat/completions";

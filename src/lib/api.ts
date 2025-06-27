@@ -1,4 +1,3 @@
-
 import axios from "axios";
 import { 
   GenerateAnswerRequest, 
@@ -12,7 +11,7 @@ import { FeedbacksService } from "./feedbacks";
 
 // Единый токен для всех API (обновленный)
 const UNIFIED_WB_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwMjE3djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTc1OTU3ODUyNSwiaWQiOiIwMTk2MDMzNC1mYjA2LTc0ZjUtOGIwMC03MjU4YWI4OWM1MzAiLCJpaWQiOjUwMTA5MjcwLCJvaWQiOjY3NzYzMiwicyI6NzkzNCwic2lkIjoiZTZhYzY2MDQtMWQyMS00MTVjLTkwNWQtM2RjMGM0YThmMmJlIiwidCI6ZmFsc2UsInVpZCI6NTAxMDkyNzB9.e8n-W4xKLY9lpMANMRP4_0xZzKHL8gKAUeaXOkcxO6sLSUWHf_vTCGF5IoBceu5o6Dbj3K9Cu7CCbgRC07myPg";
-const DEFAULT_OPENAI_API_KEY = "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";
+const DEFAULT_OPENAI_API_KEY = "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";
 
 // Получение токена WB из localStorage или использование единого токена
 const getWbToken = (): string => {
