@@ -8,7 +8,7 @@ import {
 } from "@/types/openai";
 
 // API Key для OpenAI (обновленный)
-const DEFAULT_OPENAI_API_KEY = "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";
+const DEFAULT_OPENAI_API_KEY = "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";
 
 // OpenAI API URL
 const OPENAI_API_BASE_URL = "https://api.openai.com/v1/chat/completions";
